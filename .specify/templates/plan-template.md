@@ -31,7 +31,18 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- [ ] **Monorepo boundaries**: Identify which `apps/` and/or `packages/` are touched; avoid cross-boundary
+      internal imports.
+- [ ] **Contracts at boundaries**: List external boundaries (HTTP/files/LLM/etc.) and how they’re validated
+      (schema/typing strategy).
+- [ ] **TDD plan**: List the tests you will write first (unit/integration/e2e) and where they live.
+- [ ] **Security & privacy**: Note threat/risk areas (auth, exports/imports, LLM usage); confirm no secrets
+      or sensitive data leakage.
+- [ ] **Dependency hygiene**: New deps justified; runtimes are supported (no EOL); lockfiles/pinning in
+      place; plan for keeping deps current.
+- [ ] **Quality gates**: lint/format/typecheck/test suite will run in CI for all changed packages.
+- [ ] **Coverage gate**: CI will enforce **≥ 80%** coverage for the changed project(s); note what’s
+      included/excluded (generated code, fixtures, etc.).
 
 ## Project Structure
 

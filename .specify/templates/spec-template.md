@@ -100,6 +100,31 @@
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
+## Security & Privacy Considerations *(mandatory)*
+
+<!--
+  ACTION REQUIRED: Treat this as part of requirements, not an afterthought.
+  The goal is to make security and privacy testable and reviewable.
+-->
+
+- **Data classification**: [What data is handled? Any sensitive/regulated data?]
+- **Threats & mitigations**: [XSS/CSRF/injection/authz bypass/SSRF/etc. as relevant]
+- **Secrets**: [How are secrets handled? Confirm none are committed/logged]
+- **LLM usage (if any)**:
+  - **What is sent**: [exact fields/content]
+  - **Provider risk**: [allowlist/retention]
+  - **Prompt injection defense**: [validation, sandboxing, tool call constraints]
+
+## Dependency & Runtime Considerations *(mandatory for code changes)*
+
+<!--
+  ACTION REQUIRED: The constitution requires staying on supported runtimes and keeping deps current.
+-->
+
+- **Runtime targets**: [e.g., Node LTS, Python latest stable - confirm no EOL]
+- **New dependencies**: [List + justification + maintenance status]
+- **Upgrade plan**: [How will this stay current? automation, cadence, ownership]
+
 ## Success Criteria *(mandatory)*
 
 <!--
