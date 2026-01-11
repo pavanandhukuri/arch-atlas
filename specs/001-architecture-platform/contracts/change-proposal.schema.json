@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arch-atlas.local/schemas/change-proposal.schema.json",
+  "title": "Arch Atlas Change Proposal (MVP)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "summary", "changes"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string" },
+    "changes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Change" }
+    }
+  },
+  "$defs": {
+    "Change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "targetType", "targetId"],
+      "properties": {
+        "op": { "type": "string", "enum": ["add", "update", "delete"] },
+        "targetType": { "type": "string", "enum": ["element", "relationship", "constraint", "view"] },
+        "targetId": { "type": "string", "minLength": 1 },
+        "value": { "type": "object" }
+      }
+    }
+  }
+}
+

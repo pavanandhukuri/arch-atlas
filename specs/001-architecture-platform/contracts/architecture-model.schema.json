@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arch-atlas.local/schemas/architecture-model.schema.json",
+  "title": "Arch Atlas Architecture Model (MVP)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "metadata", "elements", "relationships", "views"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "description": "Strict import/export schema version. Unknown versions MUST be rejected."
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title"],
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "elements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Element" }
+    },
+    "relationships": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Relationship" }
+    },
+    "constraints": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Constraint" }
+    },
+    "views": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/View" }
+    }
+  },
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ElementKind": {
+      "type": "string",
+      "enum": ["landscape", "system", "container", "component", "code"]
+    },
+    "ViewLevel": {
+      "type": "string",
+      "enum": ["landscape", "system", "container", "component", "code"]
+    },
+    "CodeReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "ref"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["module", "file", "symbol"] },
+        "ref": { "type": "string", "minLength": 1 },
+        "repoHint": { "type": "string" }
+      }
+    },
+    "Element": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "name"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "kind": { "$ref": "#/$defs/ElementKind" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "parentId": { "$ref": "#/$defs/Id" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "attributes": { "type": "object" },
+        "codeRef": { "$ref": "#/$defs/CodeReference" }
+      }
+    },
+    "Relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sourceId", "targetId", "type"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "sourceId": { "$ref": "#/$defs/Id" },
+        "targetId": { "$ref": "#/$defs/Id" },
+        "type": { "type": "string", "minLength": 1 },
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Constraint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "scope", "severity"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "type": { "type": "string", "minLength": 1 },
+        "scope": { "type": "object" },
+        "parameters": { "type": "object" },
+        "severity": { "type": "string", "enum": ["error", "warning"] }
+      }
+    },
+    "LayoutNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["elementId", "x", "y"],
+      "properties": {
+        "elementId": { "$ref": "#/$defs/Id" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "w": { "type": "number" },
+        "h": { "type": "number" },
+        "collapsed": { "type": "boolean" }
+      }
+    },
+    "LayoutEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relationshipId"],
+      "properties": {
+        "relationshipId": { "$ref": "#/$defs/Id" },
+        "path": { "type": "object" }
+      }
+    },
+    "LayoutState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "nodes", "edges"],
+      "properties": {
+        "algorithm": { "type": "string", "minLength": 1 },
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/LayoutNode" } },
+        "edges": { "type": "array", "items": { "$ref": "#/$defs/LayoutEdge" } },
+        "viewport": { "type": "object" }
+      }
+    },
+    "View": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "level", "title", "layout"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "level": { "$ref": "#/$defs/ViewLevel" },
+        "title": { "type": "string" },
+        "filter": { "type": "object" },
+        "layout": { "$ref": "#/$defs/LayoutState" }
+      }
+    }
+  }
+}
+
