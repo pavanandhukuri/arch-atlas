@@ -53,6 +53,8 @@ implement. Docs-only changes may omit tests.
 - [ ] T002 Initialize [language] project with [framework] dependencies
 - [ ] T003 [P] Configure linting and formatting tools
 - [ ] T003a Configure test runner + coverage reporting and enforce **≥ 80%** coverage in CI
+- [ ] T003b Add/update open source meta files (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `.github/`)
+      and document contributor workflow
 
 ---
 

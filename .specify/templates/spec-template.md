@@ -125,6 +125,16 @@
 - **New dependencies**: [List + justification + maintenance status]
 - **Upgrade plan**: [How will this stay current? automation, cadence, ownership]
 
+## Open Source & Documentation Impact *(mandatory)*
+
+<!--
+  ACTION REQUIRED: This repo is open source. Treat docs and contributor experience as product surface.
+-->
+
+- **Docs to update**: [`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, other docs as needed]
+- **Community impact**: [Will this change affect contributors/users? migration notes?]
+- **Issue/PR templates**: [Any updates needed to `.github/` templates?]
+
 ## Success Criteria *(mandatory)*
 
 <!--

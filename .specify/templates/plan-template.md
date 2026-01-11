@@ -43,6 +43,8 @@
 - [ ] **Quality gates**: lint/format/typecheck/test suite will run in CI for all changed packages.
 - [ ] **Coverage gate**: CI will enforce **≥ 80%** coverage for the changed project(s); note what’s
       included/excluded (generated code, fixtures, etc.).
+- [ ] **Open source readiness**: Update/verify `README.md`, `CONTRIBUTING.md`, and `.github` templates if
+      the change impacts usage or contributor workflow; add changelog notes for user-facing changes.
 
 ## Project Structure
 

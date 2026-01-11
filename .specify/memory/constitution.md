@@ -5,16 +5,29 @@ Sync Impact Report
 - Modified principles: N/A (template placeholders replaced)
 - Added sections: N/A
 - Modified sections:
-  - "Development Workflow & Quality Gates" (adds minimum coverage requirement)
+  - "Development Workflow & Quality Gates" (adds minimum coverage requirement + OSS hygiene gates)
+  - "Repository Structure & Technology Standards" (adds OSS meta-files expectations)
+  - "Governance" (adds OSS maintainer + contribution governance expectations)
 - Removed sections: N/A
 - Templates requiring updates:
   - ✅ Updated: `.specify/templates/plan-template.md`
   - ✅ Updated: `.specify/templates/spec-template.md`
   - ✅ Updated: `.specify/templates/tasks-template.md`
   - ⚠ Pending (not present in repo): `.specify/templates/commands/*.md`
-  - ⚠ Pending (not present in repo): runtime guidance docs like `README.md`, `docs/quickstart.md`
+- Runtime guidance / OSS meta files:
+  - ✅ Added: `README.md`
+  - ✅ Added: `CONTRIBUTING.md`
+  - ✅ Added: `CODE_OF_CONDUCT.md`
+  - ✅ Added: `SECURITY.md`
+  - ✅ Added: `LICENSE`
+  - ✅ Added: `CHANGELOG.md`
+  - ✅ Added: `.github/pull_request_template.md`
+  - ✅ Added: `.github/ISSUE_TEMPLATE/bug_report.md`
+  - ✅ Added: `.github/ISSUE_TEMPLATE/feature_request.md`
 - Deferred TODOs:
   - TODO(RATIFICATION_DATE): Original ratification date is unknown; set this once agreed by maintainers.
+  - TODO(LICENSE): Choose an OSS license and replace the placeholder license text before public release.
+  - TODO(CONTACT_EMAIL): Set an email (or alternative process) for CoC + security reporting.
 -->
 
 # Arch Atlas Monorepo Constitution
@@ -80,6 +93,13 @@ Rationale: The fastest path to insecurity is stale dependencies and unmaintained
   tooling/scripts).
 - **Generated artifacts**: Generated diagrams/exports MUST be reproducible and MUST not be committed
   unless explicitly required (and documented).
+- **Open source meta-files**: This repository MUST maintain:
+  - `README.md` (clear purpose, quickstart, repo structure, support channels)
+  - `CONTRIBUTING.md` (how to develop, test, submit PRs)
+  - `CODE_OF_CONDUCT.md` (behavior expectations + enforcement contact/process)
+  - `SECURITY.md` (how to report vulnerabilities privately)
+  - `LICENSE` (must be an explicit OSI-approved license before public release)
+  - `.github/` templates for issues/PRs to standardize high-quality contributions
 
 ## Development Workflow & Quality Gates
 
@@ -90,6 +110,9 @@ Rationale: The fastest path to insecurity is stale dependencies and unmaintained
   - **Security**: Threat model notes are included for security-relevant changes; no secrets in code or logs.
   - **Compatibility**: Breaking changes are explicitly called out with a migration plan.
   - **Dependencies**: New dependencies are justified, maintained, and scoped to the minimum surface area.
+  - **Open source hygiene**: If the change affects user/developer experience, `README.md` and/or
+    `CONTRIBUTING.md` MUST be updated accordingly. User-facing changes SHOULD be reflected in
+    `CHANGELOG.md`.
 - **Reviews**:
   - PRs MUST be reviewed by at least one maintainer.
   - Security-sensitive changes (auth, permissions, LLM integration, data export/import) require explicit
@@ -108,6 +131,11 @@ This constitution supersedes other development practices in this repo.
   Quality Gates. If a PR is non-compliant, it MUST either be fixed or include an approved exception.
 - **Periodic review**: Maintainers SHOULD re-review this constitution at least quarterly to keep security
   and dependency guidance aligned with current best practices.
+- **Open source governance**:
+  - Maintainers MUST keep contribution pathways healthy (triage issues/PRs, label meaning, review SLAs
+    where feasible).
+  - Community-facing policy changes (license, Code of Conduct, security reporting process) require
+    maintainer approval and MUST be clearly documented in the repo root.
 
 **Version**: 0.1.0 | **Ratified**: TODO(RATIFICATION_DATE) | **Last Amended**: 2026-01-11
 <!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
