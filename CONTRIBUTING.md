@@ -8,7 +8,47 @@ This project follows `CODE_OF_CONDUCT.md`. By participating, you agree to abide 
 
 ## Quickstart (development)
 
-TODO(DEV_SETUP): Document the standard dev setup once the first app/package lands.
+### Prerequisites
+
+- Node.js ≥ 20 (LTS)
+- pnpm ≥ 8
+
+### Setup
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm run build
+
+# Run tests (with coverage)
+pnpm run test
+
+# Run linter + type checker
+pnpm run lint
+pnpm run typecheck
+```
+
+### Running tests
+
+```bash
+# Run all tests
+pnpm run test
+
+# Run tests for a specific package
+cd packages/core-model && pnpm run test
+
+# Run tests in watch mode
+pnpm run test -- --watch
+```
+
+### Code quality gates
+
+- **TDD**: write tests first; ensure they fail before implementing
+- **Coverage**: ≥ 80% line/statement/branch/function coverage (enforced in CI)
+- **Linting**: ESLint with strict TypeScript rules + package boundary enforcement
+- **Type safety**: strict TypeScript with `noUncheckedIndexedAccess` enabled
 
 ## How to contribute
 

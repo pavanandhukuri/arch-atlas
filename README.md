@@ -13,7 +13,39 @@ Early stage / under active development.
 
 ## Getting started
 
-TODO(QUICKSTART): Add install + run steps once the first app/package lands.
+### Prerequisites
+
+- Node.js ≥ 20 (LTS)
+- pnpm ≥ 8
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/pavanandhukuri/arch-atlas.git
+cd arch-atlas
+
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm run build
+
+# Run tests
+pnpm run test
+
+# Run linter
+pnpm run lint
+```
+
+### Development workflow
+
+1. **Make changes** in the appropriate `apps/*` or `packages/*` directory
+2. **Write tests first** (TDD required; ensure tests fail before implementing)
+3. **Implement** the feature or fix
+4. **Run tests** locally: `pnpm run test` (coverage must be ≥ 80%)
+5. **Lint and format**: `pnpm run lint && pnpm run format`
+6. **Commit** and open a PR
 
 ## Repository structure (planned)
 

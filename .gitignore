@@ -1,1 +1,28 @@
 .cursor
+
+# Node/TypeScript
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.*
+!.env.example
+
+# Build outputs
+.turbo/
+.next/
+coverage/
+
+# Editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+.vscode/
+.idea/
+
+# Package manager
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
