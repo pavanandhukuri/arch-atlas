@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "title": "Minimal Architecture Model",
+    "description": "A minimal test fixture with one element per level",
+    "createdAt": "2026-01-11T00:00:00Z",
+    "updatedAt": "2026-01-11T00:00:00Z"
+  },
+  "elements": [
+    {
+      "id": "landscape-1",
+      "kind": "landscape",
+      "name": "Enterprise Landscape",
+      "description": "Top-level landscape"
+    },
+    {
+      "id": "system-1",
+      "kind": "system",
+      "name": "Order Management System",
+      "description": "Handles customer orders",
+      "parentId": "landscape-1"
+    },
+    {
+      "id": "container-1",
+      "kind": "container",
+      "name": "Web API",
+      "description": "RESTful API",
+      "parentId": "system-1"
+    },
+    {
+      "id": "component-1",
+      "kind": "component",
+      "name": "Order Controller",
+      "description": "Manages order endpoints",
+      "parentId": "container-1"
+    },
+    {
+      "id": "code-1",
+      "kind": "code",
+      "name": "OrderService",
+      "description": "Core order processing logic",
+      "parentId": "component-1",
+      "codeRef": {
+        "kind": "file",
+        "ref": "src/services/OrderService.ts"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel-1",
+      "sourceId": "component-1",
+      "targetId": "code-1",
+      "type": "contains",
+      "label": "includes"
+    }
+  ],
+  "constraints": [],
+  "views": [
+    {
+      "id": "view-landscape",
+      "level": "landscape",
+      "title": "Landscape View",
+      "layout": {
+        "algorithm": "deterministic-v1",
+        "nodes": [
+          {
+            "elementId": "landscape-1",
+            "x": 100,
+            "y": 100,
+            "w": 200,
+            "h": 150
+          }
+        ],
+        "edges": []
+      }
+    }
+  ]
+}

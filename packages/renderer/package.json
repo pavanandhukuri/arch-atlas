@@ -1,0 +1,31 @@
+{
+  "name": "@arch-atlas/renderer",
+  "version": "0.1.0",
+  "description": "PixiJS-based rendering engine for the zoomable architecture map",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ test/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage"
+  },
+  "dependencies": {
+    "@arch-atlas/core-model": "workspace:*",
+    "@arch-atlas/layout": "workspace:*",
+    "pixi.js": "^7.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  }
+}

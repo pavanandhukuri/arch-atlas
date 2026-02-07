@@ -1,0 +1,380 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+#root,
+#__next {
+  width: 100%;
+  height: 100%;
+}
+
+.studio-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.studio-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  background: #2c3e50;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.studio-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.diagram-title {
+  font-size: 0.875rem;
+  color: #ecf0f1;
+  padding: 0.25rem 0.75rem;
+  background: #34495e;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.studio-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.element-palette {
+  width: 200px;
+  background: #34495e;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  order: 1;
+}
+
+.palette-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #2c3e50;
+}
+
+.palette-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.toggle-button {
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.25rem;
+}
+
+.palette-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+.palette-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.navigate-up-button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #1a252f;
+  border: 1px solid #34495e;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  margin-bottom: 0.5rem;
+}
+
+.navigate-up-button:hover {
+  background: #16202a;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.navigate-icon {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.navigate-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.current-level-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #1a252f;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.level-icon {
+  font-size: 1.25rem;
+}
+
+.level-name {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #ecf0f1;
+  letter-spacing: 0.5px;
+}
+
+.palette-item-single {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #27ae60;
+  border: 1px solid #229954;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  font-weight: 600;
+}
+
+.palette-item-single:hover {
+  background: #229954;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.palette-item-single:active {
+  transform: translateX(2px);
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #2c3e50;
+  border: 1px solid #1a252f;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.palette-item:hover {
+  background: #1a252f;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.palette-item:active {
+  transform: translateX(2px);
+}
+
+.palette-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.palette-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.studio-sidebar {
+  width: 320px;
+  background: #f8f9fa;
+  border-left: 1px solid #dee2e6;
+  padding: 1rem;
+  overflow-y: auto;
+  z-index: 40;
+  order: 3;
+  transition: opacity 0.15s ease-in-out;
+}
+
+.studio-canvas {
+  flex: 1;
+  background: #ffffff;
+  background-image: radial-gradient(circle, #d0d0d0 1px, transparent 1px);
+  background-size: 20px 20px;
+  position: relative;
+  overflow: hidden;
+  order: 2;
+}
+
+.element-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.element-editor div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.element-editor label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #495057;
+}
+
+.element-editor input,
+.element-editor select,
+.element-editor textarea {
+  padding: 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.element-editor textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.element-editor .actions {
+  flex-direction: row;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.element-editor button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.element-editor button[type='submit'] {
+  background: #007bff;
+  color: white;
+}
+
+.element-editor button[type='submit']:hover {
+  background: #0056b3;
+}
+
+.element-editor button[type='button'] {
+  background: #6c757d;
+  color: white;
+}
+
+.element-editor button[type='button']:hover {
+  background: #5a6268;
+}
+
+button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background: #0056b3;
+}
+
+.error-banner {
+  background: #dc3545;
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-banner button {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 2rem;
+  height: 2rem;
+}
+
+.element-details {
+  padding: 1rem;
+}
+
+.element-details h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: #2c3e50;
+}
+
+.element-kind {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+.element-parent {
+  font-size: 0.875rem;
+  color: #666;
+  margin: 0.5rem 0;
+}
+
+.element-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
