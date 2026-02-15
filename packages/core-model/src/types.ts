@@ -17,6 +17,9 @@ export interface Element {
   tags?: string[];
   attributes?: Record<string, unknown>;
   codeRef?: CodeReference;
+  // Kind-specific fields
+  technology?: string; // For containers: e.g., "Docker", "Spring Boot", "React"
+  componentType?: string; // For components: e.g., "Service", "Controller", "Repository"
 }
 
 export interface Relationship {
@@ -24,7 +27,9 @@ export interface Relationship {
   sourceId: string;
   targetId: string;
   type: string;
-  label?: string;
+  label?: string; // Deprecated - use action instead
+  action?: string; // What the arrow does, e.g., "Fetches data", "Sends events"
+  integrationMode?: string; // Mode of integration, e.g., "REST API", "SQL", "Message Queue"
   description?: string;
   tags?: string[];
 }

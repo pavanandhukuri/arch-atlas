@@ -235,6 +235,56 @@ body {
   transition: opacity 0.15s ease-in-out;
 }
 
+.connection-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  background: #fff3cd;
+  border: 1px solid #ffeeba;
+  color: #856404;
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.connection-banner button {
+  background: #6c757d;
+  color: white;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+}
+
+.relationship-details {
+  padding: 0.75rem;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.relationship-details h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: #2c3e50;
+}
+
+.relationship-type {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6c757d;
+}
+
+.relationship-actions {
+  margin-top: 0.75rem;
+}
+
+.relationship-actions button {
+  background: #dc3545;
+  color: white;
+}
+
 .studio-canvas {
   flex: 1;
   background: #ffffff;

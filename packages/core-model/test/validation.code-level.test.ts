@@ -25,6 +25,7 @@ describe('Validation: Code-level element and CodeReference', () => {
         { id: 'component-1', kind: 'component', name: 'Component', parentId: 'container-1' },
         { id: 'code-1', kind: 'code', name: 'CodeElement', parentId: 'component-1' } as Element, // Missing codeRef
       ],
+      relationships: [], // Clear inherited relationships
     } as ArchitectureModel;
 
     const errors = validateModel(model);
@@ -49,6 +50,7 @@ describe('Validation: Code-level element and CodeReference', () => {
           },
         },
       ],
+      relationships: [], // Clear inherited relationships
     } as ArchitectureModel;
 
     const errors = validateModel(model);
@@ -73,6 +75,7 @@ describe('Validation: Code-level element and CodeReference', () => {
           },
         },
       ],
+      relationships: [], // Clear inherited relationships
     } as ArchitectureModel;
 
     const errors = validateModel(model);
@@ -92,10 +95,23 @@ describe('Validation: Code-level element and CodeReference', () => {
           codeRef: { kind: 'file', ref: 'test.ts' },
         },
       ],
+      relationships: [], // Clear inherited relationships
+      views: [
+        {
+          id: 'view-test',
+          level: 'container',
+          title: 'Test View',
+          layout: {
+            algorithm: 'deterministic-v1',
+            nodes: [{ elementId: 'container-1', x: 0, y: 0 }],
+            edges: [],
+          },
+        },
+      ],
     } as ArchitectureModel;
 
     const errors = validateModel(model);
-    
+
     expect(errors.length).toBeGreaterThan(0);
     expect(errors.some(e => e.code === 'INVALID_CODE_REF')).toBe(true);
   });

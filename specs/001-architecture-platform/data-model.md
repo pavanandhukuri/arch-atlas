@@ -34,12 +34,28 @@ A typed node in the architecture hierarchy.
 
 - **id**: string (required; stable identifier)
 - **kind**: enum (required): `landscape | system | container | component | code`
-- **name**: string (required)
-- **description**: string (optional)
+- **name**: string (required; serves as title/label)
+- **description**: string (optional; detailed description)
 - **parentId**: string (optional; must reference an element of the immediate higher abstraction level)
 - **tags**: string[] (optional)
 - **attributes**: object (optional; restricted to JSON-serializable primitives/arrays/objects)
 - **codeRef**: `CodeReference` (optional; only valid when kind = `code`)
+
+#### Kind-Specific Fields
+
+- **System** (kind = `system`):
+  - Uses standard `name` and `description` fields
+
+- **Container** (kind = `container`):
+  - **technology**: string (optional; e.g., "Docker", "Kubernetes", "Spring Boot", "React")
+  - Uses `name` as title and `description` for details
+
+- **Component** (kind = `component`):
+  - **componentType**: string (optional; e.g., "Service", "Controller", "Repository", "Library")
+  - Uses `name` as title and `description` for details
+
+- **Code** (kind = `code`):
+  - Deferred for future implementation
 
 ### CodeReference (MVP)
 
@@ -56,9 +72,11 @@ A directed relationship with explicit meaning.
 - **id**: string (required)
 - **sourceId**: string (required; element id)
 - **targetId**: string (required; element id)
-- **type**: string (required; e.g., “depends_on”, “calls”, “uses”, “communicates_with”)
-- **label**: string (optional)
-- **description**: string (optional)
+- **type**: string (required; e.g., "depends_on", "calls", "uses", "communicates_with")
+- **label**: string (optional; deprecated - use `action` instead)
+- **action**: string (optional; what the arrow does, e.g., "Fetches data", "Sends events", "Reads from")
+- **integrationMode**: string (optional; mode of integration, e.g., "REST API", "SQL", "Message Queue", "gRPC", "GraphQL")
+- **description**: string (optional; detailed description)
 - **tags**: string[] (optional)
 
 ### Constraint
