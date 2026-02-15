@@ -51,10 +51,11 @@ describe('Validation: ID uniqueness and reference integrity', () => {
     } as ArchitectureModel;
 
     const errors = validateModel(model);
-    
+
     expect(errors.length).toBeGreaterThan(0);
     expect(errors.some(e => e.code === 'INVALID_REFERENCE')).toBe(true);
-    expect(errors[0]?.path).toContain('missing-element');
+    expect(errors[0]?.path).toContain('sourceId');
+    expect(errors[0]?.message).toContain('missing-element');
   });
 
   it('should fail when relationship references a missing target element', () => {

@@ -52,10 +52,11 @@ describe('Validation: Layout required in export', () => {
     } as ArchitectureModel;
 
     const errors = validateModel(model);
-    
+
     expect(errors.length).toBeGreaterThan(0);
     expect(errors.some(e => e.code === 'INVALID_REFERENCE')).toBe(true);
-    expect(errors[0]?.path).toContain('missing-element-id');
+    expect(errors[0]?.path).toContain('elementId');
+    expect(errors[0]?.message).toContain('missing-element-id');
   });
 
   it('should fail when layout.edges references a missing relationship', () => {

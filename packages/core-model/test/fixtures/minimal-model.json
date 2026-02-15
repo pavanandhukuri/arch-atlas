@@ -25,6 +25,7 @@
       "kind": "container",
       "name": "Web API",
       "description": "RESTful API",
+      "technology": "Node.js + Express",
       "parentId": "system-1"
     },
     {
@@ -32,6 +33,7 @@
       "kind": "component",
       "name": "Order Controller",
       "description": "Manages order endpoints",
+      "componentType": "Controller",
       "parentId": "container-1"
     },
     {
@@ -52,7 +54,9 @@
       "sourceId": "component-1",
       "targetId": "code-1",
       "type": "contains",
-      "label": "includes"
+      "label": "includes",
+      "action": "Delegates business logic to",
+      "integrationMode": "Direct method call"
     }
   ],
   "constraints": [],

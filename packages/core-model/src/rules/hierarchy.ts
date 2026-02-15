@@ -36,6 +36,28 @@ export function validateHierarchy(model: ArchitectureModel): ValidationError[] {
       continue;
     }
 
+    // Check code-level element has codeRef
+    if (element.kind === 'code' && !element.codeRef) {
+      errors.push(
+        createError(
+          'MISSING_CODE_REF',
+          `Code element "${element.id}" must have a codeRef`,
+          `elements[${i}].codeRef`
+        )
+      );
+    }
+
+    // Check non-code elements don't have codeRef
+    if (element.kind !== 'code' && element.codeRef) {
+      errors.push(
+        createError(
+          'INVALID_CODE_REF',
+          `${element.kind} element "${element.id}" should not have a codeRef`,
+          `elements[${i}].codeRef`
+        )
+      );
+    }
+
     // Check if element has required parent
     if (!element.parentId) {
       errors.push(
@@ -56,28 +78,6 @@ export function validateHierarchy(model: ArchitectureModel): ValidationError[] {
           'INVALID_HIERARCHY',
           `${element.kind} element "${element.id}" parent must be ${expectedParentKind}, but got ${parent.kind}`,
           `elements[${i}].parentId`
-        )
-      );
-    }
-
-    // Check code-level element has codeRef
-    if (element.kind === 'code' && !element.codeRef) {
-      errors.push(
-        createError(
-          'MISSING_CODE_REF',
-          `Code element "${element.id}" must have a codeRef`,
-          `elements[${i}].codeRef`
-        )
-      );
-    }
-
-    // Check non-code elements don't have codeRef
-    if (element.kind !== 'code' && element.codeRef) {
-      errors.push(
-        createError(
-          'INVALID_CODE_REF',
-          `${element.kind} element "${element.id}" should not have a codeRef`,
-          `elements[${i}].codeRef`
         )
       );
     }

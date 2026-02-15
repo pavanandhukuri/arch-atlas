@@ -10,9 +10,21 @@ interface MapCanvasProps {
   onElementClick?: (elementId: string) => void;
   onElementDoubleClick?: (elementId: string) => void;
   onElementDrag?: (elementId: string, x: number, y: number) => void;
+  onConnectionStart?: (elementId: string) => void;
+  onRelationshipClick?: (relationshipId: string) => void;
+  connectionStartId?: string | null;
 }
 
-export function MapCanvas({ model, view, onElementClick, onElementDoubleClick, onElementDrag }: MapCanvasProps) {
+export function MapCanvas({
+  model,
+  view,
+  onElementClick,
+  onElementDoubleClick,
+  onElementDrag,
+  onConnectionStart,
+  onRelationshipClick,
+  connectionStartId,
+}: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
 
@@ -37,37 +49,45 @@ export function MapCanvas({ model, view, onElementClick, onElementDoubleClick, o
   // Update callbacks when they change
   useEffect(() => {
     if (!rendererRef.current) return;
-    
-    // Note: We can't dynamically update callbacks in the current renderer implementation
-    // But the initial callbacks will be set up on creation
-  }, [onElementClick, onElementDoubleClick, onElementDrag]);
+  }, [onElementClick, onElementDoubleClick, onElementDrag, onConnectionStart, onRelationshipClick]);
 
   // Setup callbacks once renderer is ready (only on mount)
   useEffect(() => {
     if (!rendererRef.current) return;
 
-    console.log('[MapCanvas] Setting up callbacks', { 
-      hasOnElementClick: !!onElementClick,
-      hasOnElementDoubleClick: !!onElementDoubleClick,
-      hasOnElementDrag: !!onElementDrag
-    });
-
-    // Setup click callback
     if (onElementClick) {
       rendererRef.current.onClick(onElementClick);
     }
 
-    // Setup drill-down callback (double-click)
     if (onElementDoubleClick) {
       rendererRef.current.onDrillDown(onElementDoubleClick);
     }
 
-    // Setup drag callback
     if (onElementDrag) {
-      console.log('[MapCanvas] Registering drag callback');
       rendererRef.current.onDrag(onElementDrag);
     }
-  }, [onElementClick, onElementDoubleClick, onElementDrag]);
+
+    if (onConnectionStart) {
+      rendererRef.current.onConnectionStart(onConnectionStart);
+    }
+
+    // Wire up drag-to-connect completion
+    rendererRef.current.onConnectionComplete((sourceId, targetId) => {
+      // Trigger onElementClick for the target to complete the connection
+      if (onElementClick) {
+        onElementClick(targetId);
+      }
+    });
+
+    if (onRelationshipClick) {
+      rendererRef.current.onRelationshipClick(onRelationshipClick);
+    }
+  }, [onElementClick, onElementDoubleClick, onElementDrag, onConnectionStart, onRelationshipClick]);
+
+  useEffect(() => {
+    if (!rendererRef.current) return;
+    rendererRef.current.setConnectionPreview(connectionStartId ?? null);
+  }, [connectionStartId]);
 
   // Update renderer when model/view changes
   useEffect(() => {
@@ -84,6 +104,7 @@ export function MapCanvas({ model, view, onElementClick, onElementDoubleClick, o
         height: '100%',
         position: 'relative',
         overflow: 'hidden',
+        background: '#ffffff',
       }}
     />
   );
