@@ -1,15 +1,31 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Element, ElementKind } from '@arch-atlas/core-model';
+import type { Element, ElementKind, Relationship } from '@arch-atlas/core-model';
+import { ConnectionsTable } from '@/components/shared';
+import type { ConnectionRow } from '@/components/shared';
 
 interface ElementEditorProps {
   element: Element | null;
+  allElements: Element[];
+  relationships: Relationship[];
   onSave: (element: Element) => void;
+  onDelete: (elementId: string) => void;
   onCancel: () => void;
+  onEditRelationship: (relationship: Relationship) => void;
+  onAddRelationship: (sourceId: string) => void;
 }
 
-export function ElementEditor({ element, onSave, onCancel }: ElementEditorProps) {
+export function ElementEditor({
+  element,
+  allElements,
+  relationships,
+  onSave,
+  onDelete,
+  onCancel,
+  onEditRelationship,
+  onAddRelationship,
+}: ElementEditorProps) {
   const [name, setName] = useState(element?.name ?? '');
   const [description, setDescription] = useState(element?.description ?? '');
   const [technology, setTechnology] = useState(element?.technology ?? '');
@@ -45,6 +61,22 @@ export function ElementEditor({ element, onSave, onCancel }: ElementEditorProps)
     }
     onSave(newElement);
   };
+
+  // Build the connections table data
+  const elementMap = new Map<string, Element>(allElements.map(e => [e.id, e]));
+  const connectionRows: ConnectionRow[] = element
+    ? relationships
+        .filter(r => r.sourceId === element.id || r.targetId === element.id)
+        .map(rel => {
+          const isOutgoing = rel.sourceId === element.id;
+          const connectedId = isOutgoing ? rel.targetId : rel.sourceId;
+          return {
+            relationship: rel,
+            connectedElement: elementMap.get(connectedId),
+            direction: isOutgoing ? 'outgoing' : 'incoming',
+          };
+        })
+    : [];
 
   return (
     <form onSubmit={handleSubmit} className="element-editor">
@@ -106,11 +138,30 @@ export function ElementEditor({ element, onSave, onCancel }: ElementEditorProps)
 
       <div className="actions">
         <button type="submit">Save</button>
+        <button
+          type="button"
+          className="delete-button"
+          onClick={() => {
+            if (element?.id && confirm(`Delete "${element.name}"?\n\nThis will also remove all connections to this element. This cannot be undone.`)) {
+              onDelete(element.id);
+            }
+          }}
+        >
+          Delete
+        </button>
         <button type="button" onClick={onCancel}>
           Cancel
         </button>
       </div>
+
+      {/* Connections table */}
+      {element && (
+        <ConnectionsTable
+          rows={connectionRows}
+          onRowClick={onEditRelationship}
+          onAddConnection={() => onAddRelationship(element.id)}
+        />
+      )}
     </form>
   );
 }
-

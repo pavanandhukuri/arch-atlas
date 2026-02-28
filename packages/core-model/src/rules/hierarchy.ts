@@ -7,6 +7,7 @@ import { createError } from '../errors';
 const HIERARCHY_RULES: Record<ElementKind, ElementKind | null> = {
   landscape: null, // No parent
   system: 'landscape',
+  person: 'landscape', // Persons are actors at the landscape level
   container: 'system',
   component: 'container',
   code: 'component',

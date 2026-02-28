@@ -1,6 +1,6 @@
 // Core domain types for the semantic architecture model
 
-export type ElementKind = 'landscape' | 'system' | 'container' | 'component' | 'code';
+export type ElementKind = 'landscape' | 'system' | 'person' | 'container' | 'component' | 'code';
 
 export interface CodeReference {
   kind: 'module' | 'file' | 'symbol';

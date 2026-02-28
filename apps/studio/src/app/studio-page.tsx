@@ -9,6 +9,7 @@ import { ModelStore } from '@/state/model-store';
 import { AutosaveManager } from '@/services/autosave';
 import { exportModel, importModel } from '@/services/import-export';
 import { addRelationshipToModel, removeRelationshipFromModel } from '@/services/relationships';
+import { deriveViewRelationships, buildElementOptions } from '@/services/derived-relationships';
 import type { ArchitectureModel, Element, ElementKind, Relationship } from '@arch-atlas/core-model';
 import { computeLayout } from '@arch-atlas/layout';
 import type { DiagramLevel } from '@/services/diagram-context';
@@ -27,47 +28,46 @@ const autosaveManager = new AutosaveManager();
 export default function StudioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [model, setModel] = useState<ArchitectureModel | null>(null);
   const [editingElement, setEditingElement] = useState<Element | null>(null);
+  // Existing relationship being edited (by id in model)
   const [selectedRelationshipId, setSelectedRelationshipId] = useState<string | null>(null);
+  // New relationship being created (not yet persisted to model)
+  const [pendingNewRelationship, setPendingNewRelationship] = useState<Relationship | null>(null);
+  // Remember which element we opened the relationship editor from (so we can go back)
+  const [elementBeforeConnection, setElementBeforeConnection] = useState<Element | null>(null);
+
   const [connectionStartId, setConnectionStartId] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  // Separate positions for external (system-level) elements so they don't share
+  // coordinates with the element's position in the landscape/main view.
+  // Keyed by elementId. Cleared whenever the user navigates to a new view.
+  const [externalPositions, setExternalPositions] = useState<Record<string, { x: number; y: number }>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Initialize navigation state from URL params
+
   const levelParam = searchParams.get('level') as DiagramLevel | null;
   const focusParam = searchParams.get('focus');
-  
   const [currentLevel, setCurrentLevel] = useState<DiagramLevel>(levelParam || 'landscape');
   const [focusedElementId, setFocusedElementId] = useState<string | null>(focusParam || null);
 
-  // Sync URL with navigation state
   const updateURL = useCallback((level: DiagramLevel, focusId: string | null) => {
     const params = new URLSearchParams();
     params.set('level', level);
-    if (focusId) {
-      params.set('focus', focusId);
-    }
+    if (focusId) params.set('focus', focusId);
     router.push(`?${params.toString()}`, { scroll: false });
   }, [router]);
 
-  // Update local state and URL when navigating
   const navigateToLevel = useCallback((level: DiagramLevel, focusId: string | null = null) => {
     setCurrentLevel(level);
     setFocusedElementId(focusId);
+    setExternalPositions({}); // external coords are per-view
     updateURL(level, focusId);
   }, [updateURL]);
 
   useEffect(() => {
-    // Set up model subscription FIRST
-    const unsubscribe = modelStore.subscribe(state => {
-      setModel(state.model);
-    });
-    
-    // Try to load autosaved model or create new one
+    const unsubscribe = modelStore.subscribe(state => { setModel(state.model); });
     const autosaved = autosaveManager.loadFromLocalStorage();
-    
     const initialModel: ArchitectureModel = autosaved ?? {
       schemaVersion: '0.1.0',
       metadata: {
@@ -79,31 +79,13 @@ export default function StudioPage() {
       elements: [],
       relationships: [],
       constraints: [],
-      views: [
-        {
-          id: 'view-1',
-          title: 'System Context',
-          level: 'system',
-          layout: {
-            algorithm: 'deterministic-v1',
-            nodes: [],
-            edges: [],
-          },
-        },
-      ],
+      views: [{ id: 'view-1', title: 'System Context', level: 'system', layout: { algorithm: 'deterministic-v1', nodes: [], edges: [] } }],
     };
-
     modelStore.loadModel(initialModel);
-    
-    // Also set the model directly to ensure first render has data
     setModel(initialModel);
-
-    return () => {
-      unsubscribe();
-    };
+    return () => { unsubscribe(); };
   }, []);
 
-  // Autosave whenever model changes
   useEffect(() => {
     if (model && modelStore.getState().isDirty) {
       autosaveManager.saveToLocalStorage(model);
@@ -112,316 +94,373 @@ export default function StudioPage() {
 
   const handleAddElement = (kind: ElementKind) => {
     if (!model) return;
-
-    const newElement: Element = {
-      id: `elem-${Date.now()}`,
-      name: `New ${kind}`,
-      kind,
-      description: '',
-    };
-    
-    // Handle hierarchy: if we're adding a system at the top level, create an implicit landscape parent
+    const newElement: Element = { id: `elem-${Date.now()}`, name: `New ${kind}`, kind, description: '' };
     let updatedElements = [...model.elements];
-    
+
     if (focusedElementId) {
-      // We're in a focused context, set the parent
       newElement.parentId = focusedElementId;
       updatedElements.push(newElement);
-    } else if (kind === 'system') {
-      // Adding a system at the top level - need a landscape parent
-      // Check if we already have a default landscape
+    } else if (kind === 'system' || kind === 'person') {
       let landscape = model.elements.find(e => e.kind === 'landscape' && !e.parentId);
-      
       if (!landscape) {
-        // Create an implicit landscape container
-        landscape = {
-          id: `landscape-${Date.now()}`,
-          name: 'Architecture Landscape',
-          kind: 'landscape' as ElementKind,
-          description: 'Top-level architecture landscape',
-        };
+        landscape = { id: `landscape-${Date.now()}`, name: 'Architecture Landscape', kind: 'landscape' as ElementKind, description: 'Top-level architecture landscape' };
         updatedElements.push(landscape);
       }
-      
-      // Set the landscape as parent for the new system
       newElement.parentId = landscape.id;
       updatedElements.push(newElement);
     } else {
-      // For other kinds at top level (shouldn't happen normally)
       updatedElements.push(newElement);
     }
 
-    // Instead of recomputing the entire layout (which resets positions),
-    // add new nodes to the existing layout with default positions
     const currentView = model.views[0];
-    const updatedViews = currentView ? [
-      {
-        ...currentView,
-        layout: {
-          ...currentView.layout,
-          nodes: [
-            ...currentView.layout.nodes,
-            // Add new element with a default position (stagger to avoid overlaps)
-            {
-              elementId: newElement.id,
-              x: 100 + (updatedElements.length * 30), // Stagger horizontally
-              y: 100 + (updatedElements.length * 20), // Stagger vertically
-              w: 120,
-              h: 80,
-            },
-          ],
-        },
+    const updatedViews = currentView ? [{
+      ...currentView,
+      layout: {
+        ...currentView.layout,
+        nodes: [...currentView.layout.nodes, { elementId: newElement.id, x: 100 + updatedElements.length * 30, y: 100 + updatedElements.length * 20, w: 200, h: 130 }],
       },
-      ...model.views.slice(1),
-    ] : model.views;
+    }, ...model.views.slice(1)] : model.views;
 
-    const updatedModel = {
-      ...model,
-      elements: updatedElements,
-      views: updatedViews,
-    };
-
-    modelStore.updateModel(updatedModel);
-
-    // Auto-select the new element for immediate editing
+    modelStore.updateModel({ ...model, elements: updatedElements, views: updatedViews });
     setEditingElement(newElement);
   };
 
   const handleSaveElement = (element: Element) => {
     if (!model) return;
-
-    const isExistingElement = element.id && model.elements.find(e => e.id === element.id);
-    const updatedElements = isExistingElement
-      ? model.elements.map(e => (e.id === element.id ? element : e))
+    const isExisting = model.elements.some(e => e.id === element.id);
+    const updatedElements = isExisting
+      ? model.elements.map(e => e.id === element.id ? element : e)
       : [...model.elements, { ...element, id: `elem-${Date.now()}` }];
 
-    // Only recompute layout for NEW elements
-    // For existing elements, preserve the current layout to avoid resetting manual positions
     const currentView = model.views[0];
-    const updatedViews = currentView && !isExistingElement ? [
-      {
-        ...currentView,
-        layout: computeLayout(
-          { ...model, elements: updatedElements },
-          currentView,
-          { algorithm: 'deterministic-v1' }
-        ),
-      },
-      ...model.views.slice(1),
-    ] : model.views;
+    const updatedViews = currentView && !isExisting ? [{
+      ...currentView,
+      layout: computeLayout({ ...model, elements: updatedElements }, currentView, { algorithm: 'deterministic-v1' }),
+    }, ...model.views.slice(1)] : model.views;
 
-    const updatedModel = {
-      ...model,
-      elements: updatedElements,
-      views: updatedViews,
-    };
-
-    modelStore.updateModel(updatedModel);
-
+    modelStore.updateModel({ ...model, elements: updatedElements, views: updatedViews });
     setEditingElement(null);
   };
 
-  const handleElementClick = useCallback(
-    (elementId: string) => {
-      const currentModel = modelStore.getState().model;
-      if (!currentModel) return;
+  const handleElementClick = useCallback((elementId: string) => {
+    const currentModel = modelStore.getState().model;
+    if (!currentModel) return;
+    const element = currentModel.elements.find(e => e.id === elementId);
+    if (!element) return;
 
-      const element = currentModel.elements.find(e => e.id === elementId);
-      if (!element) return;
-
-      if (connectionStartId) {
-        if (connectionStartId !== elementId) {
-          const currentView = currentModel.views[0];
-          if (currentView) {
-            const updatedModel = addRelationshipToModel({
-              model: currentModel,
-              viewId: currentView.id,
-              sourceId: connectionStartId,
-              targetId: elementId,
-              type: 'relates_to',
-            });
-            modelStore.updateModel(updatedModel);
-          }
+    if (connectionStartId) {
+      if (connectionStartId !== elementId) {
+        const currentView = currentModel.views[0];
+        if (currentView) {
+          modelStore.updateModel(addRelationshipToModel({ model: currentModel, viewId: currentView.id, sourceId: connectionStartId, targetId: elementId, type: 'relates_to' }));
         }
-        setConnectionStartId(null);
-        setSelectedRelationshipId(null);
-        setEditingElement(element);
-        return;
       }
-
+      setConnectionStartId(null);
       setSelectedRelationshipId(null);
+      setPendingNewRelationship(null);
       setEditingElement(element);
-    },
-    [connectionStartId]
-  );
+      return;
+    }
 
-  const handleElementDoubleClick = useCallback(
-    (elementId: string) => {
-      if (connectionStartId) {
-        return;
-      }
+    setSelectedRelationshipId(null);
+    setPendingNewRelationship(null);
+    setElementBeforeConnection(null);
+    setEditingElement(element);
+  }, [connectionStartId]);
 
-      // Close edit panel first
-      setEditingElement(null);
+  const handleElementDoubleClick = useCallback((elementId: string) => {
+    if (connectionStartId) return;
+    setEditingElement(null);
+    const currentModel = modelStore.getState().model;
+    if (!currentModel) return;
+    const element = currentModel.elements.find(e => e.id === elementId);
+    if (!element) return;
 
-      // Use latest state from store
-      const currentModel = modelStore.getState().model;
-      if (!currentModel) return;
+    // External (system-level) elements: always navigate to their system diagram.
+    // An element is external if it's a system/person not parented under the current focus.
+    const isExternal = (element.kind === 'system' || element.kind === 'person')
+      && focusedElementId !== null
+      && element.parentId !== focusedElementId;
+    if (isExternal) {
+      navigateToLevel('system', elementId);
+      return;
+    }
 
-      const element = currentModel.elements.find(e => e.id === elementId);
-      if (!element) return;
-
-      if (canDrillDown(currentLevel)) {
-        const childLevel = getChildLevel(currentLevel);
-        if (childLevel) {
-          navigateToLevel(childLevel, elementId);
-        }
-      }
-    },
-    [currentLevel, navigateToLevel, connectionStartId]
-  );
+    if (canDrillDown(currentLevel)) {
+      const childLevel = getChildLevel(currentLevel);
+      if (childLevel) navigateToLevel(childLevel, elementId);
+    }
+  }, [currentLevel, navigateToLevel, connectionStartId, focusedElementId]);
 
   const handleConnectionStart = useCallback((elementId: string) => {
     setConnectionStartId(elementId);
     setSelectedRelationshipId(null);
+    setPendingNewRelationship(null);
     setEditingElement(null);
   }, []);
 
   const handleRelationshipClick = useCallback((relationshipId: string) => {
     setSelectedRelationshipId(relationshipId);
+    setPendingNewRelationship(null);
+    setElementBeforeConnection(null);
     setConnectionStartId(null);
     setEditingElement(null);
   }, []);
 
-  const handleCancelConnection = useCallback(() => {
-    setConnectionStartId(null);
+  const handleCancelConnection = useCallback(() => { setConnectionStartId(null); }, []);
+
+  const handleDeleteElement = useCallback((elementId: string) => {
+    const currentModel = modelStore.getState().model;
+    if (!currentModel) return;
+    const toDelete = new Set<string>();
+    const queue = [elementId];
+    while (queue.length > 0) {
+      const id = queue.pop()!;
+      toDelete.add(id);
+      currentModel.elements.filter(e => e.parentId === id).forEach(child => queue.push(child.id));
+    }
+    const updatedElements = currentModel.elements.filter(e => !toDelete.has(e.id));
+    const updatedRelationships = currentModel.relationships.filter(r => !toDelete.has(r.sourceId) && !toDelete.has(r.targetId));
+    const updatedViews = currentModel.views.map(v => ({
+      ...v,
+      layout: {
+        ...v.layout,
+        nodes: v.layout.nodes.filter(n => !toDelete.has(n.elementId)),
+        edges: v.layout.edges.filter(edge => updatedRelationships.some(r => r.id === edge.relationshipId)),
+      },
+    }));
+    modelStore.updateModel({ ...currentModel, elements: updatedElements, relationships: updatedRelationships, views: updatedViews });
+    setEditingElement(null);
   }, []);
 
   const handleSaveRelationship = useCallback((relationship: Relationship) => {
     const currentModel = modelStore.getState().model;
     if (!currentModel) return;
 
-    const updatedRelationships = currentModel.relationships.map(rel =>
-      rel.id === relationship.id ? relationship : rel
-    );
+    // Derived relationships are UI-only — update the original underlying relationship's metadata
+    const originalId = (relationship as Relationship & { _originalId?: string })._originalId;
+    if (originalId) {
+      const updatedRelationships = currentModel.relationships.map(rel =>
+        rel.id === originalId
+          ? { ...rel, sourceId: relationship.sourceId, targetId: relationship.targetId, action: relationship.action, integrationMode: relationship.integrationMode, description: relationship.description }
+          : rel
+      );
+      modelStore.updateModel({ ...currentModel, relationships: updatedRelationships });
+      setSelectedRelationshipId(null);
+      setPendingNewRelationship(null);
+      if (elementBeforeConnection) {
+        const refreshed = modelStore.getState().model?.elements.find(e => e.id === elementBeforeConnection.id) ?? elementBeforeConnection;
+        setEditingElement(refreshed);
+        setElementBeforeConnection(null);
+      }
+      return;
+    }
 
-    const updatedModel = {
-      ...currentModel,
-      relationships: updatedRelationships,
-    };
+    const relToSave = relationship;
+    const exists = currentModel.relationships.some(r => r.id === relToSave.id);
+    const updatedRelationships = exists
+      ? currentModel.relationships.map(rel => rel.id === relToSave.id ? relToSave : rel)
+      : [...currentModel.relationships, relToSave];
 
-    modelStore.updateModel(updatedModel);
+    // Ensure layout nodes exist for cross-layer endpoints
+    const currentView = currentModel.views[0];
+    let updatedViews = currentModel.views;
+    if (currentView) {
+      const existingNodeIds = new Set(currentView.layout.nodes.map(n => n.elementId));
+      const newNodes = [...currentView.layout.nodes];
+      [relToSave.sourceId, relToSave.targetId].forEach((eid, i) => {
+        if (eid && !existingNodeIds.has(eid)) {
+          newNodes.push({ elementId: eid, x: 600 + i * 250, y: 80, w: 200, h: 130 });
+        }
+      });
+      updatedViews = [{ ...currentView, layout: { ...currentView.layout, nodes: newNodes } }, ...currentModel.views.slice(1)];
+    }
+
+    modelStore.updateModel({ ...currentModel, relationships: updatedRelationships, views: updatedViews });
     setSelectedRelationshipId(null);
-  }, []);
+    setPendingNewRelationship(null);
+
+    // Return to element editor if we came from one
+    if (elementBeforeConnection) {
+      const refreshed = modelStore.getState().model?.elements.find(e => e.id === elementBeforeConnection.id) ?? elementBeforeConnection;
+      setEditingElement(refreshed);
+      setElementBeforeConnection(null);
+    }
+  }, [elementBeforeConnection]);
 
   const handleDeleteRelationship = useCallback(() => {
     if (!selectedRelationshipId) return;
-
+    // Derived relationships have no model entry — just close the editor
+    if (selectedRelationshipId.startsWith('derived-')) {
+      setSelectedRelationshipId(null);
+      return;
+    }
     const currentModel = modelStore.getState().model;
     if (!currentModel) return;
-
-    const updatedModel = removeRelationshipFromModel(currentModel, selectedRelationshipId);
-    modelStore.updateModel(updatedModel);
+    modelStore.updateModel(removeRelationshipFromModel(currentModel, selectedRelationshipId));
     setSelectedRelationshipId(null);
-  }, [selectedRelationshipId]);
+    if (elementBeforeConnection) {
+      setEditingElement(elementBeforeConnection);
+      setElementBeforeConnection(null);
+    }
+  }, [selectedRelationshipId, elementBeforeConnection]);
+
+  const handleCancelRelationshipEdit = useCallback(() => {
+    setSelectedRelationshipId(null);
+    setPendingNewRelationship(null);
+    if (elementBeforeConnection) {
+      setEditingElement(elementBeforeConnection);
+      setElementBeforeConnection(null);
+    }
+  }, [elementBeforeConnection]);
+
+  // From ElementEditor connections table: click a row to edit that relationship
+  const handleEditRelationshipFromElement = useCallback((relationship: Relationship) => {
+    setElementBeforeConnection(editingElement);
+    setEditingElement(null);
+    setSelectedRelationshipId(relationship.id);
+    setPendingNewRelationship(null);
+  }, [editingElement]);
+
+  // From ElementEditor connections table: click "+ Add Connection"
+  const handleAddRelationshipFromElement = useCallback((sourceElementId: string) => {
+    const stub: Relationship = { id: `rel-${Date.now()}`, sourceId: sourceElementId, targetId: '', type: 'relates_to' };
+    setElementBeforeConnection(editingElement);
+    setEditingElement(null);
+    setSelectedRelationshipId(null);
+    setPendingNewRelationship(stub);
+  }, [editingElement]);
 
   const handleNavigateUp = useCallback(() => {
     if (canDrillUp(currentLevel)) {
       const parentLevel = getParentLevel(currentLevel);
       if (parentLevel) {
-        // Reset focus to parent or null - use latest model
         const currentModel = modelStore.getState().model;
         const focusedElement = currentModel?.elements.find(e => e.id === focusedElementId);
-        const parentFocusId = focusedElement?.parentId || null;
-
         setConnectionStartId(null);
         setSelectedRelationshipId(null);
-        navigateToLevel(parentLevel, parentFocusId);
+        navigateToLevel(parentLevel, focusedElement?.parentId || null);
       }
     }
   }, [currentLevel, focusedElementId, navigateToLevel]);
 
-  // Filter elements based on current diagram level
   const getVisibleElements = (): Element[] => {
     if (!model) return [];
-    
-    // If we're focused on an element, show its children
-    if (focusedElementId) {
-      return model.elements.filter(e => e.parentId === focusedElementId);
-    }
-    
-    // Otherwise, show elements of the appropriate kind for this level
+    if (focusedElementId) return model.elements.filter(e => e.parentId === focusedElementId);
+    if (currentLevel === 'landscape') return model.elements.filter(e => e.kind === 'system' || e.kind === 'person');
     const targetKind = getElementKindForLevel(currentLevel);
-    
-    if (currentLevel === 'landscape') {
-      // In landscape, show all systems (they now have a landscape parent, but we show them anyway)
-      // Filter out the implicit landscape container itself
-      return model.elements.filter(e => e.kind === 'system');
-    }
-    
     return model.elements.filter(e => e.kind === targetKind && !e.parentId);
   };
 
   const visibleElements = getVisibleElements();
   const focusedElement = focusedElementId ? model?.elements.find(e => e.id === focusedElementId) : null;
   const diagramTitle = getDiagramTitle(currentLevel, focusedElement?.name);
-  const selectedRelationship: Relationship | null = selectedRelationshipId
-    ? model?.relationships.find(rel => rel.id === selectedRelationshipId) ?? null
-    : null;
+
+  // Derive cross-layer relationships for the current view
+  const visibleElementIds = new Set(visibleElements.map(e => e.id));
+  const { directRelationships, derivedRelationships, externalElements } = model
+    ? deriveViewRelationships(model, visibleElementIds)
+    : { directRelationships: [], derivedRelationships: [], externalElements: [] };
+
+  const viewRelationships = [
+    ...directRelationships,
+    ...derivedRelationships.filter(dr => !directRelationships.some(d => d.sourceId === dr.sourceId && d.targetId === dr.targetId)),
+  ];
+
+  // The relationship shown in the sidebar editor (pending new creation takes priority)
+  // Derived relationships (id: "derived-*") aren't in model.relationships, so fall back to viewRelationships
+  const editorRelationship: Relationship | null =
+    pendingNewRelationship ??
+    (selectedRelationshipId
+      ? (model?.relationships.find(r => r.id === selectedRelationshipId)
+          ?? viewRelationships.find(r => r.id === selectedRelationshipId)
+          ?? null)
+      : null);
 
   const currentView = model?.views[0];
   const isDirty = modelStore.getState().isDirty;
+  const elementOptions = model ? buildElementOptions(model) : [];
 
-  // Create a filtered view that only includes nodes for visible elements
+  const allViewElements = [...visibleElements, ...externalElements];
+  const boundaryElementIds = visibleElements.map(e => e.id);
+  const externalElementIds = externalElements.map(e => e.id);
+
+  // Compute label for the boundary box (e.g. "System Boundary: My System")
+  const boundaryLabel = focusedElement
+    ? (() => {
+        const kindLabel = focusedElement.kind === 'system' ? 'System'
+          : focusedElement.kind === 'container' ? 'Container'
+          : focusedElement.kind === 'landscape' ? 'Landscape'
+          : focusedElement.kind.charAt(0).toUpperCase() + focusedElement.kind.slice(1);
+        return `${kindLabel} Boundary: ${focusedElement.name}`;
+      })()
+    : undefined;
+
+  // Keep a stable ref so handleElementDrag can check without a stale closure
+  const externalElementIdsRef = useRef<string[]>(externalElementIds);
+  externalElementIdsRef.current = externalElementIds;
+
+  // Compute the default left-of-boundary X for external elements that have no position yet.
+  // We do this in React so the renderer receives correct initial positions.
+  const defaultExternalX = (() => {
+    if (!currentView || externalElements.length === 0) return 50;
+    const boundaryNodes = boundaryElementIds
+      .map(id => currentView.layout.nodes.find(n => n.elementId === id))
+      .filter(Boolean);
+    if (boundaryNodes.length === 0) return 50;
+    const minX = Math.min(...boundaryNodes.map(n => n!.x));
+    return minX - 280; // 200 wide + 80 gap
+  })();
+
   const filteredView = currentView ? {
     ...currentView,
     layout: {
       ...currentView.layout,
-      nodes: currentView.layout.nodes.filter(node => 
-        visibleElements.some(elem => elem.id === node.elementId)
-      ),
+      nodes: [
+        // Visible (boundary) elements keep their stored positions
+        ...currentView.layout.nodes.filter(node =>
+          visibleElements.some(elem => elem.id === node.elementId)
+        ),
+        // External elements use their dedicated externalPositions (or a stacked default)
+        ...externalElements.map((el, i) => {
+          const stored = externalPositions[el.id];
+          return {
+            elementId: el.id,
+            x: stored?.x ?? defaultExternalX,
+            y: stored?.y ?? (50 + i * 180),
+            w: 200,
+            h: 130,
+          };
+        }),
+      ],
     },
   } : undefined;
 
   const handleElementDrag = useCallback((elementId: string, x: number, y: number) => {
-    // Always get latest model from store to avoid stale state
+    if (externalElementIdsRef.current.includes(elementId)) {
+      // Store in separate externalPositions — does NOT touch the main layout
+      setExternalPositions(prev => ({ ...prev, [elementId]: { x, y } }));
+      return;
+    }
+    // Regular element — update the main layout
     const currentModel = modelStore.getState().model;
     if (!currentModel) return;
-
     const updatedView = currentModel.views[0];
     if (!updatedView) return;
-
-    // Update the node position in the layout
     const nodeIndex = updatedView.layout.nodes.findIndex(n => n.elementId === elementId);
-    
     if (nodeIndex >= 0) {
       updatedView.layout.nodes[nodeIndex]!.x = x;
       updatedView.layout.nodes[nodeIndex]!.y = y;
-
-      const updatedModel = {
-        ...currentModel,
-        views: currentModel.views,
-      };
-
-      modelStore.updateModel(updatedModel);
+      modelStore.updateModel({ ...currentModel, views: currentModel.views });
     }
   }, []);
 
-  const handleExport = () => {
-    if (model) {
-      exportModel(model);
-      modelStore.clearDirty();
-    }
-  };
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
+  const handleExport = () => { if (model) { exportModel(model); modelStore.clearDirty(); } };
+  const handleImportClick = () => { fileInputRef.current?.click(); };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     try {
       const importedModel = await importModel(file);
       modelStore.loadModel(importedModel);
@@ -430,8 +469,6 @@ export default function StudioPage() {
     } catch (error) {
       setImportError(error instanceof Error ? error.message : 'Import failed');
     }
-
-    // Reset file input
     event.target.value = '';
   };
 
@@ -439,35 +476,19 @@ export default function StudioPage() {
     if (confirm('Create a new file? Unsaved changes will be lost.')) {
       const newModel: ArchitectureModel = {
         schemaVersion: '0.1.0',
-        metadata: {
-          title: 'New Architecture',
-          description: 'Created with Arch Atlas Studio',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
+        metadata: { title: 'New Architecture', description: 'Created with Arch Atlas Studio', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
         elements: [],
         relationships: [],
         constraints: [],
-        views: [
-          {
-            id: 'view-1',
-            title: 'System Context',
-            level: 'system',
-            layout: {
-              algorithm: 'deterministic-v1',
-              nodes: [],
-              edges: [],
-            },
-          },
-        ],
+        views: [{ id: 'view-1', title: 'System Context', level: 'system', layout: { algorithm: 'deterministic-v1', nodes: [], edges: [] } }],
       };
       modelStore.loadModel(newModel);
       autosaveManager.clearAutosave();
-      
-      // Reset navigation to initial state
       navigateToLevel('landscape', null);
     }
   };
+
+  const canvasModel = model ? { ...model, elements: allViewElements, relationships: viewRelationships } : null;
 
   return (
     <div className="studio-layout">
@@ -479,17 +500,9 @@ export default function StudioPage() {
         <div className="header-actions">
           <button onClick={handleNewFile}>New</button>
           <button onClick={handleImportClick}>Open</button>
-          <button onClick={handleExport} disabled={!model}>
-            Export {isDirty && '*'}
-          </button>
+          <button onClick={handleExport} disabled={!model}>Export {isDirty && '*'}</button>
         </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json,.arch.json"
-          onChange={handleFileChange}
-          style={{ display: 'none' }}
-        />
+        <input ref={fileInputRef} type="file" accept=".json,.arch.json" onChange={handleFileChange} style={{ display: 'none' }} />
       </header>
       {importError && (
         <div className="error-banner">
@@ -498,16 +511,16 @@ export default function StudioPage() {
         </div>
       )}
       <div className="studio-content">
-        <ElementPalette 
+        <ElementPalette
           currentLevel={currentLevel}
           onAddElement={handleAddElement}
           onNavigateUp={handleNavigateUp}
           canNavigateUp={canDrillUp(currentLevel)}
         />
         <main className="studio-canvas">
-          {model && filteredView && (
+          {canvasModel && filteredView && (
             <MapCanvas
-              model={{...model, elements: visibleElements}}
+              model={canvasModel}
               view={filteredView}
               onElementClick={handleElementClick}
               onElementDoubleClick={handleElementDoubleClick}
@@ -515,38 +528,40 @@ export default function StudioPage() {
               onConnectionStart={handleConnectionStart}
               onRelationshipClick={handleRelationshipClick}
               connectionStartId={connectionStartId}
+              boundaryElementIds={boundaryElementIds}
+              externalElementIds={externalElementIds}
+              boundaryLabel={boundaryLabel}
             />
           )}
         </main>
         <aside className="studio-sidebar">
           {connectionStartId && (
             <div className="connection-banner">
-              <span>
-                Connecting from{' '}
-                <strong>
-                  {model?.elements.find(e => e.id === connectionStartId)?.name || 'Unknown'}
-                </strong>
-              </span>
-              <button type="button" onClick={handleCancelConnection}>
-                Cancel
-              </button>
+              <span>Connecting from <strong>{model?.elements.find(e => e.id === connectionStartId)?.name || 'Unknown'}</strong></span>
+              <button type="button" onClick={handleCancelConnection}>Cancel</button>
             </div>
           )}
           {editingElement && (
             <ElementEditor
               element={editingElement}
+              allElements={model?.elements ?? []}
+              relationships={model?.relationships ?? []}
               onSave={handleSaveElement}
+              onDelete={handleDeleteElement}
               onCancel={() => setEditingElement(null)}
+              onEditRelationship={handleEditRelationshipFromElement}
+              onAddRelationship={handleAddRelationshipFromElement}
             />
           )}
-          {!editingElement && selectedRelationship && (
+          {!editingElement && editorRelationship && (
             <RelationshipEditor
-              relationship={selectedRelationship}
-              sourceElementName={model?.elements.find(e => e.id === selectedRelationship.sourceId)?.name}
-              targetElementName={model?.elements.find(e => e.id === selectedRelationship.targetId)?.name}
+              relationship={editorRelationship}
+              sourceElementName={model?.elements.find(e => e.id === editorRelationship.sourceId)?.name}
+              targetElementName={model?.elements.find(e => e.id === editorRelationship.targetId)?.name}
+              elementOptions={elementOptions}
               onSave={handleSaveRelationship}
               onDelete={handleDeleteRelationship}
-              onCancel={() => setSelectedRelationshipId(null)}
+              onCancel={handleCancelRelationshipEdit}
             />
           )}
         </aside>

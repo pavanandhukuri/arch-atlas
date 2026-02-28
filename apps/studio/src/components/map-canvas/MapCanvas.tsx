@@ -13,6 +13,9 @@ interface MapCanvasProps {
   onConnectionStart?: (elementId: string) => void;
   onRelationshipClick?: (relationshipId: string) => void;
   connectionStartId?: string | null;
+  boundaryElementIds?: string[];
+  externalElementIds?: string[];
+  boundaryLabel?: string;
 }
 
 export function MapCanvas({
@@ -24,77 +27,84 @@ export function MapCanvas({
   onConnectionStart,
   onRelationshipClick,
   connectionStartId,
+  boundaryElementIds,
+  externalElementIds,
+  boundaryLabel,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
 
-  // Create renderer only once
+  // Keep refs to the latest callbacks so we can use them in stable closures below.
+  // This means we never need to re-register callbacks when handlers change.
+  const onElementClickRef = useRef(onElementClick);
+  const onElementDoubleClickRef = useRef(onElementDoubleClick);
+  const onElementDragRef = useRef(onElementDrag);
+  const onConnectionStartRef = useRef(onConnectionStart);
+  const onRelationshipClickRef = useRef(onRelationshipClick);
+
+  // Keep refs in sync on every render without triggering re-registration
+  onElementClickRef.current = onElementClick;
+  onElementDoubleClickRef.current = onElementDoubleClick;
+  onElementDragRef.current = onElementDrag;
+  onConnectionStartRef.current = onConnectionStart;
+  onRelationshipClickRef.current = onRelationshipClick;
+
+  // Create renderer once; register stable callback wrappers that delegate to refs.
+  // This is intentionally run only on mount (empty deps) so callbacks are never
+  // re-added to the renderer's internal arrays on re-renders.
   useEffect(() => {
     if (!containerRef.current || rendererRef.current) return;
 
-    // Create renderer
     const renderer = createRenderer(containerRef.current, model, view, {
-      onElementDrag,
+      onElementDrag: (id, x, y) => onElementDragRef.current?.(id, x, y),
     });
     rendererRef.current = renderer;
 
-    return () => {
-      if (rendererRef.current) {
-        rendererRef.current.destroy();
-        rendererRef.current = null;
-      }
-    };
-  }, []);
-
-  // Update callbacks when they change
-  useEffect(() => {
-    if (!rendererRef.current) return;
-  }, [onElementClick, onElementDoubleClick, onElementDrag, onConnectionStart, onRelationshipClick]);
-
-  // Setup callbacks once renderer is ready (only on mount)
-  useEffect(() => {
-    if (!rendererRef.current) return;
-
-    if (onElementClick) {
-      rendererRef.current.onClick(onElementClick);
-    }
-
-    if (onElementDoubleClick) {
-      rendererRef.current.onDrillDown(onElementDoubleClick);
-    }
-
-    if (onElementDrag) {
-      rendererRef.current.onDrag(onElementDrag);
-    }
-
-    if (onConnectionStart) {
-      rendererRef.current.onConnectionStart(onConnectionStart);
-    }
-
-    // Wire up drag-to-connect completion
-    rendererRef.current.onConnectionComplete((sourceId, targetId) => {
-      // Trigger onElementClick for the target to complete the connection
-      if (onElementClick) {
-        onElementClick(targetId);
-      }
+    renderer.onClick((elementId) => {
+      onElementClickRef.current?.(elementId);
     });
 
-    if (onRelationshipClick) {
-      rendererRef.current.onRelationshipClick(onRelationshipClick);
-    }
-  }, [onElementClick, onElementDoubleClick, onElementDrag, onConnectionStart, onRelationshipClick]);
+    renderer.onDrillDown((elementId) => {
+      onElementDoubleClickRef.current?.(elementId);
+    });
 
+    renderer.onDrag((elementId, x, y) => {
+      onElementDragRef.current?.(elementId, x, y);
+    });
+
+    renderer.onConnectionStart((elementId) => {
+      onConnectionStartRef.current?.(elementId);
+    });
+
+    // Drag-to-connect completion: treat target element as a click so that
+    // studio-page.tsx can detect connectionStartId and create the relationship.
+    renderer.onConnectionComplete((sourceId, targetId) => {
+      onElementClickRef.current?.(targetId);
+    });
+
+    renderer.onRelationshipClick((relationshipId) => {
+      onRelationshipClickRef.current?.(relationshipId);
+    });
+
+    return () => {
+      renderer.destroy();
+      rendererRef.current = null;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep connection preview in sync
   useEffect(() => {
-    if (!rendererRef.current) return;
-    rendererRef.current.setConnectionPreview(connectionStartId ?? null);
+    rendererRef.current?.setConnectionPreview(connectionStartId ?? null);
   }, [connectionStartId]);
 
-  // Update renderer when model/view changes
+  // Re-render canvas when model / view / boundary metadata changes
   useEffect(() => {
-    if (rendererRef.current) {
-      rendererRef.current.updateLayout(model, view);
-    }
-  }, [model, view]);
+    rendererRef.current?.updateLayout(model, view, {
+      boundaryElementIds: boundaryElementIds ?? [],
+      externalElementIds: externalElementIds ?? [],
+      boundaryLabel,
+    });
+  }, [model, view, boundaryElementIds, externalElementIds, boundaryLabel]);
 
   return (
     <div

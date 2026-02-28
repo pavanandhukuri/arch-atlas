@@ -21,10 +21,14 @@ export function ElementPalette({ currentLevel, onAddElement, onNavigateUp, canNa
   const elementLabels: Record<ElementKind, string> = {
     landscape: 'Landscape',
     system: 'System',
+    person: 'Person',
     container: 'Container',
     component: 'Component',
     code: 'Code Element',
   };
+
+  // Show person button at landscape and system levels (actors appear at these levels)
+  const showPersonButton = currentLevel === 'landscape' || currentLevel === 'system';
 
   return (
     <div className="element-palette">
@@ -38,7 +42,7 @@ export function ElementPalette({ currentLevel, onAddElement, onNavigateUp, canNa
           {isExpanded ? '◀' : '▶'}
         </button>
       </div>
-      
+
       {isExpanded && (
         <div className="palette-content">
           {canNavigateUp && onNavigateUp && (
@@ -51,12 +55,12 @@ export function ElementPalette({ currentLevel, onAddElement, onNavigateUp, canNa
               <span className="navigate-label">Up to Parent</span>
             </button>
           )}
-          
+
           <div className="current-level-info">
             <span className="level-icon">{icon}</span>
             <span className="level-name">{currentLevel}</span>
           </div>
-          
+
           <button
             className="palette-item-single"
             onClick={() => onAddElement(elementKind)}
@@ -65,6 +69,17 @@ export function ElementPalette({ currentLevel, onAddElement, onNavigateUp, canNa
             <span className="palette-icon">{getLevelIcon(elementKind as DiagramLevel)}</span>
             <span className="palette-label">Add {elementLabels[elementKind]}</span>
           </button>
+
+          {showPersonButton && (
+            <button
+              className="palette-item-single"
+              onClick={() => onAddElement('person')}
+              title="Add Person (actor)"
+            >
+              <span className="palette-icon">👤</span>
+              <span className="palette-label">Add Person</span>
+            </button>
+          )}
         </div>
       )}
     </div>
