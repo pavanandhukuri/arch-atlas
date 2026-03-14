@@ -53,33 +53,10 @@ export function RelationshipEditor({
     onSave(updatedRelationship);
   };
 
-  // Fall back to names from props if no option found (e.g. element was deleted)
-  const sourceName =
-    elementOptions.find(o => o.value === sourceId)?.label ?? sourceElementName ?? 'Unknown';
-  const targetName =
-    elementOptions.find(o => o.value === targetId)?.label ?? targetElementName ?? 'Unknown';
-
-  const sourceSublabel = elementOptions.find(o => o.value === sourceId)?.sublabel;
-  const targetSublabel = elementOptions.find(o => o.value === targetId)?.sublabel;
-
   return (
     <form onSubmit={handleSubmit} className="element-editor">
       <div className="editor-header">
         <h3>Edit Connection</h3>
-      </div>
-
-      <div className="relationship-endpoints">
-        <div className="relationship-flow">
-          <div className="relationship-endpoint">
-            {sourceSublabel && <span className="relationship-endpoint-path">{sourceSublabel}</span>}
-            <strong>{sourceName}</strong>
-          </div>
-          <span className="relationship-arrow-icon">→</span>
-          <div className="relationship-endpoint">
-            {targetSublabel && <span className="relationship-endpoint-path">{targetSublabel}</span>}
-            <strong>{targetName}</strong>
-          </div>
-        </div>
       </div>
 
       <SearchableDropdown

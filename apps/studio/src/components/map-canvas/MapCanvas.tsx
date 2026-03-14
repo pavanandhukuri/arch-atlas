@@ -12,6 +12,7 @@ interface MapCanvasProps {
   onElementDrag?: (elementId: string, x: number, y: number) => void;
   onConnectionStart?: (elementId: string) => void;
   onRelationshipClick?: (relationshipId: string) => void;
+  onBackgroundClick?: () => void;
   connectionStartId?: string | null;
   boundaryElementIds?: string[];
   externalElementIds?: string[];
@@ -26,6 +27,7 @@ export function MapCanvas({
   onElementDrag,
   onConnectionStart,
   onRelationshipClick,
+  onBackgroundClick,
   connectionStartId,
   boundaryElementIds,
   externalElementIds,
@@ -41,6 +43,7 @@ export function MapCanvas({
   const onElementDragRef = useRef(onElementDrag);
   const onConnectionStartRef = useRef(onConnectionStart);
   const onRelationshipClickRef = useRef(onRelationshipClick);
+  const onBackgroundClickRef = useRef(onBackgroundClick);
 
   // Keep refs in sync on every render without triggering re-registration
   onElementClickRef.current = onElementClick;
@@ -48,6 +51,7 @@ export function MapCanvas({
   onElementDragRef.current = onElementDrag;
   onConnectionStartRef.current = onConnectionStart;
   onRelationshipClickRef.current = onRelationshipClick;
+  onBackgroundClickRef.current = onBackgroundClick;
 
   // Create renderer once; register stable callback wrappers that delegate to refs.
   // This is intentionally run only on mount (empty deps) so callbacks are never
@@ -84,6 +88,10 @@ export function MapCanvas({
 
     renderer.onRelationshipClick((relationshipId) => {
       onRelationshipClickRef.current?.(relationshipId);
+    });
+
+    renderer.onBackgroundClick(() => {
+      onBackgroundClickRef.current?.();
     });
 
     return () => {

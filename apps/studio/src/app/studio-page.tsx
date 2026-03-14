@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MapCanvas } from '@/components/map-canvas';
 import { ElementEditor, RelationshipEditor } from '@/components/model-editor';
@@ -17,8 +17,6 @@ import {
   getDiagramTitle,
   getElementKindForLevel,
   canDrillDown,
-  canDrillUp,
-  getParentLevel,
   getChildLevel,
 } from '@/services/diagram-context';
 
@@ -62,6 +60,9 @@ export default function StudioPage() {
     setCurrentLevel(level);
     setFocusedElementId(focusId);
     setExternalPositions({}); // external coords are per-view
+    setEditingElement(null);
+    setSelectedRelationshipId(null);
+    setPendingNewRelationship(null);
     updateURL(level, focusId);
   }, [updateURL]);
 
@@ -331,18 +332,6 @@ export default function StudioPage() {
     setPendingNewRelationship(stub);
   }, [editingElement]);
 
-  const handleNavigateUp = useCallback(() => {
-    if (canDrillUp(currentLevel)) {
-      const parentLevel = getParentLevel(currentLevel);
-      if (parentLevel) {
-        const currentModel = modelStore.getState().model;
-        const focusedElement = currentModel?.elements.find(e => e.id === focusedElementId);
-        setConnectionStartId(null);
-        setSelectedRelationshipId(null);
-        navigateToLevel(parentLevel, focusedElement?.parentId || null);
-      }
-    }
-  }, [currentLevel, focusedElementId, navigateToLevel]);
 
   const getVisibleElements = (): Element[] => {
     if (!model) return [];
@@ -355,6 +344,26 @@ export default function StudioPage() {
   const visibleElements = getVisibleElements();
   const focusedElement = focusedElementId ? model?.elements.find(e => e.id === focusedElementId) : null;
   const diagramTitle = getDiagramTitle(currentLevel, focusedElement?.name);
+
+  const breadcrumbs = useMemo(() => {
+    type Crumb = { label: string; level: DiagramLevel; focusId: string | null };
+    const crumbs: Crumb[] = [{ label: 'System Landscape', level: 'landscape', focusId: null }];
+    if (currentLevel === 'landscape' || !focusedElementId || !model) return crumbs;
+
+    // Walk up the parent chain from the focused element to build the full path
+    const chain: { label: string; level: DiagramLevel; focusId: string }[] = [];
+    let el = model.elements.find(e => e.id === focusedElementId);
+    while (el && el.kind !== 'landscape') {
+      const levelForKind: Partial<Record<string, DiagramLevel>> = {
+        system: 'system', container: 'container', component: 'component', code: 'code',
+      };
+      const lvl = levelForKind[el.kind];
+      if (lvl) chain.unshift({ label: el.name, level: lvl, focusId: el.id });
+      el = el.parentId ? model.elements.find(e => e.id === el!.parentId) : undefined;
+    }
+
+    return [...crumbs, ...chain];
+  }, [currentLevel, focusedElementId, model]);
 
   // Derive cross-layer relationships for the current view
   const visibleElementIds = new Set(visibleElements.map(e => e.id));
@@ -495,7 +504,26 @@ export default function StudioPage() {
       <header className="studio-header">
         <div className="header-left">
           <h1>Arch Atlas Studio</h1>
-          <span className="diagram-title">{diagramTitle}</span>
+          <nav className="breadcrumb" aria-label="Diagram navigation">
+            {breadcrumbs.map((crumb, i) => {
+              const isCurrent = i === breadcrumbs.length - 1;
+              return (
+                <span key={`${crumb.level}-${crumb.focusId}`} className="breadcrumb-item">
+                  {i > 0 && <span className="breadcrumb-sep">›</span>}
+                  {isCurrent ? (
+                    <span className="breadcrumb-current">{crumb.label}</span>
+                  ) : (
+                    <button
+                      className="breadcrumb-link"
+                      onClick={() => navigateToLevel(crumb.level, crumb.focusId)}
+                    >
+                      {crumb.label}
+                    </button>
+                  )}
+                </span>
+              );
+            })}
+          </nav>
         </div>
         <div className="header-actions">
           <button onClick={handleNewFile}>New</button>
@@ -514,8 +542,6 @@ export default function StudioPage() {
         <ElementPalette
           currentLevel={currentLevel}
           onAddElement={handleAddElement}
-          onNavigateUp={handleNavigateUp}
-          canNavigateUp={canDrillUp(currentLevel)}
         />
         <main className="studio-canvas">
           {canvasModel && filteredView && (
@@ -527,6 +553,7 @@ export default function StudioPage() {
               onElementDrag={handleElementDrag}
               onConnectionStart={handleConnectionStart}
               onRelationshipClick={handleRelationshipClick}
+              onBackgroundClick={() => { setEditingElement(null); setSelectedRelationshipId(null); setPendingNewRelationship(null); }}
               connectionStartId={connectionStartId}
               boundaryElementIds={boundaryElementIds}
               externalElementIds={externalElementIds}
@@ -534,37 +561,46 @@ export default function StudioPage() {
             />
           )}
         </main>
-        <aside className="studio-sidebar">
-          {connectionStartId && (
-            <div className="connection-banner">
-              <span>Connecting from <strong>{model?.elements.find(e => e.id === connectionStartId)?.name || 'Unknown'}</strong></span>
-              <button type="button" onClick={handleCancelConnection}>Cancel</button>
-            </div>
-          )}
-          {editingElement && (
-            <ElementEditor
-              element={editingElement}
-              allElements={model?.elements ?? []}
-              relationships={model?.relationships ?? []}
-              onSave={handleSaveElement}
-              onDelete={handleDeleteElement}
-              onCancel={() => setEditingElement(null)}
-              onEditRelationship={handleEditRelationshipFromElement}
-              onAddRelationship={handleAddRelationshipFromElement}
-            />
-          )}
-          {!editingElement && editorRelationship && (
-            <RelationshipEditor
-              relationship={editorRelationship}
-              sourceElementName={model?.elements.find(e => e.id === editorRelationship.sourceId)?.name}
-              targetElementName={model?.elements.find(e => e.id === editorRelationship.targetId)?.name}
-              elementOptions={elementOptions}
-              onSave={handleSaveRelationship}
-              onDelete={handleDeleteRelationship}
-              onCancel={handleCancelRelationshipEdit}
-            />
-          )}
-        </aside>
+        {connectionStartId && (
+          <div className="connection-banner">
+            <span>Connecting from <strong>{model?.elements.find(e => e.id === connectionStartId)?.name || 'Unknown'}</strong></span>
+            <button type="button" onClick={handleCancelConnection}>Cancel</button>
+          </div>
+        )}
+        {(editingElement || (!editingElement && editorRelationship)) && (
+          <aside className="studio-sidebar">
+            <button
+              className="sidebar-close-btn"
+              onClick={() => { setEditingElement(null); setSelectedRelationshipId(null); setPendingNewRelationship(null); }}
+              title="Close panel"
+            >
+              ✕
+            </button>
+            {editingElement && (
+              <ElementEditor
+                element={editingElement}
+                allElements={model?.elements ?? []}
+                relationships={model?.relationships ?? []}
+                onSave={handleSaveElement}
+                onDelete={handleDeleteElement}
+                onCancel={() => setEditingElement(null)}
+                onEditRelationship={handleEditRelationshipFromElement}
+                onAddRelationship={handleAddRelationshipFromElement}
+              />
+            )}
+            {!editingElement && editorRelationship && (
+              <RelationshipEditor
+                relationship={editorRelationship}
+                sourceElementName={model?.elements.find(e => e.id === editorRelationship.sourceId)?.name}
+                targetElementName={model?.elements.find(e => e.id === editorRelationship.targetId)?.name}
+                elementOptions={elementOptions}
+                onSave={handleSaveRelationship}
+                onDelete={handleDeleteRelationship}
+                onCancel={handleCancelRelationshipEdit}
+              />
+            )}
+          </aside>
+        )}
       </div>
     </div>
   );

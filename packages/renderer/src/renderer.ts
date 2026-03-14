@@ -1,7 +1,7 @@
 // Enhanced renderer with relationships (arrows)
 
 import type { ArchitectureModel, View, Element } from '@arch-atlas/core-model';
-import { Application, Graphics, Text, Container } from 'pixi.js';
+import { Application, Graphics, Text, Container, settings } from 'pixi.js';
 
 export interface RendererOptions {
   background?: number;
@@ -19,6 +19,7 @@ export interface Renderer {
   onConnectionStart: (callback: (elementId: string) => void) => void;
   onConnectionComplete: (callback: (sourceId: string, targetId: string) => void) => void;
   onRelationshipClick: (callback: (relationshipId: string) => void) => void;
+  onBackgroundClick: (callback: () => void) => void;
   setConnectionPreview: (elementId: string | null) => void;
   clearRelationshipSelection: () => void;
   updateLayout: (model: ArchitectureModel, view: View, meta?: { boundaryElementIds?: string[]; externalElementIds?: string[]; boundaryLabel?: string }) => void;
@@ -72,21 +73,21 @@ export function getRectEdgePoint(
   };
 }
 
-// C4 model-inspired color palette
+// C4 outline style — white background, colored border + text (matches c4model.com diagram key)
 const C4_COLORS: Record<string, { bg: number; text: number; border: number }> = {
-  landscape: { bg: 0x1168BD, text: 0xFFFFFF, border: 0x0A4D9B },
-  system:    { bg: 0x1168BD, text: 0xFFFFFF, border: 0x0A4D9B },
-  person:    { bg: 0x08427B, text: 0xFFFFFF, border: 0x052D56 },
-  container: { bg: 0x438DD5, text: 0xFFFFFF, border: 0x2E6BA8 },
-  component: { bg: 0x85BBF0, text: 0x1A1A2E, border: 0x5B99D5 },
-  code:      { bg: 0x6C6C6C, text: 0xFFFFFF, border: 0x4A4A4A },
+  landscape: { bg: 0xFFFFFF, text: 0x1168BD, border: 0x1168BD },
+  system:    { bg: 0xFFFFFF, text: 0x1168BD, border: 0x1168BD },
+  person:    { bg: 0xFFFFFF, text: 0x007580, border: 0x007580 }, // teal — internal user/staff
+  container: { bg: 0xFFFFFF, text: 0x2574A9, border: 0x2574A9 },
+  component: { bg: 0xFFFFFF, text: 0x3A7EBF, border: 0x3A7EBF },
+  code:      { bg: 0xFFFFFF, text: 0x555555, border: 0x555555 },
 };
 
 function getTypeTag(element: Element): string {
   switch (element.kind) {
     case 'landscape': return '[Landscape]';
     case 'system': return '[Software System]';
-    case 'person': return '[Person]';
+    case 'person': return '[User]';
     case 'container': return element.technology
       ? `[Container: ${element.technology}]`
       : '[Container]';
@@ -100,18 +101,20 @@ function getTypeTag(element: Element): string {
 
 function drawPersonIcon(graphics: Graphics, cx: number, cy: number, color: number) {
   const headRadius = 11;
-  const bodyW = 28;
-  const bodyH = 16;
-  const bodyY = cy + headRadius + 3;
+  const bodyW = 30;
+  const bodyH = 18;
+  const bodyY = cy + headRadius + 4;
 
-  // Head
-  graphics.beginFill(color, 1);
+  // Head — outline only (C4 style)
+  graphics.lineStyle(2.5, color, 1);
+  graphics.beginFill(0xFFFFFF, 0);
   graphics.drawCircle(cx, cy, headRadius);
   graphics.endFill();
 
-  // Shoulders / torso (rounded rect)
-  graphics.beginFill(color, 1);
-  graphics.drawRoundedRect(cx - bodyW / 2, bodyY, bodyW, bodyH, 6);
+  // Shoulders / torso — outline only
+  graphics.lineStyle(2.5, color, 1);
+  graphics.beginFill(0xFFFFFF, 0);
+  graphics.drawRoundedRect(cx - bodyW / 2, bodyY, bodyW, bodyH, 8);
   graphics.endFill();
 }
 
@@ -121,12 +124,18 @@ export function createRenderer(
   view: View,
   options: RendererOptions = {}
 ): Renderer {
+  // Set global resolution so all Text objects render at native DPR (fixes HiDPI blur)
+  const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+  settings.RESOLUTION = dpr;
+
   // Initialize PixiJS v7 application
   const app = new Application({
     width: container.offsetWidth || 800,
     height: container.offsetHeight || 600,
     backgroundAlpha: 0, // Make canvas transparent to show CSS grid
     antialias: options.antialias ?? true,
+    resolution: dpr,
+    autoDensity: true, // Keeps CSS size correct while rendering at native DPR
   });
   
   container.appendChild(app.view as HTMLCanvasElement);
@@ -231,11 +240,14 @@ export function createRenderer(
   background.endFill();
   background.eventMode = 'static';
   background.on('pointerdown', () => {
-    // Clear relationship selection when clicking on empty canvas
-    if (selectedRelationshipId) {
-      selectedRelationshipId = null;
+    // Clear all selection when clicking on empty canvas
+    const hadSelection = selectedRelationshipId || selectedElementId;
+    selectedRelationshipId = null;
+    selectedElementId = null;
+    if (hadSelection) {
       renderElements(lastModel, lastView, lastBoundaryElementIds, lastExternalElementIds, lastBoundaryLabel);
     }
+    backgroundClickCallbacks.forEach(cb => cb());
     // Start panning if not in a connection drag
     if (!isDraggingConnection) {
       isPanning = true;
@@ -250,7 +262,9 @@ export function createRenderer(
   const connectionStartCallbacks: Array<(elementId: string) => void> = [];
   const connectionCompleteCallbacks: Array<(sourceId: string, targetId: string) => void> = [];
   const relationshipClickCallbacks: Array<(relationshipId: string) => void> = [];
+  const backgroundClickCallbacks: Array<() => void> = [];
   let selectedRelationshipId: string | null = null;
+  let selectedElementId: string | null = null;
   let connectionPreviewElementId: string | null = null;
   let isDraggingConnection = false;
   let isPanning = false;
@@ -286,6 +300,8 @@ export function createRenderer(
   >();
   const previewGraphics = new Graphics();
   previewGraphics.eventMode = 'none';
+  const selectionGraphics = new Graphics();
+  selectionGraphics.eventMode = 'none';
   let lastNodeMap = new Map<string, { x: number; y: number; w: number; h: number }>();
 
   function renderElements(currentModel: ArchitectureModel, currentView: View, boundaryIds: string[], externalIds: string[], boundaryLabel?: string) {
@@ -408,6 +424,7 @@ export function createRenderer(
       relationshipContainer.cursor = 'pointer';
       relationshipContainer.on('pointerdown', (event: any) => {
         selectedRelationshipId = rel.id;
+        selectedElementId = null;
         if (relationshipClickCallbacks.length > 0) {
           relationshipClickCallbacks.forEach(callback => callback(rel.id));
         }
@@ -495,19 +512,19 @@ export function createRenderer(
 
       // Draw element box using C4 model-inspired colors (grayed out for external elements)
       const box = new Graphics();
+      // External systems: white bg, grey outline (C4 "out of scope" style)
       const c4 = isExternal
-        ? { bg: 0xe5e7eb, text: 0x6b7280, border: 0xd1d5db }
-        : C4_COLORS[element.kind] ?? { bg: 0x888888, text: 0xFFFFFF, border: 0x555555 };
+        ? { bg: 0xFFFFFF, text: 0x888888, border: 0x999999 }
+        : C4_COLORS[element.kind] ?? { bg: 0xFFFFFF, text: 0x555555, border: 0x888888 };
 
-      box.beginFill(c4.bg, isExternal ? 0.85 : 1);
-      box.lineStyle(isExternal ? 1 : 2, c4.border, isExternal ? 0.5 : 1);
-      box.drawRoundedRect(node.x, node.y, width, height, 6);
+      box.beginFill(c4.bg, 1);
+      box.lineStyle(isExternal ? 1.5 : 2.5, c4.border, 1);
+      box.drawRoundedRect(node.x, node.y, width, height, 8);
       box.endFill();
 
       // External elements are draggable but not clickable (no editor opens)
       box.eventMode = 'static';
       box.cursor = isExternal ? 'grab' : 'pointer';
-      if (isExternal) box.alpha = 0.75;
 
       let isDragging = false;
       let hasDragged = false;
@@ -630,8 +647,12 @@ export function createRenderer(
         const position = event.data.global;
         dragStartX = position.x - node.x;
         dragStartY = position.y - node.y;
-        // Clear relationship selection (will re-render when click callback fires)
+        // Immediately show selection highlight without a full re-render
         selectedRelationshipId = null;
+        if (!isExternal) {
+          selectedElementId = node.elementId;
+          renderSelection();
+        }
       });
 
       box.on('pointerup', () => {
@@ -697,7 +718,9 @@ export function createRenderer(
             }
             clickCount = 0;
 
-            if (drillDownCallbacks.length > 0) {
+            // Person elements have no children to drill into
+            if (element.kind !== 'person' && drillDownCallbacks.length > 0) {
+              selectedElementId = null;
               drillDownCallbacks.forEach(callback => callback(node.elementId));
             }
           }
@@ -770,7 +793,8 @@ export function createRenderer(
       }
 
       // Vertical offset: push text below the person icon if needed
-      const textTopY = isPerson ? 50 : 10;
+      // Icon cy=22, headRadius=11, bodyY=37, bodyH=18 → icon bottom ≈ 55px → start text at 62
+      const textTopY = isPerson ? 62 : 10;
       // Center X inside the box (anchor will be 0.5 so position at mid-width)
       const midX = width / 2;
 
@@ -855,7 +879,9 @@ export function createRenderer(
     });
 
     stage.addChild(previewGraphics);
+    stage.addChild(selectionGraphics);
     renderConnectionPreview();
+    renderSelection();
   }
 
   function renderConnectionPreview() {
@@ -898,6 +924,17 @@ export function createRenderer(
     previewGraphics.endFill();
   }
 
+  function renderSelection() {
+    selectionGraphics.clear();
+    if (!selectedElementId) return;
+    const g = elementGraphics.get(selectedElementId);
+    if (!g) return;
+    selectionGraphics.lineStyle(3, 0x74b9ff, 1);
+    selectionGraphics.beginFill(0, 0); // transparent fill needed to close the path
+    selectionGraphics.drawRoundedRect(g.x - 4, g.y - 4, g.w + 8, g.h + 8, 10);
+    selectionGraphics.endFill();
+  }
+
   renderElements(model, view, lastBoundaryElementIds, lastExternalElementIds, lastBoundaryLabel);
 
   // Initialize drag callbacks from options
@@ -935,6 +972,9 @@ export function createRenderer(
     },
     onRelationshipClick: (callback: (relationshipId: string) => void) => {
       relationshipClickCallbacks.push(callback);
+    },
+    onBackgroundClick: (callback: () => void) => {
+      backgroundClickCallbacks.push(callback);
     },
     setConnectionPreview: (elementId: string | null) => {
       connectionPreviewElementId = elementId;
