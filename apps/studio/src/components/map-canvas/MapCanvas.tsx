@@ -10,71 +10,109 @@ interface MapCanvasProps {
   onElementClick?: (elementId: string) => void;
   onElementDoubleClick?: (elementId: string) => void;
   onElementDrag?: (elementId: string, x: number, y: number) => void;
+  onConnectionStart?: (elementId: string) => void;
+  onRelationshipClick?: (relationshipId: string) => void;
+  onBackgroundClick?: () => void;
+  connectionStartId?: string | null;
+  boundaryElementIds?: string[];
+  externalElementIds?: string[];
+  boundaryLabel?: string;
 }
 
-export function MapCanvas({ model, view, onElementClick, onElementDoubleClick, onElementDrag }: MapCanvasProps) {
+export function MapCanvas({
+  model,
+  view,
+  onElementClick,
+  onElementDoubleClick,
+  onElementDrag,
+  onConnectionStart,
+  onRelationshipClick,
+  onBackgroundClick,
+  connectionStartId,
+  boundaryElementIds,
+  externalElementIds,
+  boundaryLabel,
+}: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
 
-  // Create renderer only once
+  // Keep refs to the latest callbacks so we can use them in stable closures below.
+  // This means we never need to re-register callbacks when handlers change.
+  const onElementClickRef = useRef(onElementClick);
+  const onElementDoubleClickRef = useRef(onElementDoubleClick);
+  const onElementDragRef = useRef(onElementDrag);
+  const onConnectionStartRef = useRef(onConnectionStart);
+  const onRelationshipClickRef = useRef(onRelationshipClick);
+  const onBackgroundClickRef = useRef(onBackgroundClick);
+
+  // Keep refs in sync on every render without triggering re-registration
+  onElementClickRef.current = onElementClick;
+  onElementDoubleClickRef.current = onElementDoubleClick;
+  onElementDragRef.current = onElementDrag;
+  onConnectionStartRef.current = onConnectionStart;
+  onRelationshipClickRef.current = onRelationshipClick;
+  onBackgroundClickRef.current = onBackgroundClick;
+
+  // Create renderer once; register stable callback wrappers that delegate to refs.
+  // This is intentionally run only on mount (empty deps) so callbacks are never
+  // re-added to the renderer's internal arrays on re-renders.
   useEffect(() => {
     if (!containerRef.current || rendererRef.current) return;
 
-    // Create renderer
     const renderer = createRenderer(containerRef.current, model, view, {
-      onElementDrag,
+      onElementDrag: (id, x, y) => onElementDragRef.current?.(id, x, y),
     });
     rendererRef.current = renderer;
 
-    return () => {
-      if (rendererRef.current) {
-        rendererRef.current.destroy();
-        rendererRef.current = null;
-      }
-    };
-  }, []);
-
-  // Update callbacks when they change
-  useEffect(() => {
-    if (!rendererRef.current) return;
-    
-    // Note: We can't dynamically update callbacks in the current renderer implementation
-    // But the initial callbacks will be set up on creation
-  }, [onElementClick, onElementDoubleClick, onElementDrag]);
-
-  // Setup callbacks once renderer is ready (only on mount)
-  useEffect(() => {
-    if (!rendererRef.current) return;
-
-    console.log('[MapCanvas] Setting up callbacks', { 
-      hasOnElementClick: !!onElementClick,
-      hasOnElementDoubleClick: !!onElementDoubleClick,
-      hasOnElementDrag: !!onElementDrag
+    renderer.onClick((elementId) => {
+      onElementClickRef.current?.(elementId);
     });
 
-    // Setup click callback
-    if (onElementClick) {
-      rendererRef.current.onClick(onElementClick);
-    }
+    renderer.onDrillDown((elementId) => {
+      onElementDoubleClickRef.current?.(elementId);
+    });
 
-    // Setup drill-down callback (double-click)
-    if (onElementDoubleClick) {
-      rendererRef.current.onDrillDown(onElementDoubleClick);
-    }
+    renderer.onDrag((elementId, x, y) => {
+      onElementDragRef.current?.(elementId, x, y);
+    });
 
-    // Setup drag callback
-    if (onElementDrag) {
-      console.log('[MapCanvas] Registering drag callback');
-      rendererRef.current.onDrag(onElementDrag);
-    }
-  }, [onElementClick, onElementDoubleClick, onElementDrag]);
+    renderer.onConnectionStart((elementId) => {
+      onConnectionStartRef.current?.(elementId);
+    });
 
-  // Update renderer when model/view changes
+    // Drag-to-connect completion: treat target element as a click so that
+    // studio-page.tsx can detect connectionStartId and create the relationship.
+    renderer.onConnectionComplete((sourceId, targetId) => {
+      onElementClickRef.current?.(targetId);
+    });
+
+    renderer.onRelationshipClick((relationshipId) => {
+      onRelationshipClickRef.current?.(relationshipId);
+    });
+
+    renderer.onBackgroundClick(() => {
+      onBackgroundClickRef.current?.();
+    });
+
+    return () => {
+      renderer.destroy();
+      rendererRef.current = null;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep connection preview in sync
   useEffect(() => {
-    if (rendererRef.current) {
-      rendererRef.current.updateLayout(model, view);
-    }
-  }, [model, view]);
+    rendererRef.current?.setConnectionPreview(connectionStartId ?? null);
+  }, [connectionStartId]);
+
+  // Re-render canvas when model / view / boundary metadata changes
+  useEffect(() => {
+    rendererRef.current?.updateLayout(model, view, {
+      boundaryElementIds: boundaryElementIds ?? [],
+      externalElementIds: externalElementIds ?? [],
+      boundaryLabel,
+    });
+  }, [model, view, boundaryElementIds, externalElementIds, boundaryLabel]);
 
   return (
     <div
@@ -84,6 +122,7 @@ export function MapCanvas({ model, view, onElementClick, onElementDoubleClick, o
         height: '100%',
         position: 'relative',
         overflow: 'hidden',
+        background: '#ffffff',
       }}
     />
   );
