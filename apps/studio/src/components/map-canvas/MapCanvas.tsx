@@ -98,7 +98,7 @@ export function MapCanvas({
       renderer.destroy();
       rendererRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line -- intentional: runs once on mount only
 
   // Keep connection preview in sync
   useEffect(() => {

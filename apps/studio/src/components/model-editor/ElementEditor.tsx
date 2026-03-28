@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Element, ElementKind, Relationship } from '@arch-atlas/core-model';
+import type { Element, Relationship } from '@arch-atlas/core-model';
 import { ConnectionsTable } from '@/components/shared';
 import type { ConnectionRow } from '@/components/shared';
 

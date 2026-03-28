@@ -6,8 +6,16 @@ import { MapCanvas } from '@/components/map-canvas';
 import { ElementEditor, RelationshipEditor } from '@/components/model-editor';
 import { ElementPalette } from '@/components/element-palette';
 import { ModelStore } from '@/state/model-store';
-import { AutosaveManager } from '@/services/autosave';
-import { exportModel, importModel } from '@/services/import-export';
+import { StorageManager } from '@/services/storage/storage-manager';
+import { LocalFileProvider } from '@/services/storage/local-file-provider';
+import { GoogleDriveProvider } from '@/services/storage/google-drive-provider';
+import { useGoogleDriveAuth, type GoogleDriveAuthState } from '@/hooks/useGoogleDriveAuth';
+import { StoragePromptDialog } from '@/components/storage/StoragePromptDialog';
+import { ConnectionStatusBanner } from '@/components/storage/ConnectionStatusBanner';
+import { ConflictResolutionDialog } from '@/components/storage/ConflictResolutionDialog';
+import { useStorageSession } from '@/hooks/useStorageSession';
+import { exportModel } from '@/services/import-export';
+import type { StorageHandle, LoadResult } from '@/services/storage/storage-provider';
 import { addRelationshipToModel, removeRelationshipFromModel } from '@/services/relationships';
 import { deriveViewRelationships, buildElementOptions } from '@/services/derived-relationships';
 import type { ArchitectureModel, Element, ElementKind, Relationship } from '@arch-atlas/core-model';
@@ -21,11 +29,13 @@ import {
 } from '@/services/diagram-context';
 
 const modelStore = new ModelStore();
-const autosaveManager = new AutosaveManager();
+const storageManager = new StorageManager();
+const localProvider = new LocalFileProvider();
 
 export default function StudioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const driveAuth: GoogleDriveAuthState = useGoogleDriveAuth();
 
   const [model, setModel] = useState<ArchitectureModel | null>(null);
   const [editingElement, setEditingElement] = useState<Element | null>(null);
@@ -38,11 +48,18 @@ export default function StudioPage() {
 
   const [connectionStartId, setConnectionStartId] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [showStoragePrompt, setShowStoragePrompt] = useState<'startup' | 'new' | 'open' | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveStatusMessage, setSaveStatusMessage] = useState<string>('');
+  const [conflictInfo, setConflictInfo] = useState<{
+    remoteModified: string;
+    clientLastKnown: string | number | null;
+  } | null>(null);
+  const { handle, setHandle, clearHandle } = useStorageSession();
   // Separate positions for external (system-level) elements so they don't share
   // coordinates with the element's position in the landscape/main view.
   // Keyed by elementId. Cleared whenever the user navigates to a new view.
   const [externalPositions, setExternalPositions] = useState<Record<string, { x: number; y: number }>>({});
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const levelParam = searchParams.get('level') as DiagramLevel | null;
   const focusParam = searchParams.get('focus');
@@ -68,35 +85,42 @@ export default function StudioPage() {
 
   useEffect(() => {
     const unsubscribe = modelStore.subscribe(state => { setModel(state.model); });
-    const autosaved = autosaveManager.loadFromLocalStorage();
-    const initialModel: ArchitectureModel = autosaved ?? {
-      schemaVersion: '0.1.0',
-      metadata: {
-        title: 'New Architecture',
-        description: 'Created with Arch Atlas Studio',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      elements: [],
-      relationships: [],
-      constraints: [],
-      views: [{ id: 'view-1', title: 'System Context', level: 'system', layout: { algorithm: 'deterministic-v1', nodes: [], edges: [] } }],
-    };
-    modelStore.loadModel(initialModel);
-    setModel(initialModel);
-    return () => { unsubscribe(); };
-  }, []);
 
-  useEffect(() => {
-    if (model && modelStore.getState().isDirty) {
-      autosaveManager.saveToLocalStorage(model);
-    }
-  }, [model]);
+    setShowStoragePrompt('startup');
+
+    // Subscribe to StorageManager events for save status
+    const offSuccess = storageManager.on('save-success', () => {
+      modelStore.clearDirty();
+      setSaveStatus('saved');
+      setSaveStatusMessage(`Saved at ${new Date().toLocaleTimeString()}`);
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    });
+    const offError = storageManager.on('save-error', e => {
+      setSaveStatus('error');
+      setSaveStatusMessage(e.error?.message ?? 'Save failed');
+    });
+    const offConflict = storageManager.on('conflict', e => {
+      if (e.error?.conflict) {
+        setConflictInfo({
+          remoteModified: String(e.error.conflict.remoteModified),
+          clientLastKnown: e.error.conflict.clientLastKnown,
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      offSuccess();
+      offError();
+      offConflict();
+      storageManager.stopAutosave();
+    };
+  }, []);
 
   const handleAddElement = (kind: ElementKind) => {
     if (!model) return;
     const newElement: Element = { id: `elem-${Date.now()}`, name: `New ${kind}`, kind, description: '' };
-    let updatedElements = [...model.elements];
+    const updatedElements = [...model.elements];
 
     if (focusedElementId) {
       newElement.parentId = focusedElementId;
@@ -343,7 +367,7 @@ export default function StudioPage() {
 
   const visibleElements = getVisibleElements();
   const focusedElement = focusedElementId ? model?.elements.find(e => e.id === focusedElementId) : null;
-  const diagramTitle = getDiagramTitle(currentLevel, focusedElement?.name);
+  const _diagramTitle = getDiagramTitle(currentLevel, focusedElement?.name);
 
   const breadcrumbs = useMemo(() => {
     type Crumb = { label: string; level: DiagramLevel; focusId: string | null };
@@ -465,24 +489,74 @@ export default function StudioPage() {
   }, []);
 
   const handleExport = () => { if (model) { exportModel(model); modelStore.clearDirty(); } };
-  const handleImportClick = () => { fileInputRef.current?.click(); };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      const importedModel = await importModel(file);
-      modelStore.loadModel(importedModel);
-      autosaveManager.clearAutosave();
-      setImportError(null);
-    } catch (error) {
-      setImportError(error instanceof Error ? error.message : 'Import failed');
-    }
-    event.target.value = '';
+  /** Open button — show StoragePromptDialog in open mode */
+  const handleImportClick = () => {
+    storageManager.stopAutosave();
+    clearHandle();
+    setShowStoragePrompt('open');
   };
 
+  /** New button — stop current session and show StoragePromptDialog */
   const handleNewFile = () => {
-    if (confirm('Create a new file? Unsaved changes will be lost.')) {
+    if (handle && modelStore.getState().isDirty) {
+      if (!confirm('Create a new file? Unsaved changes will be lost.')) return;
+    }
+    storageManager.stopAutosave();
+    clearHandle();
+
+    const newModel: ArchitectureModel = {
+      schemaVersion: '0.1.0',
+      metadata: { title: 'New Architecture', description: 'Created with Arch Atlas Studio', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      elements: [],
+      relationships: [],
+      constraints: [],
+      views: [{ id: 'view-1', title: 'System Context', level: 'system', layout: { algorithm: 'deterministic-v1', nodes: [], edges: [] } }],
+    };
+    modelStore.loadModel(newModel);
+    setModel(newModel);
+    navigateToLevel('landscape', null);
+    setShowStoragePrompt('new');
+  };
+
+  /** Manual Save */
+  const handleManualSave = async () => {
+    if (!handle || !model) return;
+    setSaveStatus('saving');
+    const provider = handle.type === 'local' ? localProvider : new GoogleDriveProvider(driveAuth.accessToken!);
+    await storageManager.manualSave(handle, provider, model);
+  };
+
+  /** Keep My Version — force-overwrite remote with local state */
+  const handleKeepMine = async () => {
+    if (!handle || !model) return;
+    const provider = handle.type === 'local' ? localProvider : new GoogleDriveProvider(driveAuth.accessToken!);
+    setConflictInfo(null);
+    await storageManager.manualSave(handle, provider, model, { force: true });
+  };
+
+  /** Load Remote Version — discard local changes and reload from storage */
+  const handleLoadRemote = async () => {
+    if (!handle) return;
+    const provider = handle.type === 'local' ? localProvider : new GoogleDriveProvider(driveAuth.accessToken!);
+    setConflictInfo(null);
+    const result = await provider.load(handle);
+    if (result.success) {
+      modelStore.loadModel(result.model);
+      setModel(result.model);
+      handle.lastKnownModified = result.modified;
+    }
+  };
+
+  /** Called when user selects a storage location from the dialog */
+  const handleStorageSelected = (selectedHandle: StorageHandle, loadResult?: LoadResult) => {
+    if (loadResult) {
+      // Opening an existing file — load its model
+      modelStore.loadModel(loadResult.model);
+      setModel(loadResult.model);
+      navigateToLevel('landscape', null);
+    } else if (!modelStore.getState().model) {
+      // New file from startup flow — no model has been created yet, initialize empty one
       const newModel: ArchitectureModel = {
         schemaVersion: '0.1.0',
         metadata: { title: 'New Architecture', description: 'Created with Arch Atlas Studio', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
@@ -492,15 +566,49 @@ export default function StudioPage() {
         views: [{ id: 'view-1', title: 'System Context', level: 'system', layout: { algorithm: 'deterministic-v1', nodes: [], edges: [] } }],
       };
       modelStore.loadModel(newModel);
-      autosaveManager.clearAutosave();
-      navigateToLevel('landscape', null);
+      setModel(newModel);
     }
+
+    setHandle(selectedHandle);
+    setShowStoragePrompt(null);
+
+    const provider = selectedHandle.type === 'local' ? localProvider : new GoogleDriveProvider(driveAuth.accessToken!);
+    storageManager.startAutosave(
+      selectedHandle,
+      provider,
+      () => modelStore.getState().model,
+      () => modelStore.getState().isDirty
+    );
   };
 
   const canvasModel = model ? { ...model, elements: allViewElements, relationships: viewRelationships } : null;
 
   return (
     <div className="studio-layout">
+      {/* Connection status banner — shown when Google Drive is offline */}
+      <ConnectionStatusBanner storageManager={storageManager} />
+
+      {/* Conflict resolution dialog — shown when a save conflict is detected */}
+      {conflictInfo && handle && (
+        <ConflictResolutionDialog
+          fileName={handle.fileName}
+          localTimestamp={new Date().toISOString()}
+          remoteTimestamp={conflictInfo.remoteModified}
+          onKeepMine={handleKeepMine}
+          onLoadRemote={handleLoadRemote}
+        />
+      )}
+
+      {/* Storage location prompt — modal, shown on app init, New, and Open */}
+      {showStoragePrompt && (
+        <StoragePromptDialog
+          mode={showStoragePrompt}
+          onLocalSelected={handleStorageSelected}
+          onDriveSelected={handleStorageSelected}
+          driveAuth={driveAuth}
+        />
+      )}
+
       <header className="studio-header">
         <div className="header-left">
           <h1>Arch Atlas Studio</h1>
@@ -526,11 +634,25 @@ export default function StudioPage() {
           </nav>
         </div>
         <div className="header-actions">
+          {saveStatus !== 'idle' && (
+            <span
+              style={{
+                fontSize: '0.8rem',
+                color: saveStatus === 'error' ? '#dc2626' : '#16a34a',
+                marginRight: 8,
+              }}
+              aria-live="polite"
+            >
+              {saveStatus === 'saving' ? 'Saving…' : saveStatusMessage}
+            </span>
+          )}
           <button onClick={handleNewFile}>New</button>
           <button onClick={handleImportClick}>Open</button>
-          <button onClick={handleExport} disabled={!model}>Export {isDirty && '*'}</button>
+          <button onClick={handleManualSave} disabled={!handle || !model}>
+            Save {isDirty && handle ? '*' : ''}
+          </button>
+          <button onClick={handleExport} disabled={!model}>Export</button>
         </div>
-        <input ref={fileInputRef} type="file" accept=".json,.arch.json" onChange={handleFileChange} style={{ display: 'none' }} />
       </header>
       {importError && (
         <div className="error-banner">
@@ -567,7 +689,7 @@ export default function StudioPage() {
             <button type="button" onClick={handleCancelConnection}>Cancel</button>
           </div>
         )}
-        {(editingElement || (!editingElement && editorRelationship)) && (
+        {(editingElement ?? editorRelationship) && (
           <aside className="studio-sidebar">
             <button
               className="sidebar-close-btn"

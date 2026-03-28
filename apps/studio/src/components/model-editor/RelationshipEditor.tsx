@@ -17,25 +17,25 @@ interface RelationshipEditorProps {
 
 export function RelationshipEditor({
   relationship,
-  sourceElementName,
-  targetElementName,
+  sourceElementName: _sourceElementName,
+  targetElementName: _targetElementName,
   elementOptions,
   onSave,
   onDelete,
   onCancel,
 }: RelationshipEditorProps) {
-  const [sourceId, setSourceId] = useState(relationship?.sourceId ?? '');
-  const [targetId, setTargetId] = useState(relationship?.targetId ?? '');
-  const [action, setAction] = useState(relationship?.action ?? '');
-  const [integrationMode, setIntegrationMode] = useState(relationship?.integrationMode ?? '');
-  const [description, setDescription] = useState(relationship?.description ?? '');
+  const [sourceId, setSourceId] = useState(relationship.sourceId);
+  const [targetId, setTargetId] = useState(relationship.targetId);
+  const [action, setAction] = useState(relationship.action ?? '');
+  const [integrationMode, setIntegrationMode] = useState(relationship.integrationMode ?? '');
+  const [description, setDescription] = useState(relationship.description ?? '');
 
   useEffect(() => {
-    setSourceId(relationship?.sourceId ?? '');
-    setTargetId(relationship?.targetId ?? '');
-    setAction(relationship?.action ?? '');
-    setIntegrationMode(relationship?.integrationMode ?? '');
-    setDescription(relationship?.description ?? '');
+    setSourceId(relationship.sourceId);
+    setTargetId(relationship.targetId);
+    setAction(relationship.action ?? '');
+    setIntegrationMode(relationship.integrationMode ?? '');
+    setDescription(relationship.description ?? '');
   }, [relationship]);
 
   const handleSubmit = (e: React.FormEvent) => {

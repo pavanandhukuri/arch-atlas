@@ -9,6 +9,7 @@ describe('Layout computation determinism', () => {
 
   beforeEach(() => {
     model = minimalModel as ArchitectureModel;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     view = model.views[0]!;
   });
 

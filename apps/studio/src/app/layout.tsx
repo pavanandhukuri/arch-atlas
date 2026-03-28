@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { ClientProviders } from '../components/ClientProviders';
 
 export const metadata: Metadata = {
   title: 'Arch Atlas Studio',
@@ -13,7 +14,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ClientProviders clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? ''}>
+          {children}
+        </ClientProviders>
+      </body>
     </html>
   );
 }

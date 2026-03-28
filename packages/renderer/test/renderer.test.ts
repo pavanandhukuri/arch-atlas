@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRenderer, getRectEdgePoint } from '../src/renderer';
-import type { ArchitectureModel, View } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@arch-atlas/core-model';
 import minimalModel from '../../core-model/test/fixtures/minimal-model.json';
 
 describe('Renderer initialization', () => {

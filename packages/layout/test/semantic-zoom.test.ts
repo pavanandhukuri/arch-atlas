@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeSemanticZoomLevel, type ZoomBehavior } from '../src/semantic-zoom';
-import type { ElementKind } from '@arch-atlas/core-model';
+import { computeSemanticZoomLevel } from '../src/semantic-zoom';
 
 describe('Semantic zoom mapping', () => {
   it('should map zoom level 0-0.2 to landscape', () => {

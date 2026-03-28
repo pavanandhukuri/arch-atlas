@@ -7,7 +7,13 @@ export function exportModel(model: ArchitectureModel): void {
 
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${model.metadata.title.toLowerCase().replace(/\s+/g, '-')}.arch.json`;
+  const safeName = model.metadata.title
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 200) || 'diagram';
+  link.download = `${safeName}.arch.json`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -15,47 +21,28 @@ export function exportModel(model: ArchitectureModel): void {
   URL.revokeObjectURL(url);
 }
 
-export function importModel(file: File): Promise<ArchitectureModel> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+export function parseModelFromText(text: string): ArchitectureModel {
+  const model = JSON.parse(text) as ArchitectureModel;
 
-    reader.onload = (event) => {
-      try {
-        const json = event.target?.result as string;
-        const model = JSON.parse(json) as ArchitectureModel;
+  if (!model.schemaVersion) {
+    throw new Error('Missing schemaVersion field');
+  }
 
-        // Strict import policy: reject unknown schema versions
-        if (!model.schemaVersion) {
-          reject(new Error('Missing schemaVersion field'));
-          return;
-        }
+  const knownVersions = ['0.1.0'];
+  if (!knownVersions.includes(model.schemaVersion)) {
+    throw new Error(`Unknown schemaVersion: ${model.schemaVersion}`);
+  }
 
-        // In a real implementation, check against known versions
-        const knownVersions = ['0.1.0'];
-        if (!knownVersions.includes(model.schemaVersion)) {
-          reject(new Error(`Unknown schemaVersion: ${model.schemaVersion}`));
-          return;
-        }
+  const knownFields = ['schemaVersion', 'metadata', 'elements', 'relationships', 'constraints', 'views'];
+  const unknownFields = Object.keys(model).filter(f => !knownFields.includes(f));
+  if (unknownFields.length > 0) {
+    throw new Error(`Unknown fields in model: ${unknownFields.join(', ')}`);
+  }
 
-        // Reject unknown fields (simple check for top-level fields)
-        const knownFields = ['schemaVersion', 'metadata', 'elements', 'relationships', 'constraints', 'views'];
-        const actualFields = Object.keys(model);
-        const unknownFields = actualFields.filter(f => !knownFields.includes(f));
-        if (unknownFields.length > 0) {
-          reject(new Error(`Unknown fields in model: ${unknownFields.join(', ')}`));
-          return;
-        }
+  return model;
+}
 
-        resolve(model);
-      } catch (error) {
-        reject(new Error(`Failed to parse JSON: ${error}`));
-      }
-    };
-
-    reader.onerror = () => {
-      reject(new Error('Failed to read file'));
-    };
-
-    reader.readAsText(file);
-  });
+export async function importModel(file: File): Promise<ArchitectureModel> {
+  const text = await file.text();
+  return parseModelFromText(text);
 }

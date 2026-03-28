@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ArchitectureModel } from '@arch-atlas/core-model';
-import minimalModel from '../../core-model/test/fixtures/minimal-model.json';
+import minimalModel from '../../../packages/core-model/test/fixtures/minimal-model.json';
 
 describe('Export includes layout metadata', () => {
   it('should include layout state in views', () => {
