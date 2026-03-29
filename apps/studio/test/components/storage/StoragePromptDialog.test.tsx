@@ -99,7 +99,7 @@ describe('StoragePromptDialog — new mode (US1)', () => {
       load: vi.fn(),
       isAvailable: vi.fn(),
       type: 'local' as const,
-    }));
+    }) as unknown as InstanceType<typeof LocalFileProvider>);
 
     render(
       <StoragePromptDialog
@@ -128,7 +128,7 @@ describe('StoragePromptDialog — new mode (US1)', () => {
       load: vi.fn(),
       isAvailable: vi.fn(),
       type: 'local' as const,
-    }));
+    }) as unknown as InstanceType<typeof LocalFileProvider>);
 
     render(
       <StoragePromptDialog

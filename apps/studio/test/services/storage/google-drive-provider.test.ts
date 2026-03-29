@@ -64,7 +64,7 @@ describe('GoogleDriveProvider', () => {
       );
       const provider = new GoogleDriveProvider(MOCK_ACCESS_TOKEN);
 
-      const result = await provider.createFile('diagram', 'folder-id-xyz');
+      const result = await provider.createFile('diagram');
 
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining('upload/drive/v3/files'),
@@ -88,7 +88,7 @@ describe('GoogleDriveProvider', () => {
       );
       const provider = new GoogleDriveProvider(MOCK_ACCESS_TOKEN);
 
-      const result = await provider.createFile('diagram', 'folder-id-xyz');
+      const result = await provider.createFile('diagram');
 
       expect(result).toMatchObject({
         type: 'google-drive',
@@ -110,7 +110,7 @@ describe('GoogleDriveProvider', () => {
       );
       const provider = new GoogleDriveProvider(MOCK_ACCESS_TOKEN);
 
-      const result = await provider.createFile('diagram', 'folder-id-xyz');
+      const result = await provider.createFile('diagram');
 
       expect(result).toMatchObject({
         success: false,
@@ -126,7 +126,7 @@ describe('GoogleDriveProvider', () => {
       );
       const provider = new GoogleDriveProvider(MOCK_ACCESS_TOKEN);
 
-      const result = await provider.createFile('diagram', 'folder-id-xyz');
+      const result = await provider.createFile('diagram');
 
       expect(result).toMatchObject({
         success: false,

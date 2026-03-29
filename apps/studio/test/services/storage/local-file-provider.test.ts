@@ -65,11 +65,12 @@ describe('LocalFileProvider', () => {
   describe('createFile()', () => {
     it('calls showSaveFilePicker with .arch.json filter', async () => {
       const fileHandle = makeFileHandle();
-      vi.stubGlobal('showSaveFilePicker', vi.fn().mockResolvedValue(fileHandle));
+      const mockPicker = vi.fn().mockResolvedValue(fileHandle);
+      vi.stubGlobal('showSaveFilePicker', mockPicker);
 
       const result = await provider.createFile('my-diagram');
 
-      expect(showSaveFilePicker).toHaveBeenCalledWith(
+      expect(mockPicker).toHaveBeenCalledWith(
         expect.objectContaining({
           suggestedName: 'my-diagram.arch.json',
           types: expect.arrayContaining([

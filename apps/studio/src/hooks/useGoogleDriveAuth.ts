@@ -21,7 +21,7 @@ export interface GoogleDriveAuthState {
   /** Opens the Google sign-in popup */
   authorize: () => void;
   /** Clears the in-memory token */
-  revoke: () => Promise<void>;
+  revoke: () => void;
   /** True while the OAuth popup is in progress */
   isLoading: boolean;
   /** Error message if sign-in failed */
