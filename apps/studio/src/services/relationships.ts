@@ -26,7 +26,7 @@ export function addRelationshipToModel(params: AddRelationshipParams): Architect
       return view;
     }
 
-    const edges = view.layout.edges ?? [];
+    const edges = view.layout.edges;
     return {
       ...view,
       layout: {
