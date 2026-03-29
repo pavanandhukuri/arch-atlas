@@ -17,7 +17,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { LocalFileProvider } from '../../services/storage/local-file-provider';
 import { GoogleDriveProvider } from '../../services/storage/google-drive-provider';
 import { getStoragePreference, setStoragePreference } from '../../state/storage-preference-store';
-import type { StorageHandle, StorageType, LoadResult } from '../../services/storage/storage-provider';
+import type {
+  StorageHandle,
+  StorageType,
+  LoadResult,
+} from '../../services/storage/storage-provider';
 import type { GoogleDriveAuthState } from '../../hooks/useGoogleDriveAuth';
 
 export interface StoragePromptDialogProps {
@@ -52,12 +56,21 @@ export function StoragePromptDialog({
   const [error, setError] = useState<string | null>(null);
 
   // Google Drive file list (open mode)
-  const [driveFiles, setDriveFiles] = useState<Array<{ id: string; name: string; modifiedTime: string }>>([]);
+  const [driveFiles, setDriveFiles] = useState<
+    Array<{ id: string; name: string; modifiedTime: string }>
+  >([]);
   const [driveFilesLoading, setDriveFilesLoading] = useState(false);
   const [selectedDriveFileId, setSelectedDriveFileId] = useState<string | null>(null);
   const [selectedDriveFileName, setSelectedDriveFileName] = useState<string | null>(null);
 
-  const { accessToken, isAuthenticated, authorize, revoke, isLoading: authLoading, authError } = driveAuth;
+  const {
+    accessToken,
+    isAuthenticated,
+    authorize,
+    revoke,
+    isLoading: authLoading,
+    authError,
+  } = driveAuth;
 
   // Restore last-used storage tab preference
   useEffect(() => {
@@ -89,7 +102,7 @@ export function StoragePromptDialog({
     if (!accessToken) return;
     const provider = new GoogleDriveProvider(accessToken);
     await provider.deleteFile(fileId);
-    setDriveFiles(prev => prev.filter(f => f.id !== fileId));
+    setDriveFiles((prev) => prev.filter((f) => f.id !== fileId));
     if (selectedDriveFileId === fileId) {
       setSelectedDriveFileId(null);
       setSelectedDriveFileName(null);
@@ -188,8 +201,8 @@ export function StoragePromptDialog({
           {resolvedMode === 'new'
             ? 'Choose where to save your diagram'
             : resolvedMode === 'open'
-            ? 'Open a diagram'
-            : 'Welcome to Arch Atlas'}
+              ? 'Open a diagram'
+              : 'Welcome to Arch Atlas'}
         </h2>
 
         {/* Startup intent selection */}
@@ -248,7 +261,10 @@ export function StoragePromptDialog({
           <>
             {mode === 'startup' && (
               <button
-                onClick={() => { setStartupIntent(null); setError(null); }}
+                onClick={() => {
+                  setStartupIntent(null);
+                  setError(null);
+                }}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -268,12 +284,15 @@ export function StoragePromptDialog({
             )}
 
             <div role="tablist" style={{ display: 'flex', gap: 8, marginBottom: '1.5rem' }}>
-              {(['local', 'google-drive'] as StorageType[]).map(tab => (
+              {(['local', 'google-drive'] as StorageType[]).map((tab) => (
                 <button
                   key={tab}
                   role="tab"
                   aria-selected={activeTab === tab}
-                  onClick={() => { setActiveTab(tab); setError(null); }}
+                  onClick={() => {
+                    setActiveTab(tab);
+                    setError(null);
+                  }}
                   style={{
                     padding: '0.5rem 1rem',
                     borderRadius: 4,
@@ -296,15 +315,24 @@ export function StoragePromptDialog({
               <div role="tabpanel">
                 {resolvedMode === 'new' && (
                   <div style={{ marginBottom: '1rem' }}>
-                    <label htmlFor="diagram-name" style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                    <label
+                      htmlFor="diagram-name"
+                      style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}
+                    >
                       Diagram name
                     </label>
                     <input
                       id="diagram-name"
                       type="text"
                       value={diagramName}
-                      onChange={e => setDiagramName(e.target.value)}
-                      style={{ width: '100%', padding: '0.4rem', border: '1px solid #ccc', borderRadius: 4, boxSizing: 'border-box' }}
+                      onChange={(e) => setDiagramName(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.4rem',
+                        border: '1px solid #ccc',
+                        borderRadius: 4,
+                        boxSizing: 'border-box',
+                      }}
                     />
                   </div>
                 )}
@@ -354,15 +382,24 @@ export function StoragePromptDialog({
                     {/* New diagram — just name it, saved to appDataFolder */}
                     {resolvedMode === 'new' && (
                       <div style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="drive-diagram-name" style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>
+                        <label
+                          htmlFor="drive-diagram-name"
+                          style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}
+                        >
                           Diagram name
                         </label>
                         <input
                           id="drive-diagram-name"
                           type="text"
                           value={diagramName}
-                          onChange={e => setDiagramName(e.target.value)}
-                          style={{ width: '100%', padding: '0.4rem', border: '1px solid #ccc', borderRadius: 4, boxSizing: 'border-box' }}
+                          onChange={(e) => setDiagramName(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '0.4rem',
+                            border: '1px solid #ccc',
+                            borderRadius: 4,
+                            boxSizing: 'border-box',
+                          }}
                         />
                         <p style={{ color: '#888', fontSize: '0.8rem', margin: '0.4rem 0 0' }}>
                           Saved to your Google Drive app data folder (private to this app).
@@ -374,14 +411,26 @@ export function StoragePromptDialog({
                     {resolvedMode === 'open' && (
                       <div style={{ marginBottom: '1rem' }}>
                         {driveFilesLoading ? (
-                          <p style={{ color: '#555', fontSize: '0.9rem' }}>Loading your diagrams…</p>
+                          <p style={{ color: '#555', fontSize: '0.9rem' }}>
+                            Loading your diagrams…
+                          </p>
                         ) : driveFiles.length === 0 ? (
                           <p style={{ color: '#555', fontSize: '0.9rem' }}>
                             No diagrams found in Google Drive. Create a new diagram first.
                           </p>
                         ) : (
-                          <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: 200, overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
-                            {driveFiles.map(file => (
+                          <ul
+                            style={{
+                              listStyle: 'none',
+                              padding: 0,
+                              margin: 0,
+                              maxHeight: 200,
+                              overflowY: 'auto',
+                              border: '1px solid #eee',
+                              borderRadius: 4,
+                            }}
+                          >
+                            {driveFiles.map((file) => (
                               <li
                                 key={file.id}
                                 style={{
@@ -389,7 +438,8 @@ export function StoragePromptDialog({
                                   alignItems: 'center',
                                   justifyContent: 'space-between',
                                   padding: '0.5rem 0.75rem',
-                                  background: selectedDriveFileId === file.id ? '#e8f0fe' : 'transparent',
+                                  background:
+                                    selectedDriveFileId === file.id ? '#e8f0fe' : 'transparent',
                                   borderBottom: '1px solid #f0f0f0',
                                   cursor: 'pointer',
                                 }}
@@ -399,15 +449,27 @@ export function StoragePromptDialog({
                                 }}
                               >
                                 <div>
-                                  <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{file.name}</div>
+                                  <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>
+                                    {file.name}
+                                  </div>
                                   <div style={{ fontSize: '0.75rem', color: '#888' }}>
                                     {new Date(file.modifiedTime).toLocaleDateString()}
                                   </div>
                                 </div>
                                 <button
-                                  onClick={e => { e.stopPropagation(); void handleDeleteDriveFile(file.id); }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleDeleteDriveFile(file.id);
+                                  }}
                                   title="Delete"
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: '1rem', padding: '0 0.25rem' }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#999',
+                                    fontSize: '1rem',
+                                    padding: '0 0.25rem',
+                                  }}
                                 >
                                   ×
                                 </button>
@@ -419,7 +481,9 @@ export function StoragePromptDialog({
                     )}
 
                     <button
-                      onClick={async () => { await revoke(); }}
+                      onClick={() => {
+                        revoke();
+                      }}
                       style={{
                         fontSize: '0.8rem',
                         color: '#666',
@@ -474,14 +538,20 @@ export function StoragePromptDialog({
                   opacity:
                     isLoading ||
                     (activeTab === 'google-drive' && !isAuthenticated) ||
-                    (activeTab === 'google-drive' && resolvedMode === 'open' && !selectedDriveFileId)
+                    (activeTab === 'google-drive' &&
+                      resolvedMode === 'open' &&
+                      !selectedDriveFileId)
                       ? 0.5
                       : 1,
                 }}
               >
                 {isLoading
-                  ? resolvedMode === 'new' ? 'Creating…' : 'Opening…'
-                  : resolvedMode === 'new' ? 'Create' : 'Open'}
+                  ? resolvedMode === 'new'
+                    ? 'Creating…'
+                    : 'Opening…'
+                  : resolvedMode === 'new'
+                    ? 'Create'
+                    : 'Open'}
               </button>
             </div>
           </>
