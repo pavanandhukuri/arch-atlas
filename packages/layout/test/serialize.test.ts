@@ -39,7 +39,9 @@ describe('cloneLayoutState', () => {
 
   it('mutations to the clone do not affect the original', () => {
     const clone = cloneLayoutState(sampleLayout);
-    clone.nodes[0]!.x = 999;
-    expect(sampleLayout.nodes[0]!.x).toBe(10);
+    const cloneNode = clone.nodes[0];
+    const originalNode = sampleLayout.nodes[0];
+    if (cloneNode) cloneNode.x = 999;
+    expect(originalNode?.x).toBe(10);
   });
 });
