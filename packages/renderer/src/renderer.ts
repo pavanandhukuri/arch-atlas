@@ -1,5 +1,8 @@
 // Enhanced renderer with relationships (arrows)
 
+// Patch PixiJS to work in environments with strict CSP (no unsafe-eval).
+// Must be imported before any other pixi.js import.
+import '@pixi/unsafe-eval';
 import type { ArchitectureModel, View, Element } from '@arch-atlas/core-model';
 import { Application, Graphics, Text, Container, settings } from 'pixi.js';
 
@@ -22,18 +25,22 @@ export interface Renderer {
   onBackgroundClick: (callback: () => void) => void;
   setConnectionPreview: (elementId: string | null) => void;
   clearRelationshipSelection: () => void;
-  updateLayout: (model: ArchitectureModel, view: View, meta?: { boundaryElementIds?: string[]; externalElementIds?: string[]; boundaryLabel?: string }) => void;
+  updateLayout: (
+    model: ArchitectureModel,
+    view: View,
+    meta?: { boundaryElementIds?: string[]; externalElementIds?: string[]; boundaryLabel?: string }
+  ) => void;
 }
 
 function drawArrow(graphics: Graphics, fromX: number, fromY: number, toX: number, toY: number) {
   const dx = toX - fromX;
   const dy = toY - fromY;
   const angle = Math.atan2(dy, dx);
-  
+
   // Draw line
   graphics.moveTo(fromX, fromY);
   graphics.lineTo(toX, toY);
-  
+
   // Draw arrowhead
   const arrowLength = 15;
   graphics.lineTo(
@@ -75,27 +82,30 @@ export function getRectEdgePoint(
 
 // C4 outline style — white background, colored border + text (matches c4model.com diagram key)
 const C4_COLORS: Record<string, { bg: number; text: number; border: number }> = {
-  landscape: { bg: 0xFFFFFF, text: 0x1168BD, border: 0x1168BD },
-  system:    { bg: 0xFFFFFF, text: 0x1168BD, border: 0x1168BD },
-  person:    { bg: 0xFFFFFF, text: 0x007580, border: 0x007580 }, // teal — internal user/staff
-  container: { bg: 0xFFFFFF, text: 0x2574A9, border: 0x2574A9 },
-  component: { bg: 0xFFFFFF, text: 0x3A7EBF, border: 0x3A7EBF },
-  code:      { bg: 0xFFFFFF, text: 0x555555, border: 0x555555 },
+  landscape: { bg: 0xffffff, text: 0x1168bd, border: 0x1168bd },
+  system: { bg: 0xffffff, text: 0x1168bd, border: 0x1168bd },
+  person: { bg: 0xffffff, text: 0x007580, border: 0x007580 }, // teal — internal user/staff
+  container: { bg: 0xffffff, text: 0x2574a9, border: 0x2574a9 },
+  component: { bg: 0xffffff, text: 0x3a7ebf, border: 0x3a7ebf },
+  code: { bg: 0xffffff, text: 0x555555, border: 0x555555 },
 };
 
 function getTypeTag(element: Element): string {
   switch (element.kind) {
-    case 'landscape': return '[Landscape]';
-    case 'system': return '[Software System]';
-    case 'person': return '[User]';
-    case 'container': return element.technology
-      ? `[Container: ${element.technology}]`
-      : '[Container]';
-    case 'component': return element.componentType
-      ? `[Component: ${element.componentType}]`
-      : '[Component]';
-    case 'code': return '[Code]';
-    default: return `[${element.kind}]`;
+    case 'landscape':
+      return '[Landscape]';
+    case 'system':
+      return '[Software System]';
+    case 'person':
+      return '[User]';
+    case 'container':
+      return element.technology ? `[Container: ${element.technology}]` : '[Container]';
+    case 'component':
+      return element.componentType ? `[Component: ${element.componentType}]` : '[Component]';
+    case 'code':
+      return '[Code]';
+    default:
+      return `[${element.kind}]`;
   }
 }
 
@@ -107,13 +117,13 @@ function drawPersonIcon(graphics: Graphics, cx: number, cy: number, color: numbe
 
   // Head — outline only (C4 style)
   graphics.lineStyle(2.5, color, 1);
-  graphics.beginFill(0xFFFFFF, 0);
+  graphics.beginFill(0xffffff, 0);
   graphics.drawCircle(cx, cy, headRadius);
   graphics.endFill();
 
   // Shoulders / torso — outline only
   graphics.lineStyle(2.5, color, 1);
-  graphics.beginFill(0xFFFFFF, 0);
+  graphics.beginFill(0xffffff, 0);
   graphics.drawRoundedRect(cx - bodyW / 2, bodyY, bodyW, bodyH, 8);
   graphics.endFill();
 }
@@ -125,7 +135,7 @@ export function createRenderer(
   options: RendererOptions = {}
 ): Renderer {
   // Set global resolution so all Text objects render at native DPR (fixes HiDPI blur)
-  const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+  const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
   settings.RESOLUTION = dpr;
 
   // Initialize PixiJS v7 application
@@ -137,7 +147,7 @@ export function createRenderer(
     resolution: dpr,
     autoDensity: true, // Keeps CSS size correct while rendering at native DPR
   });
-  
+
   container.appendChild(app.view as HTMLCanvasElement);
 
   const stage = new Container();
@@ -169,12 +179,7 @@ export function createRenderer(
         if (elementId === dragConnectionSourceId) continue; // Skip source element
 
         const { x, y, w, h } = graphics;
-        if (
-          stageMouseX >= x &&
-          stageMouseX <= x + w &&
-          stageMouseY >= y &&
-          stageMouseY <= y + h
-        ) {
+        if (stageMouseX >= x && stageMouseX <= x + w && stageMouseY >= y && stageMouseY <= y + h) {
           hoveredElementId = elementId;
           break;
         }
@@ -191,7 +196,7 @@ export function createRenderer(
       // Complete the connection
       if (dragConnectionSourceId !== hoveredElementId) {
         if (connectionCompleteCallbacks.length > 0) {
-          connectionCompleteCallbacks.forEach(cb =>
+          connectionCompleteCallbacks.forEach((cb) =>
             cb(dragConnectionSourceId!, hoveredElementId!)
           );
         }
@@ -245,9 +250,15 @@ export function createRenderer(
     selectedRelationshipId = null;
     selectedElementId = null;
     if (hadSelection) {
-      renderElements(lastModel, lastView, lastBoundaryElementIds, lastExternalElementIds, lastBoundaryLabel);
+      renderElements(
+        lastModel,
+        lastView,
+        lastBoundaryElementIds,
+        lastExternalElementIds,
+        lastBoundaryLabel
+      );
     }
-    backgroundClickCallbacks.forEach(cb => cb());
+    backgroundClickCallbacks.forEach((cb) => cb());
     // Start panning if not in a connection drag
     if (!isDraggingConnection) {
       isPanning = true;
@@ -304,7 +315,13 @@ export function createRenderer(
   selectionGraphics.eventMode = 'none';
   let lastNodeMap = new Map<string, { x: number; y: number; w: number; h: number }>();
 
-  function renderElements(currentModel: ArchitectureModel, currentView: View, boundaryIds: string[], externalIds: string[], boundaryLabel?: string) {
+  function renderElements(
+    currentModel: ArchitectureModel,
+    currentView: View,
+    boundaryIds: string[],
+    externalIds: string[],
+    boundaryLabel?: string
+  ) {
     const externalSet = new Set(externalIds);
 
     // Clear existing graphics (but keep the grid)
@@ -319,10 +336,10 @@ export function createRenderer(
       stage.removeChild(stage.children[1]!);
     }
 
-    const elementMap = new Map<string, Element>(currentModel.elements.map(e => [e.id, e]));
+    const elementMap = new Map<string, Element>(currentModel.elements.map((e) => [e.id, e]));
     const nodeMap = new Map<string, { x: number; y: number; w: number; h: number }>();
 
-    currentView.layout.nodes.forEach(node => {
+    currentView.layout.nodes.forEach((node) => {
       const element = elementMap.get(node.elementId);
       if (!element) return;
       nodeMap.set(node.elementId, {
@@ -335,7 +352,7 @@ export function createRenderer(
 
     lastNodeMap = nodeMap;
     const relationshipsLayer = new Container();
-    currentModel.relationships.forEach(rel => {
+    currentModel.relationships.forEach((rel) => {
       const sourceNode = nodeMap.get(rel.sourceId);
       const targetNode = nodeMap.get(rel.targetId);
       if (!sourceNode || !targetNode) return;
@@ -389,7 +406,7 @@ export function createRenderer(
         const bgPadX = 5;
         const bgPadY = 3;
         const labelBg = new Graphics();
-        labelBg.beginFill(0xFFFFFF, 0.9);
+        labelBg.beginFill(0xffffff, 0.9);
         labelBg.lineStyle(1, isSelected ? 0xe74c3c : 0xcccccc, 0.8);
         labelBg.drawRoundedRect(
           midX - arrowLabel.width / 2 - bgPadX,
@@ -426,9 +443,15 @@ export function createRenderer(
         selectedRelationshipId = rel.id;
         selectedElementId = null;
         if (relationshipClickCallbacks.length > 0) {
-          relationshipClickCallbacks.forEach(callback => callback(rel.id));
+          relationshipClickCallbacks.forEach((callback) => callback(rel.id));
         }
-        renderElements(lastModel, lastView, lastBoundaryElementIds, lastExternalElementIds, lastBoundaryLabel);
+        renderElements(
+          lastModel,
+          lastView,
+          lastBoundaryElementIds,
+          lastExternalElementIds,
+          lastBoundaryLabel
+        );
         if (event?.stopPropagation) {
           event.stopPropagation();
         }
@@ -442,21 +465,24 @@ export function createRenderer(
     // Draw boundary rectangle when there are both boundary and external elements
     if (boundaryIds.length > 0 && externalIds.length > 0) {
       const boundaryNodes = boundaryIds
-        .map(id => nodeMap.get(id))
+        .map((id) => nodeMap.get(id))
         .filter((n): n is { x: number; y: number; w: number; h: number } => n !== undefined);
 
       if (boundaryNodes.length > 0) {
         const pad = 24;
-        const minX = Math.min(...boundaryNodes.map(n => n.x)) - pad;
-        const minY = Math.min(...boundaryNodes.map(n => n.y)) - pad;
-        const maxX = Math.max(...boundaryNodes.map(n => n.x + n.w)) + pad;
-        const maxY = Math.max(...boundaryNodes.map(n => n.y + n.h)) + pad;
+        const minX = Math.min(...boundaryNodes.map((n) => n.x)) - pad;
+        const minY = Math.min(...boundaryNodes.map((n) => n.y)) - pad;
+        const maxX = Math.max(...boundaryNodes.map((n) => n.x + n.w)) + pad;
+        const maxY = Math.max(...boundaryNodes.map((n) => n.y + n.h)) + pad;
 
         const boundaryGraphics = new Graphics();
         // Dashed border — draw as a series of short segments
         const dashLen = 10;
         const gapLen = 6;
-        const bx = minX, by = minY, bw = maxX - minX, bh = maxY - minY;
+        const bx = minX,
+          by = minY,
+          bw = maxX - minX,
+          bh = maxY - minY;
         boundaryGraphics.lineStyle(2, 0x6b7280, 0.6);
 
         const drawDashedRect = (x: number, y: number, w: number, h: number) => {
@@ -485,7 +511,7 @@ export function createRenderer(
         drawDashedRect(bx, by, bw, bh);
 
         // Fill with very subtle tint
-        boundaryGraphics.beginFill(0x1168BD, 0.04);
+        boundaryGraphics.beginFill(0x1168bd, 0.04);
         boundaryGraphics.drawRect(bx, by, bw, bh);
         boundaryGraphics.endFill();
 
@@ -502,7 +528,7 @@ export function createRenderer(
       }
     }
 
-    currentView.layout.nodes.forEach(node => {
+    currentView.layout.nodes.forEach((node) => {
       const element = elementMap.get(node.elementId);
       if (!element) return;
 
@@ -514,8 +540,8 @@ export function createRenderer(
       const box = new Graphics();
       // External systems: white bg, grey outline (C4 "out of scope" style)
       const c4 = isExternal
-        ? { bg: 0xFFFFFF, text: 0x888888, border: 0x999999 }
-        : C4_COLORS[element.kind] ?? { bg: 0xFFFFFF, text: 0x555555, border: 0x888888 };
+        ? { bg: 0xffffff, text: 0x888888, border: 0x999999 }
+        : (C4_COLORS[element.kind] ?? { bg: 0xffffff, text: 0x555555, border: 0x888888 });
 
       box.beginFill(c4.bg, 1);
       box.lineStyle(isExternal ? 1.5 : 2.5, c4.border, 1);
@@ -573,12 +599,17 @@ export function createRenderer(
       };
 
       const updateAllHandlesVisibility = () => {
-        const anyHandleHovered = Object.values(handleHoverStates).some(h => h);
-        const shouldShowHandles = isHoveringBox || anyHandleHovered || connectionPreviewElementId === node.elementId;
+        const anyHandleHovered = Object.values(handleHoverStates).some((h) => h);
+        const shouldShowHandles =
+          isHoveringBox || anyHandleHovered || connectionPreviewElementId === node.elementId;
 
         Object.entries(handles).forEach(([direction, handle]) => {
           handle.visible = shouldShowHandles;
-          drawHandle(handle, handleHoverStates[direction as keyof typeof handleHoverStates] || connectionPreviewElementId === node.elementId);
+          drawHandle(
+            handle,
+            handleHoverStates[direction as keyof typeof handleHoverStates] ||
+              connectionPreviewElementId === node.elementId
+          );
         });
       };
 
@@ -617,7 +648,7 @@ export function createRenderer(
 
           // Notify page that connection has started
           if (connectionStartCallbacks.length > 0) {
-            connectionStartCallbacks.forEach(callback => callback(node.elementId));
+            connectionStartCallbacks.forEach((callback) => callback(node.elementId));
           }
 
           if (event?.stopPropagation) {
@@ -659,7 +690,7 @@ export function createRenderer(
         if (isDragging && hasDragged) {
           const graphics = elementGraphics.get(node.elementId);
           if (graphics && dragCallbacks.length > 0) {
-            dragCallbacks.forEach(callback => callback(node.elementId, graphics.x, graphics.y));
+            dragCallbacks.forEach((callback) => callback(node.elementId, graphics.x, graphics.y));
           }
         }
         isDragging = false;
@@ -683,11 +714,16 @@ export function createRenderer(
           if (!hasDragged) {
             clickCount++;
             if (clickCount === 1) {
-              doubleClickWindow = setTimeout(() => { clickCount = 0; }, 400);
+              doubleClickWindow = setTimeout(() => {
+                clickCount = 0;
+              }, 400);
             } else if (clickCount === 2) {
-              if (doubleClickWindow) { clearTimeout(doubleClickWindow); doubleClickWindow = null; }
+              if (doubleClickWindow) {
+                clearTimeout(doubleClickWindow);
+                doubleClickWindow = null;
+              }
               clickCount = 0;
-              drillDownCallbacks.forEach(cb => cb(node.elementId));
+              drillDownCallbacks.forEach((cb) => cb(node.elementId));
             }
           } else {
             clickCount = 0;
@@ -700,7 +736,7 @@ export function createRenderer(
           if (clickCount === 1) {
             singleClickTimeout = setTimeout(() => {
               if (clickCallbacks.length > 0) {
-                clickCallbacks.forEach(callback => callback(node.elementId));
+                clickCallbacks.forEach((callback) => callback(node.elementId));
               }
             }, 250);
 
@@ -721,7 +757,7 @@ export function createRenderer(
             // Person elements have no children to drill into
             if (element.kind !== 'person' && drillDownCallbacks.length > 0) {
               selectedElementId = null;
-              drillDownCallbacks.forEach(callback => callback(node.elementId));
+              drillDownCallbacks.forEach((callback) => callback(node.elementId));
             }
           }
         } else {
@@ -832,9 +868,10 @@ export function createRenderer(
       // Description (optional, truncated to fit, centered)
       if (element.description) {
         const maxDescLen = 80;
-        const descStr = element.description.length > maxDescLen
-          ? element.description.substring(0, maxDescLen) + '…'
-          : element.description;
+        const descStr =
+          element.description.length > maxDescLen
+            ? element.description.substring(0, maxDescLen) + '…'
+            : element.description;
         const descText = new Text(descStr, {
           fontSize: 10,
           fill: textColor,
@@ -851,7 +888,7 @@ export function createRenderer(
 
       // Clip text to box bounds
       const clipMask = new Graphics();
-      clipMask.beginFill(0xFFFFFF, 1);
+      clipMask.beginFill(0xffffff, 1);
       clipMask.drawRoundedRect(node.x + 2, node.y + 2, width - 4, height - 4, 4);
       clipMask.endFill();
       textContainer.mask = clipMask;
@@ -864,7 +901,7 @@ export function createRenderer(
       stage.addChild(textContainer);
       // Add handles only for non-external elements
       if (!isExternal) {
-        Object.values(handles).forEach(h => stage.addChild(h));
+        Object.values(handles).forEach((h) => stage.addChild(h));
       }
 
       elementGraphics.set(node.elementId, {
@@ -982,19 +1019,42 @@ export function createRenderer(
     },
     clearRelationshipSelection: () => {
       selectedRelationshipId = null;
-      renderElements(lastModel, lastView, lastBoundaryElementIds, lastExternalElementIds, lastBoundaryLabel);
+      renderElements(
+        lastModel,
+        lastView,
+        lastBoundaryElementIds,
+        lastExternalElementIds,
+        lastBoundaryLabel
+      );
     },
-    updateLayout: (newModel: ArchitectureModel, newView: View, meta?: { boundaryElementIds?: string[]; externalElementIds?: string[]; boundaryLabel?: string }) => {
+    updateLayout: (
+      newModel: ArchitectureModel,
+      newView: View,
+      meta?: {
+        boundaryElementIds?: string[];
+        externalElementIds?: string[];
+        boundaryLabel?: string;
+      }
+    ) => {
       lastModel = newModel;
       lastView = newView;
       lastBoundaryElementIds = meta?.boundaryElementIds ?? [];
       lastExternalElementIds = meta?.externalElementIds ?? [];
       lastBoundaryLabel = meta?.boundaryLabel;
       // Clear selection if the selected relationship no longer exists
-      if (selectedRelationshipId && !newModel.relationships.some(r => r.id === selectedRelationshipId)) {
+      if (
+        selectedRelationshipId &&
+        !newModel.relationships.some((r) => r.id === selectedRelationshipId)
+      ) {
         selectedRelationshipId = null;
       }
-      renderElements(newModel, newView, lastBoundaryElementIds, lastExternalElementIds, lastBoundaryLabel);
+      renderElements(
+        newModel,
+        newView,
+        lastBoundaryElementIds,
+        lastExternalElementIds,
+        lastBoundaryLabel
+      );
     },
   };
 }

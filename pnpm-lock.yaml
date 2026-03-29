@@ -151,6 +151,9 @@ importers:
       '@arch-atlas/layout':
         specifier: workspace:*
         version: link:../layout
+      '@pixi/unsafe-eval':
+        specifier: ^7.4.3
+        version: 7.4.3(@pixi/core@7.4.3)
       pixi.js:
         specifier: ^7.3.0
         version: 7.4.3
@@ -1103,6 +1106,14 @@ packages:
       '@pixi/extensions': 7.4.3
       '@pixi/settings': 7.4.3
       '@pixi/utils': 7.4.3
+    dev: false
+
+  /@pixi/unsafe-eval@7.4.3(@pixi/core@7.4.3):
+    resolution: {integrity: sha512-iR2iLcMculCSmn3x446ICCL5iokmFuLZDgNo7k1Q5rzNiULELIixfpSJwvlJqrJPY1kda0oqGHgVGRQ2vGfaLg==}
+    peerDependencies:
+      '@pixi/core': 7.4.3
+    dependencies:
+      '@pixi/core': 7.4.3
     dev: false
 
   /@pixi/utils@7.4.3:

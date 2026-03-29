@@ -21,6 +21,7 @@
   "dependencies": {
     "@arch-atlas/core-model": "workspace:*",
     "@arch-atlas/layout": "workspace:*",
+    "@pixi/unsafe-eval": "^7.4.3",
     "pixi.js": "^7.3.0"
   },
   "devDependencies": {
