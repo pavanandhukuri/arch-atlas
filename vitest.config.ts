@@ -21,6 +21,7 @@ export default defineConfig({
         '**/*.test.ts',
         '**/*.config.*',
         '**/test/fixtures/**',
+        '**/src/index.ts',
       ],
     },
   },
