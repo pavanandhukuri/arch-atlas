@@ -121,7 +121,7 @@ body {
 
 .palette-level-indicator {
   font-size: 1.2rem;
-  width: 36px;
+  width: 44px;
   height: 36px;
   display: flex;
   align-items: center;
@@ -138,7 +138,7 @@ body {
 }
 
 .palette-icon-btn {
-  width: 36px;
+  width: 44px;
   height: 36px;
   border: none;
   background: transparent;
@@ -165,6 +165,61 @@ body {
   font-size: 1.4rem;
   font-weight: 300;
   color: #2ecc71;
+}
+
+/* ─── Palette tooltips ───────────────────────────────────── */
+.palette-tooltip-wrapper {
+  position: relative;
+}
+
+.palette-tooltip {
+  pointer-events: none;
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1a252f;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s, visibility 0.15s;
+  z-index: 200;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Arrow pointing left */
+.palette-tooltip::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-right-color: #1a252f;
+}
+
+.palette-tooltip-wrapper:hover .palette-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.palette-tooltip-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.palette-tooltip-desc {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.65);
+  width: 260px;
+  white-space: normal;
+  line-height: 1.4;
 }
 
 /* ─── Floating right panel ───────────────────────────────── */
@@ -265,12 +320,23 @@ body {
 
 .studio-canvas {
   flex: 1;
-  background: #ffffff;
-  background-image: radial-gradient(circle, #d0d0d0 1px, transparent 1px);
-  background-size: 20px 20px;
+  display: flex;
+  flex-direction: column;
   position: relative;
   overflow: hidden;
   order: 2;
+}
+
+.canvas-title {
+  flex-shrink: 0;
+  padding: 0.4rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+  letter-spacing: 0.02em;
+  user-select: none;
 }
 
 .element-editor {
@@ -291,13 +357,23 @@ body {
   color: #495057;
 }
 
-.element-editor input,
+.element-editor input:not([type='checkbox']),
 .element-editor select,
 .element-editor textarea {
   padding: 0.5rem;
   border: 1px solid #ced4da;
   border-radius: 4px;
   font-size: 0.875rem;
+}
+
+.element-editor input[type='checkbox'] {
+  width: auto;
+  height: auto;
+  padding: 0;
+  border: revert;
+  border-radius: revert;
+  cursor: pointer;
+  accent-color: #007bff;
 }
 
 .element-editor textarea {
@@ -622,6 +698,101 @@ button:hover {
 
 .add-connection-button:hover {
   background: #138496;
+}
+
+/* ─── External system toggle ─────────────────────────────── */
+.external-toggle {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.25rem;
+}
+
+.external-toggle__row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.external-toggle__row label {
+  display: inline !important;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  margin: 0;
+  user-select: none;
+}
+
+.external-toggle__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #8a0000;
+  font-style: italic;
+}
+
+/* ─── Properties panel (formatting) ─────────────────────── */
+.properties-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.properties-panel__title {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #495057;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.properties-panel__grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.properties-panel__label {
+  font-size: 0.8rem;
+  color: #495057;
+}
+
+.properties-panel__color-btn {
+  width: 32px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid #ced4da;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  flex-shrink: 0;
+}
+
+.properties-panel__color-btn:hover {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  background: transparent;
+}
+
+.properties-panel__reset {
+  width: 100%;
+  padding: 0.4rem 0;
+  font-size: 0.8rem;
+  background: #f1f3f5;
+  color: #495057;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.properties-panel__reset:hover {
+  background: #e2e6ea;
+  color: #212529;
 }
 
 /* ─── Delete button ──────────────────────────────────────── */

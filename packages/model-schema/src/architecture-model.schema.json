@@ -43,9 +43,31 @@
       "type": "string",
       "minLength": 1
     },
+    "ContainerSubtype": {
+      "type": "string",
+      "enum": [
+        "default",
+        "database",
+        "storage-bucket",
+        "static-content",
+        "user-interface",
+        "backend-service"
+      ],
+      "description": "Visual subtype for container elements. Only valid when kind is 'container'."
+    },
+    "ElementFormatting": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Per-element color overrides. Not valid for external systems.",
+      "properties": {
+        "backgroundColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "borderColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "fontColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+      }
+    },
     "ElementKind": {
       "type": "string",
-      "enum": ["landscape", "system", "container", "component", "code"]
+      "enum": ["landscape", "system", "person", "container", "component", "code"]
     },
     "ViewLevel": {
       "type": "string",
@@ -73,7 +95,21 @@
         "parentId": { "$ref": "#/$defs/Id" },
         "tags": { "type": "array", "items": { "type": "string" } },
         "attributes": { "type": "object" },
-        "codeRef": { "$ref": "#/$defs/CodeReference" }
+        "codeRef": { "$ref": "#/$defs/CodeReference" },
+        "technology": {
+          "type": "string",
+          "description": "For containers: e.g., 'Docker', 'Spring Boot', 'React'"
+        },
+        "componentType": {
+          "type": "string",
+          "description": "For components: e.g., 'Service', 'Controller'"
+        },
+        "isExternal": {
+          "type": "boolean",
+          "description": "Marks a system as belonging to an external organization. Only valid when kind is 'system'."
+        },
+        "containerSubtype": { "$ref": "#/$defs/ContainerSubtype" },
+        "formatting": { "$ref": "#/$defs/ElementFormatting" }
       }
     },
     "Relationship": {
@@ -86,6 +122,11 @@
         "targetId": { "$ref": "#/$defs/Id" },
         "type": { "type": "string", "minLength": 1 },
         "label": { "type": "string" },
+        "action": { "type": "string", "description": "What the arrow does, e.g., 'Fetches data'" },
+        "integrationMode": {
+          "type": "string",
+          "description": "Mode of integration, e.g., 'REST API', 'SQL'"
+        },
         "description": { "type": "string" },
         "tags": { "type": "array", "items": { "type": "string" } }
       }
@@ -149,4 +190,3 @@
     }
   }
 }
-

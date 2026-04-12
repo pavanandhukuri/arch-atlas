@@ -6,6 +6,7 @@ import { validateIds } from './rules/ids';
 import { validateReferences } from './rules/references';
 import { validateHierarchy } from './rules/hierarchy';
 import { validateViewsLayout } from './rules/views-layout';
+import { validateElementAttributes } from './rules/validate-element-attributes';
 
 export function validateModel(model: ArchitectureModel): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -15,6 +16,7 @@ export function validateModel(model: ArchitectureModel): ValidationError[] {
   errors.push(...validateReferences(model));
   errors.push(...validateHierarchy(model));
   errors.push(...validateViewsLayout(model));
+  errors.push(...validateElementAttributes(model));
 
   return errors;
 }

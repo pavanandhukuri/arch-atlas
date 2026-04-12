@@ -4,7 +4,7 @@
 // Must be imported before any other pixi.js import.
 import '@pixi/unsafe-eval';
 import type { ArchitectureModel, View, Element } from '@arch-atlas/core-model';
-import { Application, Graphics, Text, Container, settings } from 'pixi.js';
+import { Application, Graphics, Text, Container, Rectangle, settings } from 'pixi.js';
 
 export interface RendererOptions {
   background?: number;
@@ -80,6 +80,68 @@ export function getRectEdgePoint(
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Container subtype shape drawing functions
+// Each accepts a PixiJS Graphics object, width, and height. The caller is
+// responsible for positioning (translating the Graphics before calling).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Cylinder — for Database containers */
+export function drawDatabase(g: Graphics, w: number, h: number, ox = 0, oy = 0): void {
+  const rx = w / 2;
+  const ry = 12;
+  const bodyTop = ry;
+  g.drawEllipse(ox + w / 2, oy + h - ry, rx, ry);
+  g.drawRect(ox, oy + bodyTop, w, h - bodyTop * 2);
+  g.drawEllipse(ox + w / 2, oy + bodyTop, rx, ry);
+}
+
+/** Trapezoid — for Storage Bucket containers */
+export function drawStorageBucket(g: Graphics, w: number, h: number, ox = 0, oy = 0): void {
+  const inset = w * 0.12;
+  g.moveTo(ox, oy);
+  g.lineTo(ox + w, oy);
+  g.lineTo(ox + w - inset, oy + h);
+  g.lineTo(ox + inset, oy + h);
+  g.closePath();
+}
+
+/** Folder with tab — for Static Content containers */
+export function drawStaticContent(g: Graphics, w: number, h: number, ox = 0, oy = 0): void {
+  const tabW = w * 0.35;
+  const tabH = 12;
+  g.moveTo(ox, oy + tabH);
+  g.lineTo(ox, oy);
+  g.lineTo(ox + tabW, oy);
+  g.lineTo(ox + tabW + 10, oy + tabH);
+  g.lineTo(ox + w, oy + tabH);
+  g.lineTo(ox + w, oy + h);
+  g.lineTo(ox, oy + h);
+  g.closePath();
+}
+
+/** Browser window — for User Interface containers */
+export function drawUserInterface(g: Graphics, w: number, h: number, ox = 0, oy = 0): void {
+  const barH = 22;
+  g.drawRoundedRect(ox, oy, w, h, 6);
+  g.moveTo(ox, oy + barH);
+  g.lineTo(ox + w, oy + barH);
+  const dotY = oy + barH / 2;
+  g.drawCircle(ox + 12, dotY, 4);
+  g.drawCircle(ox + 24, dotY, 4);
+  g.drawCircle(ox + 36, dotY, 4);
+}
+
+/** Terminal rectangle — for Backend Service containers */
+export function drawBackendService(g: Graphics, w: number, h: number, ox = 0, oy = 0): void {
+  g.drawRoundedRect(ox, oy, w, h, 6);
+  const barH = 22;
+  g.moveTo(ox, oy + barH);
+  g.lineTo(ox + w, oy + barH);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // C4 outline style — white background, colored border + text (matches c4model.com diagram key)
 const C4_COLORS: Record<string, { bg: number; text: number; border: number }> = {
   landscape: { bg: 0xffffff, text: 0x1168bd, border: 0x1168bd },
@@ -89,6 +151,10 @@ const C4_COLORS: Record<string, { bg: number; text: number; border: number }> = 
   component: { bg: 0xffffff, text: 0x3a7ebf, border: 0x3a7ebf },
   code: { bg: 0xffffff, text: 0x555555, border: 0x555555 },
 };
+
+// Color for external-organization systems (element.isExternal === true)
+// Distinct red/maroon C4 "external" style
+const EXTERNAL_ORG_COLOR = { bg: 0xfff3e0, text: 0x8a0000, border: 0x8a0000 };
 
 function getTypeTag(element: Element): string {
   switch (element.kind) {
@@ -534,23 +600,70 @@ export function createRenderer(
 
       const width = node.w ?? 200;
       const height = node.h ?? 130;
-      const isExternal = externalSet.has(node.elementId);
+      const isScopeExternal = externalSet.has(node.elementId); // out-of-scope neighboring element
+      const isOrgExternal = element.isExternal === true; // external organization boundary
 
-      // Draw element box using C4 model-inspired colors (grayed out for external elements)
-      const box = new Graphics();
-      // External systems: white bg, grey outline (C4 "out of scope" style)
-      const c4 = isExternal
+      // Resolve colors: org-external > scope-external > formatting overrides > C4 default
+      let c4 = isScopeExternal
         ? { bg: 0xffffff, text: 0x888888, border: 0x999999 }
         : (C4_COLORS[element.kind] ?? { bg: 0xffffff, text: 0x555555, border: 0x888888 });
 
+      if (isOrgExternal) {
+        c4 = EXTERNAL_ORG_COLOR;
+      } else if (!isScopeExternal && element.formatting) {
+        // Apply per-element color overrides (not for scope-external or org-external elements)
+        const parseHex = (hex: string | undefined): number | undefined =>
+          hex ? parseInt(hex.slice(1), 16) : undefined;
+        const bgOverride = parseHex(element.formatting.backgroundColor);
+        const borderOverride = parseHex(element.formatting.borderColor);
+        const textOverride = parseHex(element.formatting.fontColor);
+        c4 = {
+          bg: bgOverride ?? c4.bg,
+          border: borderOverride ?? c4.border,
+          text: textOverride ?? c4.text,
+        };
+      }
+
+      // Draw element box using C4 model-inspired colors
+      const box = new Graphics();
       box.beginFill(c4.bg, 1);
-      box.lineStyle(isExternal ? 1.5 : 2.5, c4.border, 1);
-      box.drawRoundedRect(node.x, node.y, width, height, 8);
+      box.lineStyle(isScopeExternal || isOrgExternal ? 1.5 : 2.5, c4.border, 1);
+
+      // Translate to node position, draw the appropriate shape, then translate back
+      if (element.kind === 'container' && !isScopeExternal && !isOrgExternal) {
+        switch (element.containerSubtype) {
+          case 'database':
+            drawDatabase(box, width, height, node.x, node.y);
+            break;
+          case 'storage-bucket':
+            drawStorageBucket(box, width, height, node.x, node.y);
+            break;
+          case 'static-content':
+            drawStaticContent(box, width, height, node.x, node.y);
+            break;
+          case 'user-interface':
+            drawUserInterface(box, width, height, node.x, node.y);
+            break;
+          case 'backend-service':
+            drawBackendService(box, width, height, node.x, node.y);
+            break;
+          default:
+            box.drawRoundedRect(node.x, node.y, width, height, 8);
+            break;
+        }
+      } else {
+        box.drawRoundedRect(node.x, node.y, width, height, 8);
+      }
+
       box.endFill();
+
+      // Explicit hit area covering the full bounding box — required so compound shapes
+      // (cylinder, trapezoid, folder, etc.) respond to pointer events across their entire area.
+      box.hitArea = new Rectangle(node.x, node.y, width, height);
 
       // External elements are draggable but not clickable (no editor opens)
       box.eventMode = 'static';
-      box.cursor = isExternal ? 'grab' : 'pointer';
+      box.cursor = isScopeExternal || isOrgExternal ? 'grab' : 'pointer';
 
       let isDragging = false;
       let hasDragged = false;
@@ -676,11 +789,13 @@ export function createRenderer(
         isDragging = true;
         hasDragged = false;
         const position = event.data.global;
-        dragStartX = position.x - node.x;
-        dragStartY = position.y - node.y;
+        const stageX = (position.x - stage.x) / stage.scale.x;
+        const stageY = (position.y - stage.y) / stage.scale.y;
+        dragStartX = stageX - node.x;
+        dragStartY = stageY - node.y;
         // Immediately show selection highlight without a full re-render
         selectedRelationshipId = null;
-        if (!isExternal) {
+        if (!isScopeExternal) {
           selectedElementId = node.elementId;
           renderSelection();
         }
@@ -709,8 +824,8 @@ export function createRenderer(
       let clickCount = 0;
 
       box.on('click', () => {
-        if (isExternal) {
-          // External elements: double-click navigates into that system
+        if (isScopeExternal) {
+          // Scope-external elements: double-click navigates into that system
           if (!hasDragged) {
             clickCount++;
             if (clickCount === 1) {
@@ -777,8 +892,10 @@ export function createRenderer(
         if (isDragging) {
           hasDragged = true;
           const position = event.data.global;
-          const newX = position.x - dragStartX;
-          const newY = position.y - dragStartY;
+          const stageX = (position.x - stage.x) / stage.scale.x;
+          const stageY = (position.y - stage.y) / stage.scale.y;
+          const newX = stageX - dragStartX;
+          const newY = stageY - dragStartY;
 
           // Update visual position only (don't update model yet)
           box.x = newX - node.x;
@@ -834,8 +951,12 @@ export function createRenderer(
       // Center X inside the box (anchor will be 0.5 so position at mid-width)
       const midX = width / 2;
 
-      // Type tag (e.g., "[Software System]", "[Container: Spring Boot]", "[External]")
-      const typeTagStr = isExternal ? `[External ${element.kind}]` : getTypeTag(element);
+      // Type tag (e.g., "[Software System]", "[External System]", "[Container: Spring Boot]")
+      const typeTagStr = isOrgExternal
+        ? '[External System]'
+        : isScopeExternal
+          ? `[External ${element.kind}]`
+          : getTypeTag(element);
       const tagText = new Text(typeTagStr, {
         fontSize: 10,
         fill: textColor,
@@ -894,13 +1015,13 @@ export function createRenderer(
       textContainer.mask = clipMask;
       stage.addChild(clipMask);
 
-      if (!isExternal) {
+      if (!isScopeExternal && !isOrgExternal) {
         updateAllHandlesVisibility();
       }
       stage.addChild(box);
       stage.addChild(textContainer);
       // Add handles only for non-external elements
-      if (!isExternal) {
+      if (!isScopeExternal && !isOrgExternal) {
         Object.values(handles).forEach((h) => stage.addChild(h));
       }
 
