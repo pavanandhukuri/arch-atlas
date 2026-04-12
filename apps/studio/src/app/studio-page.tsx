@@ -412,10 +412,6 @@ export default function StudioPage() {
     setEditingElement(null);
   }, []);
 
-  const handleCancelConnection = useCallback(() => {
-    setConnectionStartId(null);
-  }, []);
-
   const handleDeleteElement = useCallback((elementId: string) => {
     const currentModel = modelStore.getState().model;
     if (!currentModel) return;

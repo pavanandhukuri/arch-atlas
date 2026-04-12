@@ -34,7 +34,7 @@ export function PropertiesPanel({ element, onFormatChange }: PropertiesPanelProp
 
   if (!element || element.isExternal) return null;
 
-  const defaults = C4_DEFAULTS[element.kind] ?? C4_DEFAULTS.system;
+  const defaults = C4_DEFAULTS[element.kind];
 
   const handleColorChange = (field: ColorField, color: string) => {
     onFormatChange(element.id, {
