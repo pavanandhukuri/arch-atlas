@@ -23,7 +23,7 @@ describe('deriveViewRelationships', () => {
         { id: 'a', kind: 'system', name: 'A' },
         { id: 'b', kind: 'system', name: 'B' },
       ],
-      relationships: [{ id: 'r1', sourceId: 'a', targetId: 'b', kind: 'sync' }],
+      relationships: [{ id: 'r1', sourceId: 'a', targetId: 'b', type: 'sync' }],
     });
 
     const result = deriveViewRelationships(model, new Set(['a', 'b']));
@@ -44,7 +44,7 @@ describe('deriveViewRelationships', () => {
         { id: 'ctr-a1', kind: 'container', name: 'Container A1', parentId: 'sys-a' },
         { id: 'sys-b', kind: 'system', name: 'System B' },
       ],
-      relationships: [{ id: 'r1', sourceId: 'ctr-a1', targetId: 'sys-b', kind: 'sync' }],
+      relationships: [{ id: 'r1', sourceId: 'ctr-a1', targetId: 'sys-b', type: 'sync' }],
     });
 
     const result = deriveViewRelationships(model, new Set(['sys-a', 'sys-b']));
@@ -61,7 +61,7 @@ describe('deriveViewRelationships', () => {
         { id: 'sys-a', kind: 'system', name: 'System A' },
         { id: 'sys-b', kind: 'system', name: 'System B' },
       ],
-      relationships: [{ id: 'r1', sourceId: 'sys-a', targetId: 'sys-b', kind: 'sync' }],
+      relationships: [{ id: 'r1', sourceId: 'sys-a', targetId: 'sys-b', type: 'sync' }],
     });
 
     const result = deriveViewRelationships(model, new Set(['sys-a']));
@@ -78,8 +78,8 @@ describe('deriveViewRelationships', () => {
         { id: 'sys-b', kind: 'system', name: 'B' },
       ],
       relationships: [
-        { id: 'r1', sourceId: 'ctr-1', targetId: 'sys-b', kind: 'sync' },
-        { id: 'r2', sourceId: 'ctr-2', targetId: 'sys-b', kind: 'sync' },
+        { id: 'r1', sourceId: 'ctr-1', targetId: 'sys-b', type: 'sync' },
+        { id: 'r2', sourceId: 'ctr-2', targetId: 'sys-b', type: 'sync' },
       ],
     });
 
@@ -95,7 +95,7 @@ describe('deriveViewRelationships', () => {
         { id: 'sys-b', kind: 'system', name: 'B' },
         { id: 'sys-c', kind: 'system', name: 'C' },
       ],
-      relationships: [{ id: 'r1', sourceId: 'sys-b', targetId: 'sys-c', kind: 'sync' }],
+      relationships: [{ id: 'r1', sourceId: 'sys-b', targetId: 'sys-c', type: 'sync' }],
     });
 
     const result = deriveViewRelationships(model, new Set(['sys-a']));

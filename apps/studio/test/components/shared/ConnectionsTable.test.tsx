@@ -9,7 +9,7 @@ const makeRel = (overrides: Partial<Relationship> = {}): Relationship => ({
   id: 'r1',
   sourceId: 'a',
   targetId: 'b',
-  kind: 'sync',
+  type: 'sync',
   ...overrides,
 });
 

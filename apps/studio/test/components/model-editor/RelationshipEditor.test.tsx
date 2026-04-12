@@ -38,7 +38,7 @@ const makeRel = (overrides: Partial<Relationship> = {}): Relationship => ({
   id: 'r1',
   sourceId: 'sys-a',
   targetId: 'sys-b',
-  kind: 'sync',
+  type: 'sync',
   ...overrides,
 });
 
@@ -55,7 +55,9 @@ const defaultProps = {
   onCancel: vi.fn(),
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('RelationshipEditor', () => {
   it('renders source and target dropdowns pre-populated', () => {
