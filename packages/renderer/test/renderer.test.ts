@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { createRenderer, getRectEdgePoint } from '../src/renderer';
+import {
+  createRenderer,
+  getRectEdgePoint,
+  drawDatabase,
+  drawStorageBucket,
+  drawStaticContent,
+  drawUserInterface,
+  drawBackendService,
+} from '../src/renderer';
 import type { ArchitectureModel } from '@arch-atlas/core-model';
 import minimalModel from '../../core-model/test/fixtures/minimal-model.json';
 
@@ -8,7 +16,7 @@ describe('Renderer initialization', () => {
   it.skip('should create a renderer instance', () => {
     const model = minimalModel as ArchitectureModel;
     const view = model.views[0]!;
-    
+
     const mockContainer = {
       offsetWidth: 800,
       offsetHeight: 600,
@@ -16,7 +24,7 @@ describe('Renderer initialization', () => {
     };
 
     const renderer = createRenderer(mockContainer as unknown as HTMLElement, model, view);
-    
+
     expect(renderer).toBeDefined();
     expect(renderer.destroy).toBeDefined();
     expect(renderer.setZoom).toBeDefined();
@@ -50,6 +58,37 @@ describe('getRectEdgePoint', () => {
     const point = getRectEdgePoint(rect, 50, 200);
     expect(point.x).toBeCloseTo(50);
     expect(point.y).toBeCloseTo(50);
+  });
+});
+
+describe('Container subtype shape functions', () => {
+  // These functions draw into a PixiJS Graphics object.
+  // Since we run in Node (no WebGL), we verify they are exported functions
+  // and have the expected arity — visual correctness is covered by manual verification.
+
+  it('exports drawDatabase as a function with 3 parameters', () => {
+    expect(typeof drawDatabase).toBe('function');
+    expect(drawDatabase.length).toBe(3);
+  });
+
+  it('exports drawStorageBucket as a function with 3 parameters', () => {
+    expect(typeof drawStorageBucket).toBe('function');
+    expect(drawStorageBucket.length).toBe(3);
+  });
+
+  it('exports drawStaticContent as a function with 3 parameters', () => {
+    expect(typeof drawStaticContent).toBe('function');
+    expect(drawStaticContent.length).toBe(3);
+  });
+
+  it('exports drawUserInterface as a function with 3 parameters', () => {
+    expect(typeof drawUserInterface).toBe('function');
+    expect(drawUserInterface.length).toBe(3);
+  });
+
+  it('exports drawBackendService as a function with 3 parameters', () => {
+    expect(typeof drawBackendService).toBe('function');
+    expect(drawBackendService.length).toBe(3);
   });
 });
 

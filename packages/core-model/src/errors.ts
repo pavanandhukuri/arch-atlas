@@ -7,7 +7,8 @@ export type ErrorCode =
   | 'MISSING_LAYOUT'
   | 'MISSING_CODE_REF'
   | 'INVALID_CODE_REF'
-  | 'DEPRECATED_FIELD';
+  | 'DEPRECATED_FIELD'
+  | 'INVALID_ATTRIBUTE';
 
 export interface ValidationError {
   code: ErrorCode;

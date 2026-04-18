@@ -14,6 +14,7 @@ interface ElementEditorProps {
   onCancel: () => void;
   onEditRelationship: (relationship: Relationship) => void;
   onAddRelationship: (sourceId: string) => void;
+  onMarkExternal?: (elementId: string, isExternal: boolean) => void;
 }
 
 export function ElementEditor({
@@ -25,6 +26,7 @@ export function ElementEditor({
   onCancel,
   onEditRelationship,
   onAddRelationship,
+  onMarkExternal,
 }: ElementEditorProps) {
   const [name, setName] = useState(element?.name ?? '');
   const [description, setDescription] = useState(element?.description ?? '');
@@ -38,6 +40,13 @@ export function ElementEditor({
     setComponentType(element?.componentType ?? '');
   }, [element]);
 
+  const handleExternalToggle = () => {
+    if (!element || element.kind !== 'system') return;
+    if (onMarkExternal) {
+      onMarkExternal(element.id, !element.isExternal);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const newElement: Element = {
@@ -45,6 +54,7 @@ export function ElementEditor({
       name,
       kind: element?.kind ?? 'system',
       description,
+      ...(element?.isExternal !== undefined && { isExternal: element.isExternal }),
     };
     if (element?.parentId) {
       newElement.parentId = element.parentId;
@@ -63,11 +73,11 @@ export function ElementEditor({
   };
 
   // Build the connections table data
-  const elementMap = new Map<string, Element>(allElements.map(e => [e.id, e]));
+  const elementMap = new Map<string, Element>(allElements.map((e) => [e.id, e]));
   const connectionRows: ConnectionRow[] = element
     ? relationships
-        .filter(r => r.sourceId === element.id || r.targetId === element.id)
-        .map(rel => {
+        .filter((r) => r.sourceId === element.id || r.targetId === element.id)
+        .map((rel) => {
           const isOutgoing = rel.sourceId === element.id;
           const connectedId = isOutgoing ? rel.targetId : rel.sourceId;
           return {
@@ -90,7 +100,7 @@ export function ElementEditor({
           id="name"
           type="text"
           value={name}
-          onChange={e => setName(e.target.value)}
+          onChange={(e) => setName(e.target.value)}
           required
           autoFocus
           placeholder="Enter element name"
@@ -105,7 +115,7 @@ export function ElementEditor({
             id="technology"
             type="text"
             value={technology}
-            onChange={e => setTechnology(e.target.value)}
+            onChange={(e) => setTechnology(e.target.value)}
             placeholder="e.g., Docker, Spring Boot, React"
           />
         </div>
@@ -119,7 +129,7 @@ export function ElementEditor({
             id="componentType"
             type="text"
             value={componentType}
-            onChange={e => setComponentType(e.target.value)}
+            onChange={(e) => setComponentType(e.target.value)}
             placeholder="e.g., Service, Controller, Repository"
           />
         </div>
@@ -130,11 +140,31 @@ export function ElementEditor({
         <textarea
           id="description"
           value={description}
-          onChange={e => setDescription(e.target.value)}
+          onChange={(e) => setDescription(e.target.value)}
           placeholder="Enter detailed description"
           rows={3}
         />
       </div>
+
+      {/* External system toggle — only shown for system elements */}
+      {element?.kind === 'system' && (
+        <div className="external-toggle">
+          <div className="external-toggle__row">
+            <input
+              id="external-system-toggle"
+              type="checkbox"
+              checked={element.isExternal ?? false}
+              onChange={handleExternalToggle}
+            />
+            <label htmlFor="external-system-toggle">External system</label>
+          </div>
+          {element.isExternal && (
+            <p className="external-toggle__hint">
+              This system is marked as external. It cannot be drilled into.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="actions">
         <button type="submit">Save</button>
@@ -142,7 +172,12 @@ export function ElementEditor({
           type="button"
           className="delete-button"
           onClick={() => {
-            if (element?.id && confirm(`Delete "${element.name}"?\n\nThis will also remove all connections to this element. This cannot be undone.`)) {
+            if (
+              element?.id &&
+              confirm(
+                `Delete "${element.name}"?\n\nThis will also remove all connections to this element. This cannot be undone.`
+              )
+            ) {
               onDelete(element.id);
             }
           }}
