@@ -1,8 +1,11 @@
 # arch-atlas Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-29
+Auto-generated from all feature plans. Last updated: 2026-04-19
 
 ## Active Technologies
+
+- TypeScript 5.3.0 (strict mode, `noUncheckedIndexedAccess`, ES2022 target) + `@arch-atlas/core-model` (workspace dep, types only — no runtime coupling) (004-architecture-dsl)
+- N/A — pure in-memory transformation library (004-architecture-dsl)
 
 - TypeScript 5.3.0 + Next.js 14.1.0, React 18.2.0, PixiJS v7 (via `@arch-atlas/renderer`), Vitest 1.0.0, `@testing-library/react` (003-diagram-enhancements)
 - Local file system (File System Access API) + Google Drive REST API v3; persisted as `.arch.json` files via `StorageProvider` interface (003-diagram-enhancements)
@@ -25,6 +28,8 @@ npm test && npm run lint
 TypeScript 5.3.0: Follow standard conventions
 
 ## Recent Changes
+
+- 004-architecture-dsl: Added TypeScript 5.3.0 (strict mode, `noUncheckedIndexedAccess`, ES2022 target) + `@arch-atlas/core-model` (workspace dep, types only — no runtime coupling)
 
 - 003-diagram-enhancements: Added TypeScript 5.3.0 + Next.js 14.1.0, React 18.2.0, PixiJS v7 (via `@arch-atlas/renderer`), Vitest 1.0.0, `@testing-library/react`
 

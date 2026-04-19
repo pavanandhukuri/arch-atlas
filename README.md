@@ -47,12 +47,16 @@ pnpm run lint
 5. **Lint and format**: `pnpm run lint && pnpm run format`
 6. **Commit** and open a PR
 
-## Repository structure (planned)
+## Repository structure
 
-- `apps/`: user-facing web applications (C4 editor, viewer, etc.)
-- `packages/`: shared libraries (C4 model, renderers, exporters/importers, shared UI)
-- `services/`: optional backend services
-- `tools/`: scripts and developer tooling
+- `apps/studio` — Next.js visual C4 diagram editor
+- `packages/core-model` — Semantic architecture model, validation, and diff/patch APIs
+- `packages/model-schema` — Canonical JSON schemas for exported model files
+- `packages/layout` — Deterministic layout engine and serialization
+- `packages/renderer` — PixiJS-based rendering engine for the zoomable architecture map
+- `packages/dsl` — Plain-text DSL for authoring and importing architecture models (LLM-ready)
+- `services/` — optional backend services _(planned)_
+- `tools/` — scripts and developer tooling _(planned)_
 
 ## Contributing
 
@@ -65,4 +69,3 @@ See `SECURITY.md`.
 ## License
 
 See `LICENSE`.
-
