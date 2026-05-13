@@ -151,7 +151,7 @@ export default function StudioPage() {
       offConflict();
       storageManager.stopAutosave();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // mount-only: modelStore/storageManager are stable useState refs
 
   useEffect(() => {
     if (!handle) {
@@ -169,7 +169,7 @@ export default function StudioPage() {
       () => modelStore.getState().isDirty
     );
     return () => storageManager.stopAutosave();
-  }, [handle, driveAuth.accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [handle, driveAuth.accessToken]); // localProvider/modelStore/storageManager are stable useState refs
 
   const handleAddContainerSubtype = (subtype: ContainerSubtype) => {
     if (!model) return;
@@ -856,7 +856,7 @@ export default function StudioPage() {
       const result = await storageManager.manualSave(handle, provider, model);
       if (!result.success) {
         setSaveStatus('error');
-        setSaveStatusMessage(result.message ?? 'Save failed');
+        setSaveStatusMessage(result.message);
       }
     } catch (err) {
       setSaveStatus('error');
@@ -929,7 +929,6 @@ export default function StudioPage() {
     : null;
 
   // Attach zoom listeners whenever the canvas model changes (renderer may remount)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const renderer = studioRendererRef.current;
     const container = studioCanvasRef.current;
