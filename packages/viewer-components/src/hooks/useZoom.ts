@@ -94,7 +94,6 @@ export function useZoom(): UseZoomResult {
         if (rendererRef.current === renderer) rendererRef.current = null;
       };
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
