@@ -805,3 +805,8 @@ button:hover {
   background: #c82333 !important;
 }
 
+/* ─── Zoom controls overlay ──────────────────────────────── */
+.zoom-controls button:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+

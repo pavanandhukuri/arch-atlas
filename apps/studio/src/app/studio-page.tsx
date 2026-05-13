@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MapCanvas } from '@/components/map-canvas';
+import { MapCanvas, ZoomControls, useZoom } from '@arch-atlas/viewer-components';
+import type { Renderer } from '@arch-atlas/renderer';
 import { ElementEditor, RelationshipEditor } from '@/components/model-editor';
 import { ElementPalette } from '@/components/element-palette';
 import { PropertiesPanel } from '@/components/properties-panel/PropertiesPanel';
@@ -36,14 +37,14 @@ import {
   getChildLevel,
 } from '@/services/diagram-context';
 
-const modelStore = new ModelStore();
-const storageManager = new StorageManager();
-const localProvider = new LocalFileProvider();
-
 export default function StudioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const driveAuth: GoogleDriveAuthState = useGoogleDriveAuth();
+
+  const [modelStore] = useState(() => new ModelStore());
+  const [storageManager] = useState(() => new StorageManager());
+  const [localProvider] = useState(() => new LocalFileProvider());
 
   const [model, setModel] = useState<ArchitectureModel | null>(null);
   const [editingElement, setEditingElement] = useState<Element | null>(null);
@@ -66,6 +67,12 @@ export default function StudioPage() {
     clientLastKnown: string | number | null;
   } | null>(null);
   const { handle, setHandle, clearHandle } = useStorageSession();
+  const { zoomLevel, zoomIn, zoomOut, fitToView, attachToRenderer } = useZoom();
+  const studioCanvasRef = useRef<HTMLElement>(null);
+  const studioRendererRef = useRef<Renderer | null>(null);
+  const onStudioRendererMount = useCallback((r: Renderer) => {
+    studioRendererRef.current = r;
+  }, []);
   // Separate positions for external (system-level) elements so they don't share
   // coordinates with the element's position in the landscape/main view.
   // Keyed by elementId. Cleared whenever the user navigates to a new view.
@@ -108,12 +115,14 @@ export default function StudioPage() {
     const unsubscribe = modelStore.subscribe((state) => {
       setModel(state.model);
     });
-    // Hydrate immediately — after a router navigation the component remounts but the
-    // module-level modelStore still holds the loaded model; subscribe() doesn't call
-    // the listener retroactively, so we prime the state ourselves.
+    // Hydrate immediately from current store state (subscribe() doesn't fire retroactively).
     setModel(modelStore.getState().model);
 
-    setShowStoragePrompt('startup');
+    // Only prompt on fresh load — if a handle is already in session storage (e.g. after HMR),
+    // skip the dialog so the user isn't interrupted mid-session.
+    if (!handle) {
+      setShowStoragePrompt('startup');
+    }
 
     // Subscribe to StorageManager events for save status
     const offSuccess = storageManager.on('save-success', () => {
@@ -142,7 +151,25 @@ export default function StudioPage() {
       offConflict();
       storageManager.stopAutosave();
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!handle) {
+      storageManager.stopAutosave();
+      return;
+    }
+    const provider =
+      handle.type === 'local'
+        ? localProvider
+        : new GoogleDriveProvider(driveAuth.accessToken ?? '');
+    storageManager.startAutosave(
+      handle,
+      provider,
+      () => modelStore.getState().model,
+      () => modelStore.getState().isDirty
+    );
+    return () => storageManager.stopAutosave();
+  }, [handle, driveAuth.accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddContainerSubtype = (subtype: ContainerSubtype) => {
     if (!model) return;
@@ -825,7 +852,16 @@ export default function StudioPage() {
     setSaveStatus('saving');
     const provider =
       handle.type === 'local' ? localProvider : new GoogleDriveProvider(driveAuth.accessToken!);
-    await storageManager.manualSave(handle, provider, model);
+    try {
+      const result = await storageManager.manualSave(handle, provider, model);
+      if (!result.success) {
+        setSaveStatus('error');
+        setSaveStatusMessage(result.message ?? 'Save failed');
+      }
+    } catch (err) {
+      setSaveStatus('error');
+      setSaveStatusMessage(err instanceof Error ? err.message : 'Unexpected error during save');
+    }
   };
 
   /** Keep My Version — force-overwrite remote with local state */
@@ -886,22 +922,20 @@ export default function StudioPage() {
 
     setHandle(selectedHandle);
     setShowStoragePrompt(null);
-
-    const provider =
-      selectedHandle.type === 'local'
-        ? localProvider
-        : new GoogleDriveProvider(driveAuth.accessToken!);
-    storageManager.startAutosave(
-      selectedHandle,
-      provider,
-      () => modelStore.getState().model,
-      () => modelStore.getState().isDirty
-    );
   };
 
   const canvasModel = model
     ? { ...model, elements: allViewElements, relationships: viewRelationships }
     : null;
+
+  // Attach zoom listeners whenever the canvas model changes (renderer may remount)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const renderer = studioRendererRef.current;
+    const container = studioCanvasRef.current;
+    if (!renderer || !container) return;
+    return attachToRenderer(renderer, container);
+  }, [attachToRenderer, canvasModel]);
 
   return (
     <div className="studio-layout">
@@ -988,7 +1022,7 @@ export default function StudioPage() {
           onAddElement={handleAddElement}
           onAddContainerSubtype={handleAddContainerSubtype}
         />
-        <main className="studio-canvas">
+        <main className="studio-canvas" ref={studioCanvasRef}>
           {model && <div className="canvas-title">{diagramTitle}</div>}
           {canvasModel && filteredView && (
             <MapCanvas
@@ -1008,6 +1042,15 @@ export default function StudioPage() {
               boundaryElementIds={boundaryElementIds}
               externalElementIds={externalElementIds}
               boundaryLabel={boundaryLabel}
+              onRendererMount={onStudioRendererMount}
+            />
+          )}
+          {canvasModel && (
+            <ZoomControls
+              zoomLevel={zoomLevel}
+              onZoomIn={zoomIn}
+              onZoomOut={zoomOut}
+              onFitToView={fitToView}
             />
           )}
         </main>

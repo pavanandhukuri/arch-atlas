@@ -6,7 +6,7 @@ const ContentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' https://accounts.google.com 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
   "connect-src 'self' https://oauth2.googleapis.com https://www.googleapis.com https://accounts.google.com",
-  "frame-src https://accounts.google.com",
+  'frame-src https://accounts.google.com',
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self'",
@@ -39,7 +39,12 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@arch-atlas/core-model', '@arch-atlas/layout', '@arch-atlas/renderer'],
+  transpilePackages: [
+    '@arch-atlas/core-model',
+    '@arch-atlas/layout',
+    '@arch-atlas/renderer',
+    '@arch-atlas/viewer-components',
+  ],
   async headers() {
     return [
       {

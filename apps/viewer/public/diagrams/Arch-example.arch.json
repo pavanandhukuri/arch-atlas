@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "title": "Imported Model",
+    "createdAt": "2026-05-02T12:31:28.827Z"
+  },
+  "elements": [
+    {
+      "id": "architecture-landsscape",
+      "kind": "landscape",
+      "name": "Architecture Landsscape",
+      "description": "Top-level architecture landscape"
+    },
+    {
+      "id": "architecture-landsscape.new",
+      "kind": "system",
+      "name": "New",
+      "parentId": "architecture-landsscape"
+    },
+    {
+      "id": "architecture-landsscape.new.database",
+      "kind": "container",
+      "name": "Database",
+      "parentId": "architecture-landsscape.new",
+      "containerSubtype": "datasbase"
+    },
+    {
+      "id": "architecture-landsscape.new.storage-bucket",
+      "kind": "container",
+      "name": "Storage Bucket",
+      "parentId": "architecture-landsscape.new",
+      "containerSubtype": "storage-bucket"
+    },
+    {
+      "id": "architecture-landsscape.new.static-content",
+      "kind": "container",
+      "name": "Static Content",
+      "parentId": "architecture-landsscape.new",
+      "containerSubtype": "static-content"
+    },
+    {
+      "id": "architecture-landsscape.new.backend-service",
+      "kind": "container",
+      "name": "Backend Service",
+      "parentId": "architecture-landsscape.new",
+      "containerSubtype": "backend-service"
+    },
+    {
+      "id": "architecture-landsscape.new-system",
+      "kind": "system",
+      "name": "New system",
+      "parentId": "architecture-landsscape",
+      "isExternal": true
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel-database-storage-bucket",
+      "sourceId": "architecture-landsscape.new.database",
+      "targetId": "architecture-landsscape.new.storage-bucket",
+      "type": "relates_to"
+    },
+    {
+      "id": "rel-database-static-content",
+      "sourceId": "architecture-landsscape.new.database",
+      "targetId": "architecture-landsscape.new.static-content",
+      "type": "relates_to"
+    },
+    {
+      "id": "rel-new-new-system",
+      "sourceId": "architecture-landsscape.new",
+      "targetId": "architecture-landsscape.new-system",
+      "type": "relates_to"
+    },
+    {
+      "id": "rel-backend-service-new-system",
+      "sourceId": "architecture-landsscape.new.backend-service",
+      "targetId": "architecture-landsscape.new-system",
+      "type": "relates_to"
+    }
+  ],
+  "constraints": [],
+  "views": [
+    {
+      "id": "view-1",
+      "level": "system",
+      "title": "System Context",
+      "layout": {
+        "algorithm": "grid",
+        "nodes": [
+          {
+            "elementId": "architecture-landsscape",
+            "x": 50,
+            "y": 50,
+            "w": 120,
+            "h": 80
+          },
+          {
+            "elementId": "architecture-landsscape.new",
+            "x": 379.1875,
+            "y": 105.97265625,
+            "w": 120,
+            "h": 80
+          },
+          {
+            "elementId": "architecture-landsscape.new.database",
+            "x": 350,
+            "y": 50,
+            "w": 120,
+            "h": 80
+          },
+          {
+            "elementId": "architecture-landsscape.new.storage-bucket",
+            "x": 50,
+            "y": 200,
+            "w": 120,
+            "h": 80
+          },
+          {
+            "elementId": "architecture-landsscape.new.static-content",
+            "x": 200,
+            "y": 200,
+            "w": 120,
+            "h": 80
+          },
+          {
+            "elementId": "architecture-landsscape.new.backend-service",
+            "x": 350,
+            "y": 200,
+            "w": 120,
+            "h": 80
+          },
+          {
+            "elementId": "architecture-landsscape.new-system",
+            "x": 368.06640625,
+            "y": 361.66796875,
+            "w": 120,
+            "h": 80
+          }
+        ],
+        "edges": [
+          {
+            "relationshipId": "rel-database-storage-bucket"
+          },
+          {
+            "relationshipId": "rel-database-static-content"
+          },
+          {
+            "relationshipId": "rel-new-new-system"
+          },
+          {
+            "relationshipId": "rel-backend-service-new-system"
+          }
+        ]
+      }
+    }
+  ]
+}

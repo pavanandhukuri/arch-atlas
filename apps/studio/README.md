@@ -5,9 +5,11 @@
 ## Architecture
 
 Studio is a **thin client** that consumes core packages:
+
 - `@arch-atlas/core-model` for model validation and manipulation
 - `@arch-atlas/layout` for deterministic layout computation
 - `@arch-atlas/renderer` for WebGL-based canvas rendering
+- `@arch-atlas/viewer-components` for shared React components (MapCanvas, DiagramViewer, ZoomControls, useZoom)
 
 **IMPORTANT**: Studio contains **no domain logic**. All semantic rules, validation, and business logic live in the core packages.
 
@@ -18,13 +20,13 @@ Studio is a **thin client** that consumes core packages:
 pnpm install
 
 # Start development server
-pnpm --filter=arch-atlas-studio dev
+pnpm --filter=@arch-atlas/studio dev
 
 # Build for production
-pnpm --filter=arch-atlas-studio build
+pnpm --filter=@arch-atlas/studio build
 
 # Run tests
-pnpm --filter=arch-atlas-studio test
+pnpm --filter=@arch-atlas/studio test
 ```
 
 ## Environment Setup
@@ -66,10 +68,10 @@ src/
 
 ## Storage Backends
 
-| Backend | Mechanism | Persistence |
-|---------|-----------|-------------|
+| Backend        | Mechanism                                     | Persistence                                                  |
+| -------------- | --------------------------------------------- | ------------------------------------------------------------ |
 | Local Computer | File System Access API (`showSaveFilePicker`) | Persistent — browser holds FileSystemFileHandle in IndexedDB |
-| Google Drive | Drive REST API v3 (`appDataFolder`) | Persistent — stored in user's hidden app data folder |
+| Google Drive   | Drive REST API v3 (`appDataFolder`)           | Persistent — stored in user's hidden app data folder         |
 
 Autosave runs every 2 seconds when dirty, skips ticks if a save is already in-flight.
 
@@ -78,11 +80,14 @@ Autosave runs every 2 seconds when dirty, skips ticks if a save is already in-fl
 ### No Domain Logic in Studio
 
 Studio should **never** contain:
+
 - Model validation rules (use `@arch-atlas/core-model`)
 - Layout algorithms (use `@arch-atlas/layout`)
 - Rendering logic (use `@arch-atlas/renderer`)
+- Duplicate diagram viewer components (use `@arch-atlas/viewer-components`)
 
 Studio **should** contain:
+
 - UI components and interaction handlers
 - Browser-specific services (file I/O, Google Drive API calls)
 - Thin state management (wrapping core-model APIs)
@@ -90,6 +95,7 @@ Studio **should** contain:
 ### Code Review Checklist
 
 Before merging Studio code, verify:
+
 - [ ] No validation rules in Studio code
 - [ ] No layout computation in Studio code
 - [ ] No rendering logic outside renderer package

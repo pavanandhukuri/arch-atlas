@@ -6,10 +6,14 @@ import '@pixi/unsafe-eval';
 import type { ArchitectureModel, View, Element } from '@arch-atlas/core-model';
 import { Application, Graphics, Text, Container, Rectangle, settings } from 'pixi.js';
 
+export const ZOOM_MIN = 0.1;
+export const ZOOM_MAX = 4.0;
+
 export interface RendererOptions {
   background?: number;
   antialias?: boolean;
   onElementDrag?: (elementId: string, x: number, y: number) => void;
+  readOnly?: boolean;
 }
 
 export interface Renderer {
@@ -661,9 +665,16 @@ export function createRenderer(
       // (cylinder, trapezoid, folder, etc.) respond to pointer events across their entire area.
       box.hitArea = new Rectangle(node.x, node.y, width, height);
 
-      // External elements are draggable but not clickable (no editor opens)
       box.eventMode = 'static';
-      box.cursor = isScopeExternal || isOrgExternal ? 'grab' : 'pointer';
+      // In readOnly: pointer for drillable elements (non-person, non-org-external), default otherwise.
+      // In edit mode: grab for external elements, pointer for owned elements.
+      box.cursor = options.readOnly
+        ? isOrgExternal || element.kind === 'person'
+          ? 'default'
+          : 'pointer'
+        : isScopeExternal || isOrgExternal
+          ? 'grab'
+          : 'pointer';
 
       let isDragging = false;
       let hasDragged = false;
@@ -681,7 +692,7 @@ export function createRenderer(
         bottomRight: false,
       };
 
-      // Create 8 connection handles (cardinal + corners)
+      // Create 8 connection handles (cardinal + corners) — editor-only
       const handles = {
         top: new Graphics(),
         right: new Graphics(),
@@ -712,6 +723,7 @@ export function createRenderer(
       };
 
       const updateAllHandlesVisibility = () => {
+        if (options.readOnly) return;
         const anyHandleHovered = Object.values(handleHoverStates).some((h) => h);
         const shouldShowHandles =
           isHoveringBox || anyHandleHovered || connectionPreviewElementId === node.elementId;
@@ -748,7 +760,8 @@ export function createRenderer(
           updateAllHandlesVisibility();
         });
 
-        // Drag-to-connect: Start dragging on pointerdown
+        // Drag-to-connect: Start dragging on pointerdown (editor only)
+        if (options.readOnly) return;
         handle.on('pointerdown', (event: any) => {
           isDraggingConnection = true;
           dragConnectionSourceId = node.elementId;
@@ -785,37 +798,40 @@ export function createRenderer(
         updateAllHandlesVisibility();
       });
 
-      box.on('pointerdown', (event: any) => {
-        isDragging = true;
-        hasDragged = false;
-        const position = event.data.global;
-        const stageX = (position.x - stage.x) / stage.scale.x;
-        const stageY = (position.y - stage.y) / stage.scale.y;
-        dragStartX = stageX - node.x;
-        dragStartY = stageY - node.y;
-        // Immediately show selection highlight without a full re-render
-        selectedRelationshipId = null;
-        if (!isScopeExternal) {
-          selectedElementId = node.elementId;
-          renderSelection();
-        }
-      });
-
-      box.on('pointerup', () => {
-        if (isDragging && hasDragged) {
-          const graphics = elementGraphics.get(node.elementId);
-          if (graphics && dragCallbacks.length > 0) {
-            dragCallbacks.forEach((callback) => callback(node.elementId, graphics.x, graphics.y));
+      if (!options.readOnly)
+        box.on('pointerdown', (event: any) => {
+          isDragging = true;
+          hasDragged = false;
+          const position = event.data.global;
+          const stageX = (position.x - stage.x) / stage.scale.x;
+          const stageY = (position.y - stage.y) / stage.scale.y;
+          dragStartX = stageX - node.x;
+          dragStartY = stageY - node.y;
+          // Immediately show selection highlight without a full re-render
+          selectedRelationshipId = null;
+          if (!isScopeExternal) {
+            selectedElementId = node.elementId;
+            renderSelection();
           }
-        }
-        isDragging = false;
-        hasDragged = false;
-      });
+        });
 
-      box.on('pointerupoutside', () => {
-        isDragging = false;
-        hasDragged = false;
-      });
+      if (!options.readOnly)
+        box.on('pointerup', () => {
+          if (isDragging && hasDragged) {
+            const graphics = elementGraphics.get(node.elementId);
+            if (graphics && dragCallbacks.length > 0) {
+              dragCallbacks.forEach((callback) => callback(node.elementId, graphics.x, graphics.y));
+            }
+          }
+          isDragging = false;
+          hasDragged = false;
+        });
+
+      if (!options.readOnly)
+        box.on('pointerupoutside', () => {
+          isDragging = false;
+          hasDragged = false;
+        });
 
       // Handle single-click and double-click with proper flicker prevention.
       // External elements skip click-to-edit.
@@ -888,46 +904,47 @@ export function createRenderer(
         }
       });
 
-      box.on('pointermove', (event: any) => {
-        if (isDragging) {
-          hasDragged = true;
-          const position = event.data.global;
-          const stageX = (position.x - stage.x) / stage.scale.x;
-          const stageY = (position.y - stage.y) / stage.scale.y;
-          const newX = stageX - dragStartX;
-          const newY = stageY - dragStartY;
+      if (!options.readOnly)
+        box.on('pointermove', (event: any) => {
+          if (isDragging) {
+            hasDragged = true;
+            const position = event.data.global;
+            const stageX = (position.x - stage.x) / stage.scale.x;
+            const stageY = (position.y - stage.y) / stage.scale.y;
+            const newX = stageX - dragStartX;
+            const newY = stageY - dragStartY;
 
-          // Update visual position only (don't update model yet)
-          box.x = newX - node.x;
-          box.y = newY - node.y;
+            // Update visual position only (don't update model yet)
+            box.x = newX - node.x;
+            box.y = newY - node.y;
 
-          const graphics = elementGraphics.get(node.elementId);
-          if (graphics) {
-            graphics.x = newX;
-            graphics.y = newY;
-            graphics.textContainer.x = newX;
-            graphics.textContainer.y = newY;
-            if (graphics.handles) {
-              graphics.handles.top.x = newX + width / 2;
-              graphics.handles.top.y = newY;
-              graphics.handles.right.x = newX + width;
-              graphics.handles.right.y = newY + height / 2;
-              graphics.handles.bottom.x = newX + width / 2;
-              graphics.handles.bottom.y = newY + height;
-              graphics.handles.left.x = newX;
-              graphics.handles.left.y = newY + height / 2;
-              graphics.handles.topLeft.x = newX;
-              graphics.handles.topLeft.y = newY;
-              graphics.handles.topRight.x = newX + width;
-              graphics.handles.topRight.y = newY;
-              graphics.handles.bottomLeft.x = newX;
-              graphics.handles.bottomLeft.y = newY + height;
-              graphics.handles.bottomRight.x = newX + width;
-              graphics.handles.bottomRight.y = newY + height;
+            const graphics = elementGraphics.get(node.elementId);
+            if (graphics) {
+              graphics.x = newX;
+              graphics.y = newY;
+              graphics.textContainer.x = newX;
+              graphics.textContainer.y = newY;
+              if (graphics.handles) {
+                graphics.handles.top.x = newX + width / 2;
+                graphics.handles.top.y = newY;
+                graphics.handles.right.x = newX + width;
+                graphics.handles.right.y = newY + height / 2;
+                graphics.handles.bottom.x = newX + width / 2;
+                graphics.handles.bottom.y = newY + height;
+                graphics.handles.left.x = newX;
+                graphics.handles.left.y = newY + height / 2;
+                graphics.handles.topLeft.x = newX;
+                graphics.handles.topLeft.y = newY;
+                graphics.handles.topRight.x = newX + width;
+                graphics.handles.topRight.y = newY;
+                graphics.handles.bottomLeft.x = newX;
+                graphics.handles.bottomLeft.y = newY + height;
+                graphics.handles.bottomRight.x = newX + width;
+                graphics.handles.bottomRight.y = newY + height;
+              }
             }
           }
-        }
-      });
+        });
 
       // Build C4-style text container with name, type tag, and description
       const textContainer = new Container();
@@ -1015,20 +1032,20 @@ export function createRenderer(
       textContainer.mask = clipMask;
       stage.addChild(clipMask);
 
-      if (!isScopeExternal && !isOrgExternal) {
+      if (!options.readOnly && !isScopeExternal && !isOrgExternal) {
         updateAllHandlesVisibility();
       }
       stage.addChild(box);
       stage.addChild(textContainer);
-      // Add handles only for non-external elements
-      if (!isScopeExternal && !isOrgExternal) {
+      // Add handles only for non-external elements in editor mode
+      if (!options.readOnly && !isScopeExternal && !isOrgExternal) {
         Object.values(handles).forEach((h) => stage.addChild(h));
       }
 
       elementGraphics.set(node.elementId, {
         box,
         textContainer,
-        handles,
+        handles: options.readOnly ? undefined : handles,
         x: node.x,
         y: node.y,
         w: width,

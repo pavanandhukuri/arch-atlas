@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": { "title": "Sample Architecture" },
+  "elements": [
+    { "id": "web", "kind": "system", "name": "Web App" },
+    { "id": "api", "kind": "backend-service", "name": "API Server" },
+    { "id": "db", "kind": "database", "name": "Database" }
+  ],
+  "relationships": [
+    { "id": "r1", "sourceId": "web", "targetId": "api", "label": "HTTP" },
+    { "id": "r2", "sourceId": "api", "targetId": "db", "label": "SQL" }
+  ],
+  "constraints": [],
+  "views": [
+    {
+      "id": "main",
+      "level": "landscape",
+      "title": "System Overview",
+      "layout": {
+        "algorithm": "grid",
+        "nodes": [
+          { "elementId": "web", "x": 100, "y": 200, "width": 160, "height": 80 },
+          { "elementId": "api", "x": 350, "y": 200, "width": 160, "height": 80 },
+          { "elementId": "db", "x": 600, "y": 200, "width": 160, "height": 80 }
+        ],
+        "edges": [{ "relationshipId": "r1" }, { "relationshipId": "r2" }]
+      }
+    }
+  ]
+}

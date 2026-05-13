@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "title": "Imported Model",
+    "createdAt": "2026-05-01T06:39:26.413Z"
+  },
+  "elements": [
+    {
+      "id": "architecture-landscape",
+      "kind": "landscape",
+      "name": "Architecture Landscape",
+      "description": "Top-level architecture landscape"
+    },
+    {
+      "id": "architecture-landscape.system",
+      "kind": "system",
+      "name": "System",
+      "parentId": "architecture-landscape",
+      "description": "Blast"
+    }
+  ],
+  "relationships": [],
+  "constraints": [],
+  "views": [
+    {
+      "id": "view-1",
+      "level": "system",
+      "title": "System Context",
+      "layout": {
+        "algorithm": "grid",
+        "nodes": [
+          {
+            "elementId": "architecture-landscape",
+            "x": 50,
+            "y": 50,
+            "w": 120,
+            "h": 80
+          },
+          {
+            "elementId": "architecture-landscape.system",
+            "x": 200,
+            "y": 50,
+            "w": 120,
+            "h": 80
+          }
+        ],
+        "edges": []
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "name": "arch-atlas-studio",
+  "name": "@arch-atlas/studio",
   "version": "0.1.0",
   "description": "Browser-based Studio for creating and exploring architecture maps",
   "private": true,
@@ -17,6 +17,7 @@
     "@arch-atlas/core-model": "workspace:*",
     "@arch-atlas/layout": "workspace:*",
     "@arch-atlas/renderer": "workspace:*",
+    "@arch-atlas/viewer-components": "workspace:*",
     "@react-oauth/google": "^0.13.4",
     "browser-fs-access": "^0.35.0",
     "idb": "^8.0.0",

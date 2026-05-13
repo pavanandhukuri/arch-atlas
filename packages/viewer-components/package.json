@@ -1,0 +1,24 @@
+{
+  "name": "@arch-atlas/viewer-components",
+  "version": "0.1.0",
+  "description": "Shared read-only diagram viewer components — used by Studio and the standalone viewer bundle",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@arch-atlas/core-model": "workspace:*",
+    "@arch-atlas/renderer": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.3.0"
+  }
+}

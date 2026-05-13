@@ -7,12 +7,13 @@ export function exportModel(model: ArchitectureModel): void {
 
   const link = document.createElement('a');
   link.href = url;
-  const safeName = model.metadata.title
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 200) || 'diagram';
+  const safeName =
+    model.metadata.title
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 200) || 'diagram';
   link.download = `${safeName}.arch.json`;
   document.body.appendChild(link);
   link.click();
@@ -28,13 +29,20 @@ export function parseModelFromText(text: string): ArchitectureModel {
     throw new Error('Missing schemaVersion field');
   }
 
-  const knownVersions = ['0.1.0'];
+  const knownVersions = ['0.1.0', '1.0.0'];
   if (!knownVersions.includes(model.schemaVersion)) {
     throw new Error(`Unknown schemaVersion: ${model.schemaVersion}`);
   }
 
-  const knownFields = ['schemaVersion', 'metadata', 'elements', 'relationships', 'constraints', 'views'];
-  const unknownFields = Object.keys(model).filter(f => !knownFields.includes(f));
+  const knownFields = [
+    'schemaVersion',
+    'metadata',
+    'elements',
+    'relationships',
+    'constraints',
+    'views',
+  ];
+  const unknownFields = Object.keys(model).filter((f) => !knownFields.includes(f));
   if (unknownFields.length > 0) {
     throw new Error(`Unknown fields in model: ${unknownFields.join(', ')}`);
   }

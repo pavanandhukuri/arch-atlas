@@ -10,14 +10,19 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@arch-atlas/viewer-components': path.resolve(
+        __dirname,
+        '../../packages/viewer-components/src/index.ts'
+      ),
     },
   },
   test: {
     globals: true,
     environment: 'node',
     environmentMatchGlobs: [
-      // React component tests need jsdom
+      // React component and hook tests need jsdom
       ['test/components/**', 'jsdom'],
+      ['test/hooks/**', 'jsdom'],
       ['test/app/**', 'jsdom'],
     ],
     coverage: {
