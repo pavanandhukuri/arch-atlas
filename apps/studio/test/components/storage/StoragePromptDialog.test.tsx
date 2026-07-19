@@ -92,14 +92,17 @@ describe('StoragePromptDialog — new mode (US1)', () => {
   it('calls onLocalSelected with handle after successful file picker', async () => {
     const { LocalFileProvider } = await import('../../../src/services/storage/local-file-provider');
     const handle = makeHandle();
-    vi.mocked(LocalFileProvider).mockImplementation(() => ({
-      createFile: vi.fn().mockResolvedValue(handle),
-      openFile: vi.fn(),
-      save: vi.fn(),
-      load: vi.fn(),
-      isAvailable: vi.fn(),
-      type: 'local' as const,
-    }) as unknown as InstanceType<typeof LocalFileProvider>);
+    vi.mocked(LocalFileProvider).mockImplementation(
+      () =>
+        ({
+          createFile: vi.fn().mockResolvedValue(handle),
+          openFile: vi.fn(),
+          save: vi.fn(),
+          load: vi.fn(),
+          isAvailable: vi.fn(),
+          type: 'local' as const,
+        }) as unknown as InstanceType<typeof LocalFileProvider>
+    );
 
     render(
       <StoragePromptDialog
@@ -121,14 +124,19 @@ describe('StoragePromptDialog — new mode (US1)', () => {
 
   it('shows error message when picker returns an error', async () => {
     const { LocalFileProvider } = await import('../../../src/services/storage/local-file-provider');
-    vi.mocked(LocalFileProvider).mockImplementation(() => ({
-      createFile: vi.fn().mockResolvedValue({ success: false, code: 'PERMISSION_DENIED', message: 'Cancelled' }),
-      openFile: vi.fn(),
-      save: vi.fn(),
-      load: vi.fn(),
-      isAvailable: vi.fn(),
-      type: 'local' as const,
-    }) as unknown as InstanceType<typeof LocalFileProvider>);
+    vi.mocked(LocalFileProvider).mockImplementation(
+      () =>
+        ({
+          createFile: vi
+            .fn()
+            .mockResolvedValue({ success: false, code: 'PERMISSION_DENIED', message: 'Cancelled' }),
+          openFile: vi.fn(),
+          save: vi.fn(),
+          load: vi.fn(),
+          isAvailable: vi.fn(),
+          type: 'local' as const,
+        }) as unknown as InstanceType<typeof LocalFileProvider>
+    );
 
     render(
       <StoragePromptDialog
@@ -147,5 +155,65 @@ describe('StoragePromptDialog — new mode (US1)', () => {
       expect(screen.getByRole('alert')).toBeDefined();
       expect(onLocalSelected).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('StoragePromptDialog — startup mode "Import from repos" option', () => {
+  const onLocalSelected = vi.fn();
+  const onDriveSelected = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does not show "Import from repos" when onImportRepos is not provided', () => {
+    render(
+      <StoragePromptDialog
+        mode="startup"
+        onLocalSelected={onLocalSelected}
+        onDriveSelected={onDriveSelected}
+        driveAuth={defaultDriveAuth}
+      />
+    );
+
+    expect(screen.queryByText(/import from repos/i)).toBeNull();
+  });
+
+  it('shows "Import from repos" as a startup option when onImportRepos is provided', () => {
+    const onImportRepos = vi.fn();
+    render(
+      <StoragePromptDialog
+        mode="startup"
+        onLocalSelected={onLocalSelected}
+        onDriveSelected={onDriveSelected}
+        driveAuth={defaultDriveAuth}
+        onImportRepos={onImportRepos}
+      />
+    );
+
+    expect(screen.getByText(/import from repos/i)).toBeDefined();
+  });
+
+  it('calls onImportRepos when the option is clicked, without touching storage selection', () => {
+    const onImportRepos = vi.fn();
+    render(
+      <StoragePromptDialog
+        mode="startup"
+        onLocalSelected={onLocalSelected}
+        onDriveSelected={onDriveSelected}
+        driveAuth={defaultDriveAuth}
+        onImportRepos={onImportRepos}
+      />
+    );
+
+    fireEvent.click(screen.getByText(/import from repos/i));
+
+    expect(onImportRepos).toHaveBeenCalledOnce();
+    expect(onLocalSelected).not.toHaveBeenCalled();
+    expect(onDriveSelected).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-05-16T10:00:00Z",
+  "repository": {
+    "name": "notification-service",
+    "path": "/fixtures/repos/notification_service"
+  },
+  "connections": [
+    {
+      "type": "message-queue",
+      "targetService": "RabbitMQ",
+      "confidence": "medium",
+      "evidence": ["src/main.py:5"]
+    }
+  ],
+  "confidence": "medium",
+  "filesSampled": 4,
+  "filesTotal": 4
+}

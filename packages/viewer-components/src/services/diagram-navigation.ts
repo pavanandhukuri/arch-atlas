@@ -28,6 +28,17 @@ export function getVisibleElements(
   return model.elements.filter((e) => !e.parentId);
 }
 
+/**
+ * Given the full model and the set of element IDs visible on the current canvas,
+ * return:
+ *  - directRelationships: relationships where BOTH source and target are visible
+ *  - derivedRelationships: synthetic relationships, sourced/targeted at the nearest
+ *    visible ancestor (for cross-layer propagation). Each carries `_originalId`,
+ *    the id of the real underlying relationship it was derived from — editors
+ *    should write changes back to that relationship, not the synthetic one.
+ *  - externalElements: system/person-level elements outside the current view that
+ *    have a relationship to/from a visible element
+ */
 export function deriveViewRelationships(
   model: ArchitectureModel,
   visibleElementIds: Set<string>
@@ -78,7 +89,8 @@ export function deriveViewRelationships(
           id: `derived-${derivedSourceId}-${derivedTargetId}`,
           sourceId: derivedSourceId,
           targetId: derivedTargetId,
-        });
+          _originalId: rel.id,
+        } as Relationship & { _originalId: string });
       }
       continue;
     }
@@ -103,7 +115,8 @@ export function deriveViewRelationships(
         id: `derived-${extSourceId}-${extTargetId}`,
         sourceId: extSourceId,
         targetId: extTargetId,
-      });
+        _originalId: rel.id,
+      } as Relationship & { _originalId: string });
     }
   }
 

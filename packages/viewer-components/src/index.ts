@@ -11,3 +11,4 @@ export { useZoom } from './hooks/useZoom';
 export type { UseZoomResult } from './hooks/useZoom';
 
 export type { DiagramLevel } from './services/diagram-navigation';
+export { deriveViewRelationships } from './services/diagram-navigation';

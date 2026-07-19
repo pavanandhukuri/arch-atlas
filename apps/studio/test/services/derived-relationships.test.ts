@@ -1,9 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  deriveViewRelationships,
-  getElementPath,
-  buildElementOptions,
-} from '../../src/services/derived-relationships';
+import { deriveViewRelationships } from '@arch-atlas/viewer-components';
+import { getElementPath, buildElementOptions } from '../../src/services/derived-relationships';
 import type { ArchitectureModel, Element } from '@arch-atlas/core-model';
 
 const makeModel = (overrides: Partial<ArchitectureModel> = {}): ArchitectureModel => ({

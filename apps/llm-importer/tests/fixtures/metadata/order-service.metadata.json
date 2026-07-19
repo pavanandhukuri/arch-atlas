@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-05-16T10:00:00Z",
+  "repository": {
+    "name": "order-service",
+    "path": "/fixtures/repos/order_service"
+  },
+  "connections": [
+    {
+      "type": "http",
+      "targetService": "sample-service",
+      "confidence": "high",
+      "evidence": ["src/main.py:10"]
+    }
+  ],
+  "confidence": "high",
+  "filesSampled": 4,
+  "filesTotal": 4
+}

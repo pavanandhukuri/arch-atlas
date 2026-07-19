@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arch-atlas.local/schemas/repo-metadata.schema.json",
+  "title": "Arch Atlas Repository Metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "analyzedAt",
+    "repository",
+    "connections",
+    "confidence",
+    "filesSampled",
+    "filesTotal"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0" },
+    "analyzedAt": { "type": "string" },
+    "repository": { "$ref": "#/$defs/RepositoryRef" },
+    "connections": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Connection" }
+    },
+    "confidence": { "$ref": "#/$defs/ConfidenceLevel" },
+    "filesSampled": { "type": "integer", "minimum": 0 },
+    "filesTotal": { "type": "integer", "minimum": 0 },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "ConfidenceLevel": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "ConnectionType": {
+      "type": "string",
+      "enum": ["http", "database", "message-queue", "grpc", "file-system", "unknown"]
+    },
+    "RepositoryRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "path"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" }
+      }
+    },
+    "Connection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "targetService", "confidence", "evidence"],
+      "properties": {
+        "type": { "$ref": "#/$defs/ConnectionType" },
+        "targetService": { "type": "string", "minLength": 1 },
+        "targetAddresses": { "type": "array", "items": { "type": "string" } },
+        "label": { "type": "string" },
+        "confidence": { "$ref": "#/$defs/ConfidenceLevel" },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

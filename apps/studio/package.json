@@ -21,6 +21,7 @@
     "@react-oauth/google": "^0.13.4",
     "browser-fs-access": "^0.35.0",
     "idb": "^8.0.0",
+    "js-yaml": "^5.2.0",
     "next": "^14.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

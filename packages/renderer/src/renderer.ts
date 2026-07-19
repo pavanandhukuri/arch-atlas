@@ -491,19 +491,30 @@ export function createRenderer(
         relationshipContainer.addChild(arrowLabel);
       }
 
-      // Create a rectangular hit area around the line for better selectability
-      const hitWidth = 20; // 20px clickable width on each side
+      // Create a thin hit strip that follows the line itself — NOT its axis-aligned
+      // bounding box. A diagonal line's bbox can cover a huge swath of the canvas
+      // (e.g. a landscape-level edge between two far-apart systems), and that whole
+      // area was previously clickable/hit-testable, silently swallowing background
+      // pointerdown events meant to start a pan drag anywhere inside the box.
+      const hitWidth = 10; // 10px clickable width on each side of the line
+      const lineDx = toPoint.x - fromPoint.x;
+      const lineDy = toPoint.y - fromPoint.y;
+      const lineLength = Math.sqrt(lineDx * lineDx + lineDy * lineDy) || 1;
+      const nx = (-lineDy / lineLength) * hitWidth;
+      const ny = (lineDx / lineLength) * hitWidth;
 
-      // Calculate bounding box around the line with padding
-      const minX = Math.min(fromPoint.x, toPoint.x) - hitWidth;
-      const minY = Math.min(fromPoint.y, toPoint.y) - hitWidth;
-      const maxX = Math.max(fromPoint.x, toPoint.x) + hitWidth;
-      const maxY = Math.max(fromPoint.y, toPoint.y) + hitWidth;
-
-      // Draw invisible hit area for debugging/interaction
       const hitAreaGraphics = new Graphics();
       hitAreaGraphics.beginFill(0x000000, 0.001); // Nearly invisible
-      hitAreaGraphics.drawRect(minX, minY, maxX - minX, maxY - minY);
+      hitAreaGraphics.drawPolygon([
+        fromPoint.x + nx,
+        fromPoint.y + ny,
+        toPoint.x + nx,
+        toPoint.y + ny,
+        toPoint.x - nx,
+        toPoint.y - ny,
+        fromPoint.x - nx,
+        fromPoint.y - ny,
+      ]);
       hitAreaGraphics.endFill();
       relationshipContainer.addChild(hitAreaGraphics);
 
@@ -1126,9 +1137,13 @@ export function createRenderer(
     setZoom: (zoom: number) => {
       stage.scale.set(zoom);
     },
-    pan: (dx: number, dy: number) => {
-      stage.x += dx;
-      stage.y += dy;
+    pan: (x: number, y: number) => {
+      // Every caller (useZoom's fitToView / Cmd+0) passes (0, 0) meaning
+      // "reset to origin" — this must be an absolute set, not a relative
+      // increment, otherwise pan(0, 0) is a no-op and "Fit to View" never
+      // actually resets a panned diagram back into the visible viewport.
+      stage.x = x;
+      stage.y = y;
     },
     onDrillDown: (callback: (elementId: string) => void) => {
       drillDownCallbacks.push(callback);

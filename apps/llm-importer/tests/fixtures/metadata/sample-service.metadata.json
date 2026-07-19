@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-05-16T10:00:00Z",
+  "repository": {
+    "name": "sample-service",
+    "path": "/fixtures/repos/sample_service"
+  },
+  "connections": [
+    {
+      "type": "database",
+      "targetService": "PostgreSQL",
+      "confidence": "high",
+      "evidence": ["src/db.py:3"]
+    }
+  ],
+  "confidence": "high",
+  "filesSampled": 4,
+  "filesTotal": 4
+}
