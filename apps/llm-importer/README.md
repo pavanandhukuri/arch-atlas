@@ -1,153 +1,93 @@
-# arch-atlas-import
+# @arch-atlas/llm-importer
 
-Scans a folder of Git repositories using static analysis and generates an architecture diagram JSON in the [Arch Atlas](https://github.com/pavanandhukuri/arch-atlas) schema.
+Agentic, local-model-driven repository architecture importer. Analyzes one or more local
+repositories using a coding-agent session backed by a user-supplied local model (Ollama,
+MLX, or any other OpenAI-compatible local endpoint — no hosted/cloud API path exists in
+this package), then correlates connections across repositories and produces the same
+review-artifact format the Studio import wizard already consumes.
 
-**How it works**: manifest files (docker-compose, package.json, pom.xml) and code patterns (HTTP client calls, DB connections, Kafka usage) are extracted with confidence scores into an in-memory graph. A single LLM call at the end enriches the graph with canonical names and groupings. No code is sent to the LLM — only the extracted connection metadata.
+See `specs/007-llm-repo-importer/` in the repo root for the full spec, plan, research
+decisions, data model, and contracts this package implements.
 
-## Install
+## Prerequisites
 
-```bash
-# Recommended: pipx keeps the tool isolated
-pipx install arch-atlas-import
+- Node.js ≥ 22
+- A running local model server (Ollama: `ollama serve` + `ollama pull <model>`, or an
+  MLX/OpenAI-compatible server)
+- Python 3.11+ on `PATH` — used only by two vendored Understand-Anything scripts
+  (`vendor/understand-anything/merge-batch-graphs.py`,
+  `merge-subdomain-graphs.py`), invoked as a subprocess during analysis
 
-# Or plain pip
-pip install arch-atlas-import
-```
+## Vendored third-party assets
 
-Requires Python 3.11+.
+This package vendors (copies, and in places patches) source from two external open-source
+projects, rather than depending on them as npm packages, because parts of what's reused
+either aren't published to npm or need behavior changes for headless/non-interactive
+operation. **Do not edit vendored files without reading this section first** — on any
+re-sync against upstream, patches must be re-applied, not silently lost by an overwrite.
 
-## Quick start
+### `vendor/understand-anything/`
 
-```bash
-# Run from the folder that contains all your repos
-cd /workspace/projects
-arch-atlas-import run .
+Source: [`Egonex-AI/Understand-Anything`](https://github.com/Egonex-AI/Understand-Anything),
+pinned at commit `6ae71878beb50226a1e4b7e2f52ac6468c86f74b` (vendored 2026-07-25).
+License: MIT.
 
-# Or pass the path explicitly
-arch-atlas-import run /workspace/projects
-```
+| File                                                                                  | Status                      | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SKILL.md`                                                                            | **Patched** — see below     | The `/understand` skill, adapted for headless operation                                                                                                                                                                                                                                                                                                                                                                                               |
+| `agents/project-scanner.md`, `agents/file-analyzer.md`, `agents/assemble-reviewer.md` | Vendored as-is              | `architecture-analyzer.md`, `tour-builder.md`, `domain-analyzer.md`, `graph-reviewer.md` intentionally **not** vendored — their phases are trimmed (see below)                                                                                                                                                                                                                                                                                        |
+| `merge-batch-graphs.py`, `merge-subdomain-graphs.py`                                  | Vendored as-is              | Pure Python, no dependency on `@understand-anything/core` — confirmed by inspection before vendoring                                                                                                                                                                                                                                                                                                                                                  |
+| `schema.ts`                                                                           | Vendored as-is              | UA's native graph schema, used for ingestion-time validation before our own trimmed schema filter (`src/graph/schema.ts`) is applied                                                                                                                                                                                                                                                                                                                  |
+| `languages/*.md` (24 files), `frameworks/*.md` (10 files)                             | Vendored as-is              | Context files SKILL.md injects into agent prompts by detected language/framework                                                                                                                                                                                                                                                                                                                                                                      |
+| `compute-batches.mjs`                                                                 | **Rewritten, not vendored** | UA's original does import-graph-aware batching via `graphology`/`graphology-communities-louvain`, backed by `@understand-anything/core`'s tree-sitter grammars. That package is **not published to npm** (confirmed via `npm view @understand-anything/core` → 404) and pulls in a dozen native/WASM grammar packages. Replaced with plain fixed-size chunking — no import-graph analysis, no external dependency. See the file's own header comment. |
+| `generate-ignore.mjs`                                                                 | **Rewritten, not vendored** | UA's original does `.gitignore`-aware smart exclusion generation via the same un-vendored core package. Replaced with a fixed exclusion list matching `FR-015`'s hardcoded patterns.                                                                                                                                                                                                                                                                  |
+| `build-fingerprints.mjs`                                                              | **Removed, not vendored**   | UA's file-level fingerprint baseline (for UA's own auto-update mechanism) also depends on `@understand-anything/core`. Not needed: this importer's incremental re-import (`FR-011`/US3) works at the repository level — does a valid `{repo}.knowledge-graph.json` already exist — not the file level.                                                                                                                                                |
 
-The output lands in `PROJECTS_DIR/.arch-atlas/architecture.arch.json`.
+**Patches applied to `SKILL.md`** (search the file for `arch-atlas headless patch` to find each one):
 
-## Providers
+1. **Phase 0.5** — the `.understandignore` generation step no longer waits for user
+   confirmation; it generates and proceeds immediately (no human in the loop for a
+   batch/CI import).
+2. **Phase 0 step 1.5** — UA's original plugin-root discovery (searching
+   `~/.agents/skills/understand`, `~/.understand-anything-plugin`, etc.) and
+   `@understand-anything/core` build step are removed entirely. `SKILL_DIR` is passed
+   explicitly by `src/analysis/resource-loader.ts`; nothing needs discovering or building.
+3. **Phases 4 and 5** (architecture-analyzer / layers, tour-builder / tour) — trimmed
+   entirely. The review wizard doesn't consume either, and generating them costs two full
+   agent dispatches' worth of local-model time per repository. `layers`/`tour` are
+   hardcoded to `[]` in the Phase 6 JSON assembly instructions.
+4. **Phase 7** — the fingerprint-baseline generation step (which depended on the
+   un-vendored `build-fingerprints.mjs`) is removed; `meta.json` is written directly.
+   Dashboard auto-launch is removed (no interactive session to launch it in) —
+   `src/analysis/run-understand.ts` copies `knowledge-graph.json` out of `$UA_DIR`
+   instead.
+5. Progress-counter labels (`[Phase N/7]`) renumbered to `[Phase N/6]` to match the
+   6 phases that actually run (0/0.5/1/1.5/2/3/6/7 minus the two trimmed — the `##
+Phase 6`/`## Phase 7` section headers themselves are left as their original numbers
+   for easier upstream diffing; only the user-facing progress text changed).
 
-### Ollama (local — default)
+**Re-syncing against upstream**: fetch the new commit, diff each vendored file against
+this patch list, and re-apply patches 1–5 by hand — do not blindly overwrite `SKILL.md`.
+The un-vendored/rewritten scripts (`compute-batches.mjs`, `generate-ignore.mjs`) don't
+need re-syncing against upstream at all, since they're not copies of UA's originals.
 
-```bash
-# Pull a model once
-ollama pull qwen2.5-coder:7b
+### `vendor/pi-subagent/`
 
-arch-atlas-import run . --provider ollama --model qwen2.5-coder:7b
-# endpoint defaults to http://localhost:11434
-```
+Source: [`earendil-works/pi`](https://github.com/earendil-works/pi),
+`packages/coding-agent/examples/extensions/subagent/`, pinned at commit
+`518855dd502220d0c6480fb8863e2e7f8799893f` (vendored 2026-07-25). License: MIT.
 
-### MLX (local — Apple Silicon)
-
-Works with any local MLX server that exposes an OpenAI-compatible API — e.g. the
-`omlx` macOS app, or `mlx_lm.server` from the `mlx-lm` PyPI package. Start your
-server, load a model (defaults assume `Qwen3-Coder-30B-A3B-Instruct-MLX-4bit`),
-then point the CLI at it:
-
-```bash
-# omlx (and similar apps) require an API key even for local requests —
-# set it to whatever the app is configured with.
-export MLX_API_KEY=1234
-arch-atlas-import run . --provider mlx --api-key-env MLX_API_KEY
-# endpoint defaults to http://localhost:8000/v1
-```
-
-If your server runs on a different port, or doesn't require a key (e.g. plain
-`mlx_lm.server`), add `--endpoint http://localhost:PORT/v1` and drop `--api-key-env`.
-
-Any OpenAI-compatible local server works the same way via `--provider openai --endpoint <url>` — the `mlx` provider is just `openai` with MLX-friendly defaults baked in.
-
-### Anthropic (cloud)
-
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-arch-atlas-import run . --provider anthropic --model claude-opus-4-8
-```
-
-The CLI will list the repos whose metadata will be sent and prompt for confirmation unless `--yes` is passed.
-
-## Configuration
-
-Options can be set three ways (highest priority first):
-
-1. **CLI flags** — `--provider ollama --model llama3`
-2. **Environment variables** — `ARCH_ATLAS_PROVIDER=ollama ARCH_ATLAS_MODEL=llama3`
-3. **Config file** — `~/.arch-atlas.yaml` (or `.arch-atlas.yaml` in the current directory)
-
-### Config file format (`~/.arch-atlas.yaml`)
-
-```yaml
-provider: ollama # ollama | anthropic | openai | mlx
-model: qwen2.5-coder:7b
-endpoint: http://localhost:11434 # ollama, openai, mlx only
-apiKeyEnv: ANTHROPIC_API_KEY # anthropic (and optionally openai/mlx) only
-minConfidence: 0.5
-concurrency: 3
-```
-
-## CLI reference
-
-```
-arch-atlas-import run [PROJECTS_DIR] [OPTIONS]
-
-Arguments:
-  PROJECTS_DIR    Parent folder containing repositories as subdirectories.
-                  Defaults to the current directory.
-
-Options:
-  --config FILE           Path to YAML config file.
-  --output DIR            Override output directory.
-  --provider TYPE         LLM provider: anthropic | ollama | openai | mlx  [default: ollama]
-  --model TEXT            Model name override.
-  --endpoint URL          Provider endpoint (ollama/openai/mlx only).
-                          [default: ollama http://localhost:11434, mlx http://localhost:8000/v1]
-  --api-key-env NAME      Env var holding the Anthropic API key.
-  --repos NAME,...        Process only a subset of repos (comma-separated).
-  --force-refresh         Re-extract all repos, ignoring cached .metadata.json.
-  --analyze-only          Extraction only — skip LLM enrichment.
-  --aggregate-only        Skip extraction — re-run enrichment from cached metadata.
-  --min-confidence FLOAT  Discard signals below this threshold.  [default: 0.5]
-  --concurrency INT       Parallel repo extractions.  [default: 3]
-  --verbose               Detailed per-repo progress.
-  --yes                   Skip the Anthropic consent prompt.
-  --help                  Show this message and exit.
-```
-
-## Output
-
-```
-PROJECTS_DIR/
-└── .arch-atlas/
-    ├── <repo-name>.metadata.json    # per-repo extracted connections
-    └── architecture.arch.json       # final diagram (Arch Atlas format)
-```
-
-`architecture.arch.json` conforms to `@arch-atlas/model-schema`.
-
-## Incremental mode
-
-Re-running skips repos that already have valid `.metadata.json` files. Use `--force-refresh` to re-extract everything. Use `--aggregate-only` to re-run just the LLM enrichment step against existing metadata (fast, no re-scanning).
-
-## Security
-
-The following are **always excluded** from static analysis and never appear in LLM prompts:
-
-- `.env`, `.env.*` — environment files
-- `*.key`, `*.pem`, `*.p12` — certificates and private keys
-- Files matching `*secret*`, `*credential*`, `*password*`
-- `node_modules/`, `.git/`, `dist/`, `build/`, `__pycache__/`, `.venv/`
+Vendored as-is initially (`index.ts`, `agents.ts`); `MAX_CONCURRENCY`/`MAX_PARALLEL_TASKS`
+constants are repointed at `src/concurrency/shared-limiter.ts` so repo-level and
+internal-batch fan-out share one bound (research.md D8, FR-016) — see that file's diff
+against the pinned upstream commit when re-syncing.
 
 ## Development
 
 ```bash
-git clone https://github.com/pavanandhukuri/arch-atlas
-cd apps/llm-importer
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-pytest               # runs all tests (80% coverage required)
-mypy llm_importer/
+pnpm --filter @arch-atlas/llm-importer typecheck
+pnpm --filter @arch-atlas/llm-importer test
+pnpm --filter @arch-atlas/llm-importer lint
 ```
+
+See `specs/007-llm-repo-importer/quickstart.md` for end-to-end usage.

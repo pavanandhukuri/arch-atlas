@@ -1,174 +1,262 @@
-# Tasks: Repository Architecture Importer (Graph Extraction Pipeline)
+# Tasks: Repository Architecture Importer (Agentic Local-Model Rewrite)
 
-**Revised**: 2026-06-04 | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)  
-**Language**: Python 3.11+ in `apps/llm-importer/`
+**Revised**: 2026-07-25 | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Research**: [research.md](./research.md) | **Data Model**: [data-model.md](./data-model.md) | **Contracts**: [contracts/](./contracts/)
 
-**Approach**: Static analysis first (manifests → tree-sitter → semgrep → graph), LLM enrichment last (once, across full graph). TDD throughout — write each test first, confirm it fails, then implement.
+**Language**: TypeScript 5.3.0 strict, Node.js ≥ 22, in `apps/llm-importer/` — replaces the Python package at the same path
+
+**Tests**: Included. The constitution's Principle III ("Test-Driven Development — NON-NEGOTIABLE") and ≥80%-coverage Definition-of-Done gate apply to this feature, and research.md D12 commits to a specific testing strategy (mocked `ModelRuntime` for deterministic coverage, opt-in integration tests against a real local model). Write each test task before its corresponding implementation task and confirm it fails first.
+
+**Organization**: Tasks are grouped by user story (spec.md P1–P4) to enable independent implementation and testing of each.
 
 ## Format: `[ID] [P?] [Story] Description`
 
-- **[P]**: Can run in parallel with other [P] tasks in the same phase
-- **[Story]**: US1–US4
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (US1–US4)
+- File paths below are relative to `apps/llm-importer/` unless stated otherwise
 
 ---
 
-## Phase 1: Scaffold & Dependency Update
+## Phase 1: Setup
 
-**Purpose**: Update the existing package to add new dependencies and directory structure.
+**Purpose**: Retire the Python package and stand up the new TypeScript package skeleton (research.md D1 — immediate, full replacement at the same path).
 
-- [ ] T001 Update `apps/llm-importer/pyproject.toml` — add `tree-sitter ^0.21`, `tree-sitter-python`, `tree-sitter-java`, `tree-sitter-javascript`, `tree-sitter-typescript`, `tree-sitter-go`, `semgrep ^1.70`, `pydantic ^2.7`, `networkx ^3.3`; add optional `neo4j ^5.20` under `[project.optional-dependencies] neo4j`
-- [ ] T002 Create `apps/llm-importer/llm_importer/extraction/` directory with `__init__.py`, `rules/` subdirectory; create `apps/llm-importer/llm_importer/graph/` with `__init__.py`; create `apps/llm-importer/llm_importer/enrichment/` with `__init__.py`
-- [ ] T003 [P] Delete `apps/llm-importer/llm_importer/analysis/prompts.py` and `apps/llm-importer/llm_importer/analysis/repo_analyzer.py` and `apps/llm-importer/llm_importer/analysis/file_sampler.py` (replaced by extraction pipeline); keep `analysis/repo_metadata.schema.json` — will be moved in T010
-- [ ] T004 [P] Delete `apps/llm-importer/llm_importer/aggregation/` directory (replaced by `enrichment/`)
-- [ ] T005 [P] Update `apps/llm-importer/tests/fixtures/repos/` — add `python_service/` (Django-style app with `requests`, `psycopg2`, `celery`), `java_service/` (Spring Boot stub with `@FeignClient`, `KafkaTemplate`), `node_service/` (Express with `axios`, `pg`, `amqplib`); keep existing fixtures
-
-**Checkpoint**: `pip install -e ".[dev]"` succeeds with new deps.
-
----
-
-## Phase 2: Manifest Extractor (US1)
-
-**Purpose**: Extract services, databases, and queues declared in deployment/dependency manifests.
-
-- [ ] T006 [P] Write `apps/llm-importer/tests/unit/test_manifest_extractor.py` FIRST — cover: `docker-compose.yml` with `services:`, `depends_on:`, `environment: DATABASE_URL`; `package.json` with `dependencies` containing `pg`, `redis`, `amqplib`; `pom.xml` with `spring-data-jpa`, `spring-kafka`; missing file returns empty result; unsupported format skipped gracefully
-- [ ] T007 Implement `apps/llm-importer/llm_importer/extraction/manifest_extractor.py` — `extract_from_manifest(path) -> list[ManifestSignal]`; `ManifestSignal(source_file, line, target_service, service_type, confidence=0.99)`; handle docker-compose v2/v3, package.json, pom.xml, build.gradle; all T006 tests must pass
-- [ ] T008 [P] Add `apps/llm-importer/tests/fixtures/repos/python_service/docker-compose.yml` (postgres + redis + celery worker), `java_service/pom.xml` (spring-boot, spring-kafka, spring-data-jpa), `node_service/package.json` (express, pg, amqplib, axios)
-
-**Checkpoint**: `pytest tests/unit/test_manifest_extractor.py` passes.
+- [x] T001 Delete the retired Python source tree at `apps/llm-importer/` (`llm_importer/`, `tests/`, `pyproject.toml`, `Dockerfile`, `docker-run.sh`, `.venv/`, `samples/`) — confirm via `git status` that nothing else in the repo references these paths before removing
+- [x] T002 Create the new package skeleton directories at `apps/llm-importer/`: `vendor/understand-anything/`, `vendor/pi-subagent/`, `src/{cli,config,model-runtime,analysis,graph,correlate,confidence,review,export,concurrency}/`, `test/{unit,integration,fixtures/repos,fixtures/knowledge-graphs}/` per plan.md Project Structure
+- [x] T003 [P] Initialize `apps/llm-importer/package.json` — name `@arch-atlas/llm-importer`, dependencies `@earendil-works/pi-coding-agent`, `@earendil-works/pi-ai`, `zod`, `commander`; devDependencies `vitest`, `typescript`, `@types/node`
+- [x] T004 [P] Create `apps/llm-importer/tsconfig.json` — strict mode, `noUncheckedIndexedAccess`, ES2022 target (matches monorepo convention per CLAUDE.md)
+- [x] T005 [P] Create `apps/llm-importer/vitest.config.ts` with an 80% coverage threshold configured (constitution Definition of Done)
+- [x] T006 [P] Register `apps/llm-importer` in the monorepo's `pnpm-workspace.yaml` and `turbo.json` pipeline so `turbo run typecheck lint test` covers it
+- [x] T007 [P] Configure eslint for `apps/llm-importer` matching the monorepo's existing TypeScript packages
 
 ---
 
-## Phase 3: Code Parser — Tree-sitter (US1)
+## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Extract import statements and framework annotations from source files using Tree-sitter ASTs.
+**Purpose**: Vendored assets, config/model-runtime plumbing, and shared infrastructure every user story depends on.
 
-- [ ] T009 [P] Write `apps/llm-importer/tests/unit/test_code_parser.py` FIRST — cover: Python file imports extracted correctly; Java `import` + annotation `@FeignClient` extracted; JS/TS `require`/`import` extracted; unknown extension returns empty; binary file skipped; truncation at 500 nodes
-- [ ] T010 Implement `apps/llm-importer/llm_importer/extraction/code_parser.py` — `parse_file(path) -> ParseResult`; `ParseResult(imports: list[str], annotations: list[Annotation], symbols: list[str])`; language detected from extension; tree-sitter parser per language; `Annotation(name, args, file, line)`; all T009 tests must pass
-- [ ] T011 [P] Move `apps/llm-importer/llm_importer/analysis/repo_metadata.schema.json` → `apps/llm-importer/llm_importer/extraction/repo_metadata.schema.json`; update `confidence` to `number` (0–1), add required `evidence` array of strings to each connection
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-**Checkpoint**: `pytest tests/unit/test_code_parser.py` passes.
+- [x] T008 Vendor Understand-Anything's skill assets into `apps/llm-importer/vendor/understand-anything/`: `SKILL.md`, `agents/{project-scanner,file-analyzer,assemble-reviewer}.md`, `compute-batches.mjs`, `merge-batch-graphs.py`, `languages/`, `frameworks/`, `schema.ts`, copied from `Egonex-AI/Understand-Anything` at a pinned commit/tag recorded in T012's README (research.md D4)
+- [x] T009 Apply the two structural headless patches to `vendor/understand-anything/SKILL.md`: replace Phase 0.5's "Wait for user confirmation before proceeding" (`.understandignore` generation) with automatic proceed, and remove the Phase 0 git-worktree redirect + Phase 7 dashboard auto-launch steps (research.md D4 adaptations 1–2)
+- [x] T010 Trim `vendor/understand-anything/SKILL.md`'s phase sequence to remove Phase 4 (`architecture-analyzer`) and Phase 5 (`tour-builder`) and their agent dispatch instructions, renumbering remaining phase labels for clarity (research.md D4)
+- [x] T011 [P] Vendor and adapt pi's example subagent extension into `apps/llm-importer/vendor/pi-subagent/index.ts` and `agents.ts` (research.md D3), replacing the hardcoded `MAX_CONCURRENCY`/`MAX_PARALLEL_TASKS` constants with values read from `src/concurrency/shared-limiter.ts` (T016)
+- [x] T012 Document vendored-asset provenance in `apps/llm-importer/README.md`: source repo/commit for each of T008 and T011, the exact patches applied, and the re-diff process to follow on upstream updates (Constitution Check tracked-risk requirement)
+- [x] T013 [P] Implement `src/config/config.schema.ts` — zod schema for `ImportConfig` v2.0 (`localModel`, `output`, `analysis` incl. `maxConcurrency`, `repositories`, max 50 entries) per `data-model.md` and `contracts/config-schema-contract.md`
+- [x] T014 Implement `src/config/loader.ts` — parse and validate a YAML/JSON config file against T013's schema; reject a v1.0-shaped config (containing a `provider` block) with a clear, specific error naming the unsupported field (`contracts/config-schema-contract.md` Migration section)
+- [x] T015 [P] Implement `src/model-runtime/local-model-runtime.ts` — build a pi `ModelRuntime` from `config.localModel` (`ollama`/`mlx`/`openai-compatible`), no code path that constructs a hosted-provider client (research.md D9, FR-017)
+- [x] T016 [P] Implement `src/concurrency/shared-limiter.ts` — a single semaphore/pool, sized by `config.analysis.maxConcurrency`, acquired by both repo-level fan-out and the vendored subagent dispatcher's internal batch fan-out (research.md D8, FR-016)
+- [x] T017 Implement `src/analysis/resource-loader.ts` — a full-control pi `ResourceLoader` wiring `vendor/understand-anything`'s skill/agents and `vendor/pi-subagent`'s extension explicitly, with no filesystem discovery of `~/.pi/agent/...` (research.md D6)
+- [x] T018 Enforce the FR-015 secret-path exclusion list at the agent's file-access tool layer inside `src/analysis/resource-loader.ts` (deny-list applied to the `read`/`grep`/`find` tool configuration itself, not filtered from output after the fact) — constitution Principle IV
+- [x] T019 Add log-event redaction for agent tool-call previews (file contents) in `src/analysis/resource-loader.ts` or a small wrapper around `session.subscribe` — constitution Principle IV ("log safely, redaction by default")
+- [x] T020 [P] Implement `src/graph/schema.ts` — trimmed zod `GraphNode`/`GraphEdge` schema (research.md D10) applied as an ingestion-time filter over UA's native `.ua/knowledge-graph.json` output
+- [x] T021 [P] Implement `src/graph/knowledge-graph-store.ts` — read/write `{repo-name}.knowledge-graph.json` artifacts per `data-model.md`'s `RepositoryKnowledgeGraph`, validating against T020's schema before persisting
+- [x] T022 [P] Implement `src/review/review-file.ts` — `ReviewFile`/`SystemGroup`/`ReviewCandidate` types, field-for-field compatible with `apps/studio/src/lib/import/types.ts` (schema unchanged — spec's "Explicitly out of scope")
+- [x] T023 Implement `src/cli.ts` skeleton — `commander` setup, `<config-file>` argument, wiring config loading (T014) and model-runtime construction (T015); command flags are wired incrementally in later phases
 
----
-
-## Phase 4: Rule Engine — Semgrep (US1)
-
-**Purpose**: Detect framework-specific integration patterns using Semgrep rules.
-
-- [ ] T012 [P] Create `apps/llm-importer/llm_importer/extraction/rules/http_clients.yml` — rules: `python-requests` (requests.get/post/put/delete, confidence 0.85), `python-httpx` (httpx.get/post, 0.85), `java-feign-client` (@FeignClient annotation, 0.97), `java-rest-template` (RestTemplate.exchange/getForObject, 0.88), `java-web-client` (WebClient.create, 0.88), `js-axios` (axios.get/post, 0.85), `js-fetch` (fetch(...), 0.75)
-- [ ] T013 [P] Create `apps/llm-importer/llm_importer/extraction/rules/db_clients.yml` — rules: `python-sqlalchemy` (create_engine/sessionmaker, 0.90), `python-psycopg2` (psycopg2.connect, 0.92), `python-redis` (redis.Redis/StrictRedis, 0.92), `java-jdbc` (JdbcTemplate/DriverManager.getConnection, 0.90), `java-spring-data` (@Repository extends JpaRepository, 0.93), `js-pg` (new Pool/new Client from 'pg', 0.92), `js-mongoose` (mongoose.connect, 0.92)
-- [ ] T014 [P] Create `apps/llm-importer/llm_importer/extraction/rules/kafka_clients.yml` — rules: `java-kafka-template` (KafkaTemplate.send("$TOPIC",...), 0.93 — capture `$TOPIC`), `java-kafka-listener`(@KafkaListener(topics="$TOPIC"), 0.93 — capture`$TOPIC`), `python-confluent-kafka-producer` (Producer.produce("$TOPIC",...), 0.90), `python-confluent-kafka-consumer` (Consumer.subscribe(["$TOPIC"]), 0.90)
-- [ ] T015 [P] Create `apps/llm-importer/llm_importer/extraction/rules/queue_clients.yml` — rules: `python-pika` (pika channel.basic_publish, 0.88), `python-celery` (app.send_task/delay, 0.82), `js-amqplib` (channel.sendToQueue/publish, 0.88), `java-rabbit-template` (RabbitTemplate.convertAndSend, 0.88)
-- [ ] T016 [P] Create `apps/llm-importer/llm_importer/extraction/rules/grpc_clients.yml` — rules: `python-grpc-channel` (grpc.insecure_channel/secure_channel, 0.90), `java-grpc-channel` (ManagedChannelBuilder.forAddress, 0.90), `js-grpc-client` (new grpc.Client, 0.88)
-- [ ] T017 [P] Write `apps/llm-importer/tests/unit/test_rule_engine.py` FIRST — cover: HTTP rule fires on fixture Python file; Kafka producer rule fires and captures topic name; Kafka consumer rule fires and captures topic name; DB rule fires on Spring Data annotation; non-matching file returns empty list; semgrep not found raises `ExtractionError`; `--json` output parsed correctly
-- [ ] T018 Implement `apps/llm-importer/llm_importer/extraction/rule_engine.py` — `run_rules(repo_path, rules_dir) -> list[RuleMatch]`; `RuleMatch(rule_id, file, line, matched_text, metavars: dict, confidence: float, category: str)`; invokes `semgrep --config <rules_dir> <repo_path> --json --quiet`; parses stdout; maps `metadata.confidence` from rule to match; raises `ExtractionError` if semgrep exits non-zero unexpectedly; all T017 tests must pass
-
-**Checkpoint**: `pytest tests/unit/test_rule_engine.py` passes.
-
----
-
-## Phase 5: Relationship Extractor (US1)
-
-**Purpose**: Combine manifest signals, tree-sitter annotations, and semgrep matches into typed connections with confidence scores.
-
-- [ ] T019 [P] Write `apps/llm-importer/tests/unit/test_relationship_extractor.py` FIRST — cover: manifest signal alone → connection confidence 0.99; semgrep match alone → connection at rule's confidence; same target from both manifest and semgrep → confidence = max, evidence merged; unknown URL from env var → confidence capped at 0.65; empty signals → empty connections list; schema validation of output
-- [ ] T020 Implement `apps/llm-importer/llm_importer/extraction/relationship_extractor.py` — `extract_relationships(repo_ref, manifest_signals, rule_matches, parse_results) -> RepositoryMetadata`; deduplicates by `(source_repo, target_service)` normalized name; confidence = `max(all signals for this pair)`; accumulates evidence strings; validates output against `repo_metadata.schema.json`; returns `RepositoryMetadata` dict; all T019 tests must pass
-- [ ] T021 [P] Write `apps/llm-importer/tests/unit/test_confidence_scoring.py` — cover: confidence max-merge across 3 signals; evidence deduplication (same file:line not repeated); normalized service name matching (`order-service` == `orderservice` == `OrderService`)
-
-**Checkpoint**: `pytest tests/unit/test_relationship_extractor.py tests/unit/test_confidence_scoring.py` passes.
+**Checkpoint**: Foundation ready — vendored skill runs headlessly, config/model-runtime/concurrency/schema plumbing exists, security controls are active. User story implementation can begin.
 
 ---
 
-## Phase 6: Architecture Graph + Cross-Repo Correlator (US2)
+## Phase 3: User Story 1 — Single Repository Analysis (Priority: P1) 🎯 MVP
 
-**Purpose**: Build a graph from all per-repo metadata and correlate relationships across repos.
+**Goal**: Run one agent-driven analysis session against a single repository and produce a valid, retry-tolerant knowledge-graph artifact — no hosted API call at any point.
 
-- [ ] T022 [P] Write `apps/llm-importer/tests/unit/test_memory_graph.py` FIRST — cover: add node, add edge, get node by id, get edges by source, get edges by target, get all nodes of kind, duplicate node id raises; serialization to dict; empty graph serialization
-- [ ] T023 Implement `apps/llm-importer/llm_importer/graph/base.py` — `ArchGraph` ABC with `add_node(GraphNode)`, `add_edge(GraphEdge)`, `get_node(id) -> GraphNode | None`, `edges_from(node_id)`, `edges_to(node_id)`, `nodes_of_kind(kind)`, `to_dict() -> dict`, `from_metadata_list(list[dict]) -> None`
-- [ ] T024 Implement `apps/llm-importer/llm_importer/graph/memory_graph.py` — `MemoryGraph(ArchGraph)` backed by `networkx.DiGraph`; all T022 tests must pass
-- [ ] T025 [P] Write `apps/llm-importer/tests/unit/test_cross_repo_correlator.py` FIRST — cover: Kafka producer in repo A + consumer in repo B → `KAFKA_PUBLISH` A→topic + `KAFKA_CONSUME` topic→B edges; same REST base URL declared in service A + called in service B → REST edge; unmatched producer leaves dangling node; duplicate topic names across repos merged to single topic node
-- [ ] T026 Implement `apps/llm-importer/llm_importer/graph/cross_repo_correlator.py` — `correlate(graph: ArchGraph) -> ArchGraph`; pass 1: collect all Kafka topic names from producer/consumer matches; pass 2: create topic nodes and producer→topic / topic→consumer edges; pass 3: match REST endpoint host patterns to service names; returns mutated graph; all T025 tests must pass
-- [ ] T027 Implement `apps/llm-importer/llm_importer/graph/graph_factory.py` — `create_graph(config) -> ArchGraph`; returns `MemoryGraph()` by default; returns `Neo4jGraph(...)` if `config["graph_backend"]["type"] == "neo4j"`
+**Independent Test**: Point the tool at one repository with known connections, using a configured local model. Verify the resulting `{repo}.knowledge-graph.json` lists each known connection with a recognizable type/target/weight, and that no outbound call to a hosted LLM API occurs.
 
-**Checkpoint**: `pytest tests/unit/test_memory_graph.py tests/unit/test_cross_repo_correlator.py` passes.
+### Tests for User Story 1 ⚠️
 
----
+> Write these first; confirm they fail before implementing T028–T031.
 
-## Phase 7: LLM Enrichment (US4)
+- [x] T024 [P] [US1] Unit test `test/unit/run-understand.test.ts` — mocked `ModelRuntime`/`createAgentSession`: happy path produces a valid knowledge graph; malformed output triggers exactly one retry; a retry that also fails marks the repo `failed` and does not write an artifact (FR-010a)
+- [x] T025 [P] [US1] Unit test `test/unit/graph-schema-filter.test.ts` — fixture UA-native JSON containing design/knowledge-base node and edge types (e.g. `page`, `token`, `article`) is filtered down to exactly the trimmed type set from research.md D10
+- [x] T026 [P] [US1] Contract test `test/unit/knowledge-graph-artifact.test.ts` — the example JSON in `contracts/knowledge-graph-schema-contract.md` validates successfully against `src/graph/schema.ts`
+- [x] T027 [P] [US1] Integration test `test/integration/single-repo-analysis.integration.test.ts` — runs the real vendored (trimmed, patched) skill against a real local Ollama model when `OLLAMA_HOST`/equivalent is reachable in the test environment; skipped otherwise (research.md D12)
 
-**Purpose**: Single LLM call to enrich the graph with canonical C4 names, component groupings, and inferred relationships.
+### Implementation for User Story 1
 
-- [ ] T028 [P] Write `apps/llm-importer/tests/unit/test_llm_enricher.py` FIRST — cover: valid enrichment response updates node names in graph; invalid JSON response returns graph unchanged (no exception); schema validation failure returns graph unchanged; provider error returns graph unchanged; enrichment is idempotent (calling twice doesn't duplicate edges)
-- [ ] T029 Implement `apps/llm-importer/llm_importer/enrichment/prompts.py` — `build_enrichment_prompt(graph_dict) -> str`; uses concrete JSON example output (not schema definition); includes graph nodes + edges serialized as JSON; asks LLM to: assign canonical names, group components, flag low-confidence edges, return inferred edges not already in graph
-- [ ] T030 Implement `apps/llm-importer/llm_importer/enrichment/llm_enricher.py` — `async def enrich(graph, provider) -> ArchGraph`; calls `provider.complete(prompt)`; parses response JSON; validates shape; merges returned name updates + inferred edges into graph; on any failure logs warning and returns original graph unchanged; all T028 tests must pass
+- [x] T028 [US1] Implement `src/analysis/run-understand.ts` — per-repo session launcher: `createAgentSession({ cwd: repoPath, ... })` using T017's resource loader, invoke the vendored skill non-interactively, apply the one-retry-then-skip behavior (FR-010a), copy `knowledge-graph.json` out of `$UA_DIR` into the configured output directory via T021's store, and remove `.ua/` from the analyzed repository afterward (research.md D4 adaptation 3)
+- [x] T029 [US1] Wire the single-repo path in `src/cli.ts`: load config → build model runtime → build resource loader → invoke `run-understand.ts` per repo → write the knowledge-graph artifact
+- [x] T030 [US1] Implement per-repo progress reporting in `src/cli.ts` (FR-009) — phase-transition lines mirroring the vendored skill's own phase reports, per `contracts/cli-contract.md`'s Progress Output example
+- [x] T031 [US1] Handle the no-detectable-connections case in `run-understand.ts`/`knowledge-graph-store.ts` — a repo with zero outbound connections produces a valid artifact with an empty `edges` list, not a failure (US1 acceptance scenario 3)
+- [x] T032 [US1] Add `test/fixtures/repos/` (one small sample repo with 1–2 known outbound connections) and `test/fixtures/knowledge-graphs/` (corresponding pre-canned `knowledge-graph.json`) used by T024–T027
 
-**Checkpoint**: `pytest tests/unit/test_llm_enricher.py` passes.
-
----
-
-## Phase 8: Session Manager Update (US1, US2, US3)
-
-**Purpose**: Wire extraction pipeline stages into the session orchestrator; preserve incremental skip logic.
-
-- [ ] T031 [P] Write `apps/llm-importer/tests/unit/test_session_manager.py` — cover: per-repo extraction runs in parallel up to concurrency limit; one extraction failure doesn't cancel others; repos with existing `.metadata.json` skipped when `force_refresh=False`; `analyze_only=True` stops before graph build; `aggregate_only=True` skips per-repo extraction; callbacks `on_repo_start/complete/failed` fired correctly
-- [ ] T032 Update `apps/llm-importer/llm_importer/session/session_manager.py` — replace LLM-per-repo call with `extract_repo(repo, config)` that runs `manifest_extractor` + `code_parser` + `rule_engine` + `relationship_extractor` for one repo; keep `anyio.create_task_group` + `anyio.Semaphore` for parallel extraction; after all extractions: `build_graph(metadata_list)` → `correlate(graph)` → `enrich(graph, provider)` → `export(graph, config)`; all T031 tests must pass
-- [ ] T033 [P] Write `apps/llm-importer/tests/integration/test_single_repo_pipeline.py` — full extraction on `tests/fixtures/repos/python_service/` with mock provider; verify `.metadata.json` written with correct connections and confidence ≥ 0.85 for manifest-declared items
-- [ ] T034 [P] Write `apps/llm-importer/tests/integration/test_multi_repo_pipeline.py` — 3 fixture repos; verify cross-repo Kafka correlation produces edges between `java_service` producer and consumer (if topic names match); verify final `.arch.json` valid against schema
-
-**Checkpoint**: `pytest tests/unit/test_session_manager.py tests/integration/` passes.
+**Checkpoint**: User Story 1 is fully functional and independently testable — single-repo import produces a valid, retry-tolerant knowledge-graph artifact with zero outbound calls to any hosted API.
 
 ---
 
-## Phase 9: CLI + Docker Update (US1–US4)
+## Phase 4: User Story 2 — Multi-Repository Architecture Diagram (Priority: P2)
 
-**Purpose**: Update CLI flags, consent prompt, and Docker image for the new pipeline.
+**Goal**: Analyze multiple repositories with centrally bounded concurrency, correlate connections that span repositories (hybrid deterministic-then-agentic), and assemble a complete diagram — with graceful partial-failure handling.
 
-- [ ] T035 Update `apps/llm-importer/llm_importer/cli.py` — consent prompt now reads "The following repositories will be analyzed with static tools (tree-sitter, semgrep). LLM enrichment will be called once for the full graph." instead of per-repo AI call framing; all existing flags preserved (`--force-refresh`, `--analyze-only`, `--aggregate-only`, `--repos`, `--provider`, `--yes`, `--verbose`, `--output`)
-- [ ] T036 Update `apps/llm-importer/Dockerfile` — add `RUN pip install semgrep` and tree-sitter grammar install (`tree-sitter-languages` or individual grammar packages); verify `semgrep --version` succeeds in image
-- [ ] T037 [P] Update `apps/llm-importer/README.md` — document new pipeline stages, semgrep rules, confidence scoring table, graph backend options, Neo4j setup instructions
-- [ ] T038 [P] Update `apps/llm-importer/llm_importer/config/import_config.schema.json` — add optional `graph_backend` object (`type: "memory"|"neo4j"`, `uri`, `user`, `password`); add optional `analysis.confidenceThreshold` (default 0.5, connections below this excluded from diagram)
+**Independent Test**: 3+ repositories with a known inter-service relationship (e.g. a shared Kafka topic). Verify the correlator finds it via the deterministic pass (or the agentic fallback if the deterministic pass can't resolve it), the relationship appears in the final diagram, and one repo's analysis failure still yields a partial diagram from the rest.
 
-**Checkpoint**: `docker build` succeeds; `arch-atlas-import --help` shows updated description.
+### Tests for User Story 2 ⚠️
 
----
+- [x] T033 [P] [US2] Unit test `test/unit/deterministic-correlator.test.ts` — literal identifier matching (service name, port, topic, env var) across fixture knowledge graphs produces the expected `CrossRepositoryConnection`s (research.md D7 pass 1)
+- [x] T034 [P] [US2] Unit test for `src/correlate/agentic-correlator.ts` (mocked local-model fallback) — confirms it is invoked _only_ for repo pairs the deterministic pass leaves unresolved, not for already-resolved pairs (research.md D7 pass 2)
+- [x] T035 [P] [US2] Unit test `test/unit/bucket-mapper.test.ts` — weight→bucket thresholds (`≥0.8`→high, `0.5–0.79`→medium, `<0.5`→low), the deterministic-corroboration bump (capped at high), and the agentic-fallback cap (capped at medium) — research.md D11
+- [x] T036 [P] [US2] Unit test `test/unit/review-assembly.test.ts` — `src/review/assemble-review.ts` combines N knowledge graphs + `CrossRepositoryConnection`s into a valid `ReviewFile`
+- [x] T037 [P] [US2] Unit test for `src/export/diagram-builder.ts` — builds a final `.arch.json` from an assembled review artifact and validates it against `@arch-atlas/model-schema`
+- [x] T038 [P] [US2] Unit test for `src/concurrency/shared-limiter.ts` under multi-repo load — confirms repo-level fan-out and the vendored subagent dispatcher's internal batch fan-out draw from one pool and never jointly exceed `maxConcurrency` (FR-016)
+- [x] T039 [P] [US2] Integration test `test/integration/multi-repo-correlation.integration.test.ts` — 3 fixture repos with a known cross-repo connection, real vendored skill + real local model when reachable, else skipped
 
-## Phase 10: Neo4j Backend (US2 — Optional)
+### Implementation for User Story 2
 
-**Purpose**: Persistent graph backend for large-scale or cross-session correlation.
+- [x] T040 [US2] Implement `src/correlate/deterministic-correlator.ts` (research.md D7 pass 1)
+- [x] T041 [US2] Implement `src/correlate/agentic-correlator.ts` (research.md D7 pass 2) — bounded to the repo pairs T040 could not resolve, uses T015's local-model runtime with condensed per-repo summaries (not full graphs)
+- [x] T042 [US2] Implement `src/confidence/bucket-mapper.ts` (research.md D11)
+- [x] T043 [US2] Implement `src/review/assemble-review.ts` — combine knowledge graphs, `CrossRepositoryConnection`s, and T042's bucket mapping into a `ReviewFile` (T022's types)
+- [x] T044 [US2] Implement `src/export/diagram-builder.ts` — `ReviewFile` → final `.arch.json` (schema unchanged from the retired revision)
+- [x] T045 [US2] Wire multi-repo fan-out in `src/cli.ts` using `shared-limiter.ts` (T016) for repo-level concurrency (FR-016); extend T030's progress reporting to N repos plus a correlation-phase status line (`contracts/cli-contract.md`)
+- [x] T046 [US2] Implement partial-diagram-on-failure handling in `src/cli.ts` (US2 acceptance scenario 3 / FR-010) — continue with successfully-analyzed repos, report failed repos clearly, still write a diagram if ≥1 repo succeeded
+- [x] T047 [US2] Extend `test/fixtures/` with a 3-repo set containing a known cross-repo Kafka-topic connection, for T039
 
-- [ ] T039 [P] Write `apps/llm-importer/tests/unit/test_neo4j_graph.py` — mock `neo4j.GraphDatabase.driver`; cover: add_node executes CREATE query, add_edge executes MERGE, get_node returns correct model, `pytest.mark.skipif` if neo4j extra not installed
-- [ ] T040 Implement `apps/llm-importer/llm_importer/graph/neo4j_graph.py` — `Neo4jGraph(ArchGraph)` using `neo4j.AsyncGraphDatabase.driver`; maps `GraphNode`/`GraphEdge` to Cypher CREATE/MERGE; implements all `ArchGraph` abstract methods; all T039 tests must pass
-- [ ] T041 [P] Write `apps/llm-importer/tests/integration/test_neo4j_pipeline.py` — `pytest.mark.skipif` unless `NEO4J_URI` env var set; full pipeline with Neo4j backend; verify output identical to memory backend
-
-**Checkpoint**: `pytest tests/unit/test_neo4j_graph.py` passes (mocked). Neo4j integration test passes when `NEO4J_URI` is set.
-
----
-
-## Phase 11: Contract & Coverage (All Stories)
-
-**Purpose**: Ensure schema contracts hold and coverage threshold is met.
-
-- [ ] T042 [P] Update `apps/llm-importer/tests/contract/test_metadata_schema.py` — verify updated schema (with `confidence` float, `evidence` array) passes valid fixture metadata; missing `confidence` fails; `confidence > 1` fails; empty `evidence` array fails
-- [ ] T043 [P] Keep `apps/llm-importer/tests/contract/test_output_schema.py` — no changes needed; final diagram schema unchanged
-- [ ] T044 Run `pytest --cov=llm_importer --cov-fail-under=80` — fix any coverage gaps; add targeted unit tests for uncovered branches until ≥80% reached
-
-**Checkpoint**: `pytest --cov=llm_importer --cov-fail-under=80` green.
+**Checkpoint**: User Stories 1 AND 2 both work independently — multi-repo import produces a correlated diagram with bounded concurrency and graceful partial failure.
 
 ---
 
-## Completion Criteria
+## Phase 5: User Story 3 — Incremental Re-Import (Priority: P3)
 
-All tasks marked `[X]`. The following commands must all pass:
+**Goal**: Skip repositories with a valid existing knowledge-graph artifact by default; support `--force-refresh` and `--aggregate-only` for explicit override.
+
+**Independent Test**: Re-run the tool against a repo set that was already fully imported — verify no repo is re-analyzed by default, `--force-refresh` re-analyzes everything, and `--aggregate-only` runs correlation/assembly/export with zero analysis sessions.
+
+### Tests for User Story 3 ⚠️
+
+- [x] T048 [P] [US3] Unit test for `knowledge-graph-store.ts`'s skip-if-exists check — a repo with a valid existing artifact is not re-analyzed on a normal run
+- [x] T049 [P] [US3] Unit test confirming `--force-refresh` bypasses T048's skip check and re-analyzes regardless of cache state
+- [x] T050 [P] [US3] Unit test confirming `--aggregate-only` triggers zero `run-understand.ts` invocations and runs only correlation + assembly + export against existing artifacts
+
+### Implementation for User Story 3
+
+- [x] T051 [US3] Implement skip-if-cached logic in the `src/cli.ts` run loop — check `knowledge-graph-store.ts` for a valid existing artifact per repo before invoking `run-understand.ts`
+- [x] T052 [US3] Wire `--force-refresh` in `src/cli.ts` (bypasses T051's skip check)
+- [x] T053 [US3] Wire `--aggregate-only` in `src/cli.ts` — load all existing knowledge-graph artifacts, skip analysis entirely, run T040–T044 only
+- [x] T054 [US3] Wire `--analyze-only` in `src/cli.ts` — run per-repo analysis only, skip correlation/assembly/export (`contracts/cli-contract.md`)
+- [x] T055 [US3] Wire `--repos <names>` in `src/cli.ts` — filter which configured repos are processed by any of the above
+
+**Checkpoint**: User Stories 1, 2, AND 3 all work independently — re-imports are cheap by default, override flags behave as documented.
+
+---
+
+## Phase 6: User Story 4 — Local Model Configuration (Priority: P4)
+
+**Goal**: Fail fast and clearly when the configured local model endpoint is unreachable, before any repository analysis begins; guarantee no configuration path results in a hosted-API call.
+
+**Independent Test**: Configure an unreachable endpoint — verify the run aborts immediately with a clear error and exit code 2, before touching any repository. Configure a reachable endpoint with a specific `modelId` — verify that model is used for every analysis and correlation call in the run.
+
+### Tests for User Story 4 ⚠️
+
+- [x] T056 [P] [US4] Unit test for `local-model-runtime.ts`'s reachability check — reachable vs. unreachable endpoint (US4 acceptance scenario 2)
+- [x] T057 [P] [US4] Unit test confirming `config.schema.ts` has no field shape that could carry hosted-provider credentials (characterizes FR-017 at the config-contract level)
+- [x] T058 [P] [US4] Unit test confirming no code path in `local-model-runtime.ts`/`resource-loader.ts` constructs an outbound hosted-API client under any valid config permutation (FR-017)
+
+### Implementation for User Story 4
+
+- [x] T059 [US4] Wire the startup reachability check into `src/cli.ts` — validate `localModel.endpoint` + `modelId` before any repository analysis begins (US4 acceptance scenario 2), exit code `2` on failure per `contracts/cli-contract.md`
+- [x] T060 [US4] Wire `--max-concurrency <n>` CLI override in `src/cli.ts` (overrides `config.analysis.maxConcurrency`, feeds T016's shared limiter)
+- [x] T061 [US4] Print the local-model reachability confirmation banner in `src/cli.ts` (`contracts/cli-contract.md`'s "Checking local model endpoint..." / "✓ Model ... is available" output)
+
+**Checkpoint**: All four user stories are independently functional.
+
+---
+
+## Final Phase: Polish & Cross-Cutting Concerns
+
+- [ ] T062 [P] Run `quickstart.md` end-to-end against a real local Ollama instance and correct any drift between the documented steps and actual CLI behavior
+- [x] T063 [P] Verify ≥80% test coverage across `apps/llm-importer` (constitution Definition of Done); add tests to close any gaps found
+- [x] T064 [P] Confirm `apps/llm-importer` runs cleanly under `turbo run typecheck lint test` alongside the rest of the monorepo (plan.md Structure Decision)
+- [x] T065 Security review pass: confirm T018's secret-path exclusions are enforced at the tool-permission layer (not post-hoc filtering), confirm T019's log redaction is effective, and document both in the PR description per the constitution's requirement for explicit security review on data-import-related changes
+- [x] T066 [P] Final cleanup verification — confirm no orphaned Python artifacts (`pyproject.toml`, `.venv/`, `__pycache__/`, old `tests/`) remain anywhere under `apps/llm-importer` after T001
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Setup (Phase 1)**: No dependencies — can start immediately (T001 should run first; T002–T007 depend on T001 having cleared the path)
+- **Foundational (Phase 2)**: Depends on Setup completion — BLOCKS all user stories
+- **User Stories (Phase 3–6)**: All depend on Foundational phase completion
+  - US1 → US2 → US3 → US4 in priority order is the recommended sequential path, since US2's correlator consumes US1's per-repo artifacts, US3's caching wraps US1/US2's run loop, and US4 hardens the model-runtime plumbing US1 already depends on minimally
+  - US2, US3, and US4 could be staffed in parallel once US1 is stable, since each touches a distinct module set (correlate/confidence/review/export for US2; cli.ts flags + knowledge-graph-store for US3; model-runtime + cli.ts startup check for US4) — see Parallel Team Strategy below
+- **Polish (Final Phase)**: Depends on all four user stories being complete
+
+### Within Each User Story
+
+- Tests (T024–T027, T033–T039, T048–T050, T056–T058) MUST be written and FAIL before their corresponding implementation tasks
+- Within Phase 2, schema/config/model-runtime/limiter tasks (T013, T015, T016, T020) can run in parallel with each other but must all complete before T017 (resource loader wires them together)
+- Implementation before integration within each story (e.g. T040–T044 before T045's wiring in US2)
+- Story complete (checkpoint reached) before starting the next priority's implementation, if working sequentially
+
+### Parallel Opportunities
+
+- All Setup tasks marked [P] (T003–T007) can run in parallel once T001–T002 complete
+- Within Foundational: T011, T013, T015, T016, T020, T021, T022 are all [P] — different files, no cross-dependencies among themselves
+- Once Foundational completes, all four user stories' test tasks marked [P] can be written in parallel
+- Different user stories (US2, US3, US4) can be worked on in parallel by different contributors once US1 is stable, per the note under Phase Dependencies
+
+---
+
+## Parallel Example: User Story 1
 
 ```bash
-cd apps/llm-importer
-pytest --cov=llm_importer --cov-fail-under=80
-docker build -t arch-atlas-llm-importer:latest .
-arch-atlas-import --help
+# Launch all US1 tests together (write first, confirm they fail):
+Task: "Unit test test/unit/run-understand.test.ts"
+Task: "Unit test test/unit/graph-schema-filter.test.ts"
+Task: "Contract test test/unit/knowledge-graph-artifact.test.ts"
+Task: "Integration test test/integration/single-repo-analysis.integration.test.ts"
 ```
 
-End-to-end smoke test (Ollama on host):
+## Parallel Example: Foundational Phase
 
 ```bash
-./docker-run.sh samples/sample-projects.yaml --yes --verbose
-# → samples/output/architecture.arch.json written and valid
+# These five have no dependencies on each other:
+Task: "Implement src/config/config.schema.ts"
+Task: "Implement src/model-runtime/local-model-runtime.ts"
+Task: "Implement src/concurrency/shared-limiter.ts"
+Task: "Implement src/graph/schema.ts"
+Task: "Implement src/review/review-file.ts"
 ```
+
+---
+
+## Implementation Strategy
+
+### MVP First (User Story 1 Only)
+
+1. Complete Phase 1: Setup (retire Python, stand up TS skeleton)
+2. Complete Phase 2: Foundational (CRITICAL — vendored skill + patches + config/model-runtime/limiter/schema plumbing)
+3. Complete Phase 3: User Story 1
+4. **STOP and VALIDATE**: run the independent test — single repo, known connections, no cloud call
+5. Demo if ready — this alone replaces the retired pipeline's single-repo use case
+
+### Incremental Delivery
+
+1. Setup + Foundational → foundation ready (vendored skill runs headlessly against one repo)
+2. Add US1 → validate independently → MVP demo
+3. Add US2 → validate independently (multi-repo + correlation) → demo
+4. Add US3 → validate independently (incremental re-import) → demo
+5. Add US4 → validate independently (fail-fast local model config) → demo
+6. Polish phase → coverage/lint/security/quickstart sign-off
+
+### Parallel Team Strategy
+
+1. Team completes Setup + Foundational together (Phase 2's vendoring/patching work, T008–T012, benefits from one owner to avoid merge conflicts on `SKILL.md`)
+2. Once Foundational is done and US1 is stable:
+   - Developer A: US2 (correlate/confidence/review/export modules)
+   - Developer B: US3 (cli.ts flags + knowledge-graph-store caching)
+   - Developer C: US4 (model-runtime hardening + cli.ts startup check)
+3. Stories integrate at `src/cli.ts`, which is the one file all three touch — coordinate on that file specifically, everything else is disjoint
+
+---
+
+## Notes
+
+- [P] tasks = different files, no dependencies
+- [Story] label maps task to specific user story for traceability
+- `vendor/understand-anything/SKILL.md` (T008–T010) is the one file with the highest coordination cost — patches must be re-applied (not just re-copied) on every upstream UA sync (research.md D4, plan.md Constitution Check tracked risk)
+- Verify tests fail before implementing
+- Commit after each task or logical group
+- Stop at any checkpoint to validate a story independently
+- Avoid: vague tasks, same-file conflicts, cross-story dependencies that break independence

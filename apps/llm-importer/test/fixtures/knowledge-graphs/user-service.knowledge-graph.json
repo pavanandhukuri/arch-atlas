@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-07-25T00:00:00Z",
+  "repository": {
+    "name": "user-service",
+    "path": "/fixtures/user-service",
+    "description": "Handles user accounts and publishes user-created events"
+  },
+  "nodes": [
+    {
+      "id": "file:src/db.ts",
+      "type": "file",
+      "name": "db.ts",
+      "filePath": "src/db.ts",
+      "summary": "PostgreSQL connection pool from DATABASE_URL"
+    },
+    {
+      "id": "file:src/publisher.ts",
+      "type": "file",
+      "name": "publisher.ts",
+      "filePath": "src/publisher.ts",
+      "summary": "Publishes to the user-created topic, consumed by notification-service"
+    },
+    {
+      "id": "service:user-service",
+      "type": "service",
+      "name": "user-service",
+      "summary": "The analyzed repository itself"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:src/db.ts",
+      "target": "service:user-service",
+      "type": "reads_from",
+      "weight": 0.9,
+      "description": "PostgreSQL connection pool"
+    },
+    {
+      "source": "file:src/publisher.ts",
+      "target": "service:user-service",
+      "type": "publishes",
+      "weight": 0.85,
+      "description": "publishes to the user-created topic, consumed by notification-service"
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

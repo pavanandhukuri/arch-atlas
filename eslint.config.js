@@ -34,7 +34,10 @@ export default tseslint.config(
 
       // Numbers and booleans in template literals are universally valid — strictTypeChecked
       // forbids them by default but that is excessively pedantic for a TypeScript codebase.
-      '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true, allowBoolean: true }],
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        { allowNumber: true, allowBoolean: true },
+      ],
 
       // Honour the TypeScript convention of prefixing intentionally-unused identifiers
       // with an underscore (e.g. _event, _proposal).
@@ -99,6 +102,26 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['node_modules/', 'dist/', 'build/', 'coverage/', '.next/', '.turbo/', '*.config.*'],
+    // apps/llm-importer/vendor/** is copied, adapted third-party source (pi's example
+    // subagent extension, Understand-Anything's skill) — see apps/llm-importer/README.md
+    // for provenance/diff-tracking. It is deliberately excluded from our own tsconfig
+    // project (pi's own runtime loads vendor/pi-subagent/*.ts itself via jiti at
+    // extension-load time; vendor/understand-anything is prompts/scripts, not TS), so
+    // there is no type-aware project to lint it against, and holding it to our
+    // strictTypeChecked ruleset would fight every future re-sync against upstream anyway.
+    ignores: [
+      'node_modules/',
+      'dist/',
+      'build/',
+      'coverage/',
+      '.next/',
+      '.turbo/',
+      '*.config.*',
+      'apps/llm-importer/vendor/**',
+      // Sample repositories the importer's tests feed to the agent to
+      // *analyze* — arbitrary content standing in for a real target repo,
+      // not our own source code. Never part of this package's TS project.
+      'apps/llm-importer/test/fixtures/repos/**',
+    ],
   }
 );

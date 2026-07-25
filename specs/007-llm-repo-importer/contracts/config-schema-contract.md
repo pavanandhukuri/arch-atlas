@@ -1,14 +1,16 @@
-# Contract: Import Config File Schema
+# Contract: Import Config File Schema (v2.0)
 
-Config files may be `.json`, `.yaml`, or `.yml`.
+Config files may be `.json`, `.yaml`, or `.yml`. **Breaking change from v1.0** (research.md D1/D9; spec Question 2 — immediate full replacement, no back-compat requirement): the `provider` block (which allowed `type: "anthropic"`) is replaced by `localModel`, which only accepts local runtimes. There is no config shape that results in a hosted/cloud API call (FR-017).
 
 ## Minimal example (JSON)
 
 ```json
 {
-  "version": "1.0",
-  "provider": {
-    "type": "anthropic"
+  "version": "2.0",
+  "localModel": {
+    "provider": "ollama",
+    "endpoint": "http://localhost:11434",
+    "modelId": "llama3"
   },
   "output": {
     "directory": "./output"
@@ -23,12 +25,12 @@ Config files may be `.json`, `.yaml`, or `.yml`.
 ## Full example (YAML)
 
 ```yaml
-version: '1.0'
+version: '2.0'
 
-provider:
-  type: ollama
-  model: llama3
+localModel:
+  provider: ollama # or "mlx" | "openai-compatible"
   endpoint: http://localhost:11434
+  modelId: llama3
 
 output:
   directory: ./output
@@ -40,7 +42,7 @@ analysis:
     - '**/*.test.ts'
     - '**/fixtures/**'
   forceRefresh: false
-  concurrency: 3
+  maxConcurrency: 2 # shared across repo-level AND internal agent-batch fan-out (FR-016) — NOT the same meaning as v1.0's `concurrency`
 
 repositories:
   - path: /home/user/repos/user-service
@@ -57,18 +59,19 @@ repositories:
 
 ## Validation rules
 
-- `version` must be exactly `"1.0"`
-- `provider.type` must be `"anthropic"` or `"ollama"`
-- `provider.endpoint` is required when `provider.type = "ollama"`
+- `version` must be exactly `"2.0"`
+- `localModel.provider` must be `"ollama"`, `"mlx"`, or `"openai-compatible"`
+- `localModel.endpoint` is required and checked for reachability at startup, before any repository analysis begins (US4 scenario 2) — an unreachable endpoint fails the run immediately with a clear error
+- `localModel.modelId` is required
 - `output.directory` is required; created if it does not exist
-- `repositories` must have at least one entry
+- `repositories` must have at least one entry, and no more than 50
 - Each `repositories[].path` must be an accessible local directory at config load time
-- `analysis.concurrency` must be between 1 and 10 (inclusive)
-- `analysis.maxFilesPerRepo` must be between 10 and 1000 (inclusive)
+- `analysis.maxConcurrency` must be between 1 and 8 inclusive (upper bound matches the vendored subagent dispatcher's own hard cap, research.md D3)
+- `analysis.maxFilesPerRepo` must be between 10 and 1000 (inclusive) — unchanged from v1.0
 
 ## Security hardcoded exclusions (cannot be overridden)
 
-The following patterns are always excluded from file sampling, regardless of config:
+Unchanged from the prior revision, and now additionally enforced at the agent's file-access tool layer (Constitution Check, Principle IV), not only as a post-hoc filter:
 
 ```
 .env
@@ -85,4 +88,10 @@ node_modules/
 dist/
 build/
 coverage/
+__pycache__/
+.venv/
 ```
+
+## Migration from v1.0
+
+There is no automatic migration and no dual-format support — this is an immediate replacement (spec Question 2). A v1.0 config file (with a `provider` block) is rejected with a validation error naming the unsupported field, not silently coerced.

@@ -1,323 +1,136 @@
-# Implementation Plan: Repository Architecture Importer
+# Implementation Plan: Repository Architecture Importer (Agentic Local-Model Rewrite)
 
-**Branch**: `007-llm-repo-importer` | **Revised**: 2026-06-04 | **Spec**: [spec.md](./spec.md)
+**Branch**: `007-llm-repo-importer` | **Revised**: 2026-07-25 | **Spec**: [spec.md](./spec.md)
+
+**Input**: Feature specification from `/specs/007-llm-repo-importer/spec.md` (revised for the agentic/local-model pipeline; all 3 `[NEEDS CLARIFICATION]` markers resolved).
 
 ## Summary
 
-Replace the LLM-first analysis approach with a **graph extraction pipeline + LLM enrichment** architecture. Static analysis (Tree-sitter + Semgrep + manifest parsing) extracts connections with confidence scores. A single LLM call at the end handles component grouping, naming, and abstraction. The LLM provider interface remains pluggable (Anthropic, Ollama, or any future provider).
+Full rewrite of `apps/llm-importer` from Python (Tree-sitter + Semgrep static extraction, single hosted/local LLM enrichment call) to TypeScript, built on the `pi` open-source coding-agent SDK (`@earendil-works/pi-coding-agent`). Each repository is analyzed by running Understand-Anything's actual `/understand` skill natively inside a pi session, backed by a user-supplied local model (Ollama/MLX-style endpoint only — no hosted API path). We vendor UA's skill, agent prompts, batching/merge scripts, and schema rather than hand-porting or reimplementing them, applying only three narrow headless-operation patches (research.md D2/D4) — UA's own orchestration, batching, and failure-tolerance logic runs as designed. A new hybrid (deterministic-then-agentic) cross-repository correlator — which does not exist in the reused skill — finds connections that span repositories. Output remains the same review-artifact schema Studio's import wizard already consumes; only the mechanism producing it changes. This is an immediate, full replacement: the Python pipeline is retired, not kept as a fallback.
 
-**What is preserved from the existing implementation**:
+**What is retired (Python, deleted)**: `extraction/` (manifest/tree-sitter/semgrep), `graph/` (networkx/Neo4j graph + old correlator), `enrichment/` (single hosted-or-local enrichment call), `session/session_manager.py`, `providers/` (Anthropic/Ollama/MLX/OpenAI HTTP clients — superseded by pi's own `ModelRuntime`).
 
-- `providers/` module — `LLMProvider` ABC, `AnthropicProvider`, `OllamaProvider`, `factory.py`
-- `config/` module — loader, schema (schema updated for new fields)
-- `cli.py` skeleton — commands, flags, Docker wiring
-- `output/diagram_builder.py` — post-processing to final `.arch.json`
-- Docker setup, `docker-run.sh`, samples config
+**What is preserved conceptually (ported to TypeScript, schema unchanged)**: the review-artifact format (`ReviewFile`/`SystemGroup`/`ReviewCandidate`), the final `.arch.json` export contract, the CLI's config-file-driven invocation model, per-repo caching/incremental re-import (`--force-refresh`, `--aggregate-only`), and secret-path exclusion.
 
-**What is replaced**:
-
-- `analysis/` → `extraction/` (tree-sitter + semgrep replace file-sampling + LLM prompt)
-- `aggregation/` → `enrichment/` (single LLM enrichment call replaces aggregation prompt)
-- `session/session_manager.py` — updated to new pipeline stages
-
-**What is added**:
-
-- `graph/` module — in-memory graph (default) + optional Neo4j backend
-- `extraction/manifest_extractor.py` — manifest file parsing
-- `extraction/code_parser.py` — tree-sitter symbol/import extraction
-- `extraction/rule_engine.py` — semgrep rule execution
-- `extraction/relationship_extractor.py` — signal combination + confidence scoring
-- `graph/cross_repo_correlator.py` — topic/endpoint matching across repos
-
----
+**What is newly built**: pi SDK integration (full-control `ResourceLoader`, local `ModelRuntime` config), a vendored copy of Understand-Anything's skill/agents/scripts patched for headless operation (research.md D4), a vendored/adapted subagent dispatcher so UA's "dispatch a subagent" instructions resolve to real isolated `pi` subprocesses (D3), an ingestion-time filter trimming UA's native output to the architecture-relevant subset we need (D10), the hybrid cross-repo correlator, the confidence bucket mapper, and a single shared concurrency limiter spanning both repo-level and UA's internal agent fan-out.
 
 ## Technical Context
 
-**Language**: Python 3.11+  
-**New dependencies**:
+**Language/Version**: TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target — matches monorepo convention), Node.js ≥ 22 (matches `pi`'s own stated minimum)
+**Primary Dependencies**: `@earendil-works/pi-coding-agent` (SDK — `ModelRuntime`, `createAgentSession`, `DefaultResourceLoader`/custom `ResourceLoader`, `SessionManager`, `SettingsManager`), `@earendil-works/pi-ai` (`getModel`), `zod` (ingestion-time schema filter + config schema validation), `commander` (CLI, replaces Python `click`)
+**Vendored assets** (not npm dependencies — copied source, patched in place, tracked as a drift risk in Constitution Check below): Understand-Anything's skill (`SKILL.md`, trimmed per research.md D4), its `project-scanner`/`file-analyzer`/`assemble-reviewer` agent definitions, its batching (`compute-batches.mjs`) and merge (`merge-batch-graphs.py`) scripts, its language/framework context files, and its graph schema (`schema.ts`); pi's official example subagent extension (`packages/coding-agent/examples/extensions/subagent/`), with its concurrency constants replaced by our shared limiter (D8)
+**Runtime-adjacent dependency**: Python 3.11+ interpreter required at runtime — UA's own skill invokes the vendored `merge-batch-graphs.py` directly (D5); not a build/test dependency, only a runtime prerequisite for that one step
+**Storage**: Local filesystem — per-repository `{name}.knowledge-graph.json` artifacts (successor to `.metadata.json`), final `.arch.json` and review artifact (unchanged format/location)
+**Testing**: Vitest (matches monorepo convention; replaces `pytest`), ≥80% coverage per the constitution; deterministic-logic tests run with no live model, agent-session tests run against a mocked `ModelRuntime`/`createAgentSession`, a small opt-in integration suite runs against a real local Ollama instance when available (skipped otherwise) — see research.md D12
+**Target Platform**: Local CLI, Node.js runtime, macOS/Linux (unchanged from prior revision)
+**Project Type**: CLI / library package within the monorepo (unchanged shape from prior revision, new language)
+**Performance Goals**: No fixed wall-clock target for a multi-repo run (spec NFR-001) — total time now depends on the user's local model/hardware. A per-repository agent session has a bounded timeout (configurable; default generous, mirroring the retired Python provider's 30-minute allowance for slow local reasoning models) after which it counts as a failure eligible for the one retry (FR-010a).
+**Constraints**: No outbound call to any hosted/cloud LLM API under any configuration (FR-017); single shared concurrency limiter across repo-level and internal agent fan-out (FR-016); secret-path exclusions (FR-015) must be enforced at the agent's file-access tool layer, not just as a post-hoc filter
+**Scale/Scope**: Config format supports up to 50 repositories per run (unchanged ceiling from prior revision), but this is a batch-size limit, not a runtime guarantee — see Performance Goals
 
-- `tree-sitter ^0.21` + `tree-sitter-python`, `tree-sitter-java`, `tree-sitter-javascript`, `tree-sitter-typescript`, `tree-sitter-go` — multi-language code parsing
-- `semgrep ^1.70` — pattern-based framework/integration detection
-- `pydantic ^2.7` — typed data models for graph nodes/edges
-- `networkx ^3.3` — in-memory graph operations (cross-repo correlation, path queries)
-- `neo4j ^5.20` — optional Neo4j driver (feature-flagged via config)
+## Constitution Check
 
-**Retained dependencies**:
+_GATE: Must pass before Phase 0 research. Re-checked after Phase 1 design._
 
-- `anthropic ^0.39`, `httpx ^0.27`, `pyyaml ^6.0`, `jsonschema ^4.23`, `anyio ^4.4`, `click ^8.1`
+| Principle                                                         | Status                                | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| I. Product-Centered Monorepo Boundaries                           | PASS                                  | Replaces `apps/llm-importer` in place (research.md D1); package boundary, ownership, and responsibility are unchanged from the prior revision, only the internals and language change.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| II. Type Safety & Explicit Contracts at Boundaries                | PASS                                  | TypeScript strict mode; every boundary (config file, knowledge-graph artifact, review artifact, `.arch.json`) has an explicit `zod` schema (research.md D10, D11). No `any`/unchecked casts at these boundaries.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| III. Test-Driven Development (NON-NEGOTIABLE)                     | PASS (with a stated testing strategy) | Deterministic stages are fully unit-testable without a live model; agent-session orchestration is unit-tested via a mocked `ModelRuntime`; ≥80% coverage is achievable without requiring a live local model in CI (research.md D12).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| IV. Security & Privacy by Design                                  | PASS, exceeds baseline                | This revision requires local-only model backends (FR-017) — no prompts, code, or derived architecture data ever leave the user's machine, which trivially satisfies (and exceeds) the constitution's "avoid sending secrets to external providers" bar, since there is no external provider at all. Secret-path exclusions (FR-015) are enforced at the agent's file-read tool layer (deny-list applied before the tool executes, not just filtered from output). Tool-call event logging must redact file contents by default (constitution: "log safely, redaction by default") since pi's event stream can include read-tool previews of source content.                                                                              |
+| V. Latest Supported Versions & Supply-Chain Hygiene               | PASS, with tracked risk               | Dependencies pinned via lockfile as usual. **Tracked risk (expanded after research.md D2 revision)**: two vendored asset trees now live in `vendor/` rather than being consumed as versioned package imports — pi's example subagent extension (D3) and, more substantially, Understand-Anything's skill/agents/scripts (D4, patched in three places for headless operation). Neither receives automatic upstream fixes; both must be manually re-diffed against their respective upstream releases periodically, and the `vendor/understand-anything` patches specifically must be re-applied (not just re-copied) on each UA update. Documented here, and `README.md` is required to document the re-diff process (Project Structure). |
+| Repository Structure: "Python kept in clearly separated packages" | **Deviation, justified**              | research.md D13: two small vendored Python scripts (merge/normalize) live inside the TypeScript package and run as a subprocess, rather than in a separate Python app. Justified because (a) it was an explicit, already-made user decision, not an oversight, and (b) the footprint is two narrow utility scripts, not a Python application with its own dependency surface.                                                                                                                                                                                                                                                                                                                                                            |
 
-**Storage**: Local filesystem for metadata and final diagram; in-memory graph during a session; optional Neo4j for persistent cross-session graph  
-**Testing**: `pytest ^8.2` + `pytest-asyncio ^0.23`; ≥80% coverage; Semgrep rules tested against fixture repos  
-**Scale**: Up to 50 repositories; graph fits in memory for typical microservice suites
-
----
+No unresolved gate failures. The one deviation (Repository Structure) is captured in Complexity Tracking below per the constitution's exception process ("Any exception... MUST be documented (what/why/risk/mitigation) and time-bounded").
 
 ## Project Structure
 
+### Documentation (this feature)
+
 ```text
-apps/llm-importer/
-├── llm_importer/
-│   ├── cli.py                              # Click CLI (update existing)
+specs/007-llm-repo-importer/
+├── plan.md              # This file
+├── research.md          # Phase 0 output — 13 resolved design decisions (D1-D13)
+├── data-model.md         # Phase 1 output
+├── quickstart.md         # Phase 1 output
+├── contracts/            # Phase 1 output
+└── tasks.md              # Phase 2 output (/speckit.tasks — not produced by this command)
+```
+
+### Source Code (repository root)
+
+```text
+apps/llm-importer/                       # TypeScript package, replaces the Python package at the same path
+├── vendor/
+│   ├── understand-anything/             # Vendored UA assets, patched per research.md D4 — re-diffed against
+│   │   ├── SKILL.md                     # Trimmed (no Phase 4/5), 3 headless patches (0.5 confirm, worktree
+│   │   │                                 # redirect, dashboard launch) — diff against upstream tracked in README
+│   │   ├── agents/
+│   │   │   ├── project-scanner.md       # Vendored as-is
+│   │   │   ├── file-analyzer.md         # Vendored as-is
+│   │   │   └── assemble-reviewer.md     # Vendored as-is (deterministic inline-validate path only)
+│   │   ├── compute-batches.mjs          # Vendored as-is
+│   │   ├── merge-batch-graphs.py        # Vendored as-is — invoked BY the skill itself, not by our code (D5)
+│   │   ├── languages/                   # Vendored language context files
+│   │   ├── frameworks/                  # Vendored framework context files
+│   │   └── schema.ts                    # UA's native graph schema — used for ingestion-time validation
+│   └── pi-subagent/
+│       ├── index.ts                     # Adapted from pi's example subagent extension (D3)
+│       └── agents.ts                    # Adapted agent-discovery logic; concurrency reads from shared-limiter
+├── src/
+│   ├── cli.ts                           # CLI entrypoint (commander) — replaces cli.py
 │   ├── config/
-│   │   ├── loader.py                       # Keep; update schema reference
-│   │   └── import_config.schema.json       # Update: add graph_backend, semgrep fields
-│   ├── providers/                          # Keep entirely as-is
-│   │   ├── base.py
-│   │   ├── anthropic_provider.py
-│   │   ├── ollama_provider.py
-│   │   └── factory.py
-│   ├── extraction/                         # NEW — replaces analysis/
-│   │   ├── __init__.py
-│   │   ├── manifest_extractor.py           # Parse docker-compose, k8s, pom.xml, package.json
-│   │   ├── code_parser.py                  # Tree-sitter AST extraction (symbols, imports)
-│   │   ├── rule_engine.py                  # Run semgrep rules; return match list
-│   │   ├── relationship_extractor.py       # Combine signals → RepositoryMetadata
-│   │   └── rules/                          # Semgrep YAML rule files
-│   │       ├── http_clients.yml            # requests, axios, fetch, httpx, RestTemplate, WebClient
-│   │       ├── db_clients.yml              # SQLAlchemy, JdbcTemplate, Mongoose, pg, redis-py
-│   │       ├── kafka_clients.yml           # KafkaTemplate.send, @KafkaListener, confluent-kafka
-│   │       ├── queue_clients.yml           # pika/RabbitMQ, boto3 SQS, celery
-│   │       └── grpc_clients.yml            # grpc channel/stub creation patterns
-│   ├── graph/                              # NEW
-│   │   ├── __init__.py
-│   │   ├── base.py                         # ArchGraph ABC (add_node, add_edge, query_*)
-│   │   ├── memory_graph.py                 # networkx-backed default implementation
-│   │   ├── neo4j_graph.py                  # neo4j-driver implementation (optional)
-│   │   ├── graph_factory.py                # Instantiate graph backend from config
-│   │   └── cross_repo_correlator.py        # Match producers/consumers; REST endpoint correlation
-│   ├── enrichment/                         # NEW — replaces aggregation/
-│   │   ├── __init__.py
-│   │   ├── prompts.py                      # LLM prompt: graph JSON → C4 groupings
-│   │   └── llm_enricher.py                 # Single LLM call; parse + validate output
-│   ├── session/
-│   │   └── session_manager.py              # Update: pipeline stages, graph accumulation
-│   └── output/
-│       └── diagram_builder.py              # Keep; minor updates for enriched graph input
-├── tests/
-│   ├── conftest.py
+│   │   ├── loader.ts                    # Parse + validate YAML/JSON run config
+│   │   └── config.schema.ts             # zod: repos[], localModel{endpoint,provider,modelId}, maxConcurrency, outputDir
+│   ├── model-runtime/
+│   │   └── local-model-runtime.ts       # Builds pi ModelRuntime from config.localModel (research.md D9)
+│   ├── analysis/
+│   │   ├── resource-loader.ts           # Explicit ResourceLoader wiring vendor/understand-anything + vendor/pi-subagent, no discovery (D6)
+│   │   └── run-understand.ts            # Per-repo session launcher: createAgentSession(cwd=repo), invoke
+│   │                                     # the vendored skill, retry-once-then-skip (FR-010a), copy
+│   │                                     # knowledge-graph.json out of $UA_DIR and clean up (D4 adaptation 3)
+│   ├── graph/
+│   │   ├── schema.ts                    # Trimmed zod GraphNode/GraphEdge schema — ingestion-time filter (D10)
+│   │   └── knowledge-graph-store.ts     # Read/write per-repo {name}.knowledge-graph.json artifacts
+│   ├── correlate/
+│   │   ├── deterministic-correlator.ts  # D7 pass 1 — literal identifier matching across repos
+│   │   └── agentic-correlator.ts        # D7 pass 2 — bounded fallback for unresolved pairs
+│   ├── confidence/
+│   │   └── bucket-mapper.ts             # D11 — weight → high/medium/low, corroboration adjustment
+│   ├── review/
+│   │   ├── review-file.ts               # ReviewFile/SystemGroup/ReviewCandidate types — schema unchanged
+│   │   └── assemble-review.ts           # Builds review artifact from graphs + correlated connections
+│   ├── export/
+│   │   └── diagram-builder.ts           # Builds final .arch.json — schema unchanged
+│   └── concurrency/
+│       └── shared-limiter.ts            # D8 — single semaphore shared by repo-level fan-out and the
+│                                         # vendored subagent dispatcher's internal batch fan-out
+├── test/
 │   ├── unit/
-│   │   ├── test_config_loader.py           # Keep
-│   │   ├── test_manifest_extractor.py      # NEW
-│   │   ├── test_code_parser.py             # NEW
-│   │   ├── test_rule_engine.py             # NEW (semgrep rules against fixtures)
-│   │   ├── test_relationship_extractor.py  # NEW
-│   │   ├── test_memory_graph.py            # NEW
-│   │   ├── test_cross_repo_correlator.py   # NEW
-│   │   ├── test_llm_enricher.py            # NEW
-│   │   ├── test_session_manager.py         # Update
-│   │   ├── test_diagram_builder.py         # Keep
-│   │   ├── test_anthropic_provider.py      # Keep
-│   │   ├── test_ollama_provider.py         # Keep
-│   │   └── test_provider_factory.py        # Keep
+│   │   ├── config-loader.test.ts
+│   │   ├── deterministic-correlator.test.ts
+│   │   ├── bucket-mapper.test.ts
+│   │   ├── graph-schema-filter.test.ts
+│   │   ├── run-understand.test.ts       # Mocked ModelRuntime/createAgentSession (D12) — retry/skip, copy/cleanup
+│   │   └── review-assembly.test.ts
 │   ├── integration/
-│   │   ├── test_single_repo_pipeline.py    # Full extraction on fixture repo
-│   │   ├── test_multi_repo_pipeline.py     # Multi-repo + cross-repo correlation
-│   │   ├── test_incremental.py             # Skip existing metadata
-│   │   └── test_provider_switch.py         # Keep
-│   ├── contract/
-│   │   ├── test_metadata_schema.py         # Keep; update schema assertions
-│   │   └── test_output_schema.py           # Keep
+│   │   ├── single-repo-analysis.integration.test.ts   # Runs the real vendored skill; skipped if no local model reachable (D12)
+│   │   └── multi-repo-correlation.integration.test.ts
 │   └── fixtures/
-│       ├── repos/
-│       │   ├── python_service/             # Django app with requests, celery, psycopg2
-│       │   ├── java_service/               # Spring Boot with @FeignClient, KafkaTemplate
-│       │   └── node_service/               # Express with axios, pg, amqplib
-│       └── metadata/                       # Pre-canned .metadata.json files
-├── pyproject.toml                          # Add new deps
-├── Dockerfile                              # Add semgrep + tree-sitter grammars
-├── docker-run.sh                           # Keep
-└── README.md                               # Update
+│       ├── repos/                       # Small sample repos with known cross-repo connections
+│       └── knowledge-graphs/            # Pre-canned knowledge-graph.json fixtures
+├── package.json
+├── tsconfig.json
+├── vitest.config.ts
+└── README.md                            # Must document the vendored-asset diff-tracking process (Constitution Check)
 ```
 
----
+**Structure Decision**: Single TypeScript package at `apps/llm-importer` (research.md D1), following this monorepo's existing `apps/*` convention and joining the shared `turbo run typecheck lint test` pipeline instead of a separate Python CI lane. A dedicated `vendor/` directory separates copied-and-patched third-party source (Understand-Anything's skill, pi's example subagent extension) from `src/`, which contains only code this project owns outright — this boundary exists specifically so the Constitution Check's tracked drift-risk (re-diffing vendored assets against upstream) has a clear, greppable surface rather than being scattered through the codebase. Internal module boundaries in `src/` mirror the pipeline stages named in `spec.md`'s Approach diagram (analysis → graph → correlate → review → export) so each stage remains independently testable, matching how the retired Python package was organized by pipeline stage.
 
-## Semgrep Rules Design
+## Complexity Tracking
 
-Each rule file targets one integration category. Rules are run with `--json` output and matched by `rule_id`.
-
-Example — `http_clients.yml`:
-
-```yaml
-rules:
-  - id: python-requests-get
-    patterns:
-      - pattern: requests.get(...)
-      - pattern: requests.post(...)
-    message: HTTP call via requests
-    languages: [python]
-    severity: INFO
-    metadata: { category: http, confidence: 0.85 }
-
-  - id: java-feign-client
-    pattern: '@FeignClient($NAME)'
-    message: 'FeignClient: $NAME'
-    languages: [java]
-    severity: INFO
-    metadata: { category: http, confidence: 0.97 }
-```
-
-The rule engine extracts `path`, `start.line`, `extra.metavars.$NAME` from each match to populate connection evidence.
-
----
-
-## Confidence Scoring
-
-Scores are set per rule in `metadata.confidence`. The relationship extractor:
-
-1. Collects all signals for a `(source_repo, target_service)` pair
-2. Takes `max(signal.confidence)` as the connection confidence
-3. Merges evidence lists from all signals
-
-Manifest-derived connections (no rule needed — direct declaration) get confidence `0.99`.
-
----
-
-## Graph Data Model (Pydantic)
-
-```python
-class NodeKind(str, Enum):
-    SERVICE = "service"
-    DATABASE = "database"
-    QUEUE = "queue"
-    TOPIC = "topic"
-    EXTERNAL = "external"
-
-class GraphNode(BaseModel):
-    id: str
-    kind: NodeKind
-    name: str
-    repo_path: str | None = None
-    metadata: dict = {}
-
-class EdgeKind(str, Enum):
-    REST = "REST"
-    GRPC = "gRPC"
-    KAFKA_PUBLISH = "kafka-publish"
-    KAFKA_CONSUME = "kafka-consume"
-    DB_READ_WRITE = "db-read-write"
-    QUEUE_PUBLISH = "queue-publish"
-    QUEUE_CONSUME = "queue-consume"
-    USES = "uses"
-
-class GraphEdge(BaseModel):
-    id: str
-    source_id: str
-    target_id: str
-    kind: EdgeKind
-    confidence: float
-    evidence: list[str]
-```
-
----
-
-## LLM Enrichment Prompt Design
-
-The enrichment prompt receives the serialized graph (nodes + edges) and asks the LLM to:
-
-1. Assign canonical C4-style names to nodes
-2. Group related nodes into logical services
-3. Flag low-confidence relationships for review
-4. Return updated node names and any inferred relationships not already in the graph
-
-The prompt uses a **concrete JSON example output** (not schema definition) — same pattern proven to work with local models in the previous implementation.
-
----
-
-## Implementation Phases
-
-### Phase A: Extraction Foundation (Manifest + Tree-sitter)
-
-**Deliverables**:
-
-- Update `pyproject.toml` with new deps
-- `extraction/manifest_extractor.py` — parse docker-compose v2/v3, k8s Deployment/Service, pom.xml dependencies, package.json dependencies/scripts
-- `extraction/code_parser.py` — tree-sitter setup, language autodetection, import/symbol extraction for Python, Java, JS/TS
-- Unit tests for both modules against fixture files
-
-**Acceptance**: `manifest_extractor` correctly identifies 3 services, 1 database, 1 queue from a docker-compose fixture. `code_parser` returns import list from a Python fixture file.
-
----
-
-### Phase B: Rule Engine (Semgrep)
-
-**Deliverables**:
-
-- `extraction/rules/*.yml` — HTTP, DB, Kafka, queue, gRPC rule files
-- `extraction/rule_engine.py` — run semgrep programmatically (`subprocess` + `--json` output), parse results, return `list[RuleMatch]`
-- Unit tests: each rule category tested against matching/non-matching fixture code
-
-**Acceptance**: Semgrep detects `@FeignClient` in Java fixture with confidence ≥ 0.95. `requests.get` in Python fixture with confidence ≥ 0.80.
-
----
-
-### Phase C: Relationship Extractor + Metadata Schema
-
-**Deliverables**:
-
-- `extraction/relationship_extractor.py` — combine manifest signals + semgrep matches → `RepositoryMetadata` with confidence scores
-- Updated `analysis/repo_metadata.schema.json` → move to `extraction/repo_metadata.schema.json`, add `confidence`, `evidence` fields per connection
-- Unit tests: multi-signal deduplication, confidence max-merge, evidence accumulation
-
-**Acceptance**: Single repo with both manifest entry and semgrep match produces one connection with `confidence = max(0.99, 0.85) = 0.99` and two evidence entries.
-
----
-
-### Phase D: Architecture Graph + Cross-Repo Correlator
-
-**Deliverables**:
-
-- `graph/base.py`, `graph/memory_graph.py` — `ArchGraph` ABC + networkx implementation
-- `graph/cross_repo_correlator.py` — match Kafka topic names published in repo A to `@KafkaListener` in repo B; match REST endpoint declarations to call-site evidence
-- `graph/graph_factory.py` — return `MemoryGraph` by default; `Neo4jGraph` if `graph_backend: neo4j` in config
-- Unit tests: graph add/query, Kafka correlation, REST endpoint matching
-
-**Acceptance**: Producer `KafkaTemplate.send("order-created")` in repo A + `@KafkaListener("order-created")` in repo B → one `KAFKA_PUBLISH` edge A→topic + one `KAFKA_CONSUME` edge topic→B.
-
----
-
-### Phase E: LLM Enrichment
-
-**Deliverables**:
-
-- `enrichment/prompts.py` — concrete example output, not schema definition
-- `enrichment/llm_enricher.py` — serialize graph → prompt → LLM call via provider → parse → validate → return enriched node/edge updates
-- Unit tests: valid enrichment response, invalid JSON fallback (return graph unchanged), schema validation failure fallback
-
-**Acceptance**: Enrichment call returns updated node names. On LLM failure, original graph is returned unchanged (enrichment is additive, never destructive).
-
----
-
-### Phase F: Session Manager Update
-
-**Deliverables**:
-
-- Update `session/session_manager.py` to new pipeline: `extract_repo()` per-repo (parallel) → `build_graph()` → `correlate()` → `enrich()` → `export()`
-- Progress callbacks updated: extraction stage names surfaced
-- Incremental skip: check for `.metadata.json` before extraction (same as before)
-
-**Acceptance**: 3 repos with concurrency=2 run extraction in parallel; graph build, correlation, enrichment, export run sequentially after all extractions.
-
----
-
-### Phase G: CLI + Docker Update
-
-**Deliverables**:
-
-- Update `cli.py` — wire new session manager; update consent prompt (now only relevant for enrichment step)
-- Update `Dockerfile` — add `semgrep`, tree-sitter grammar install steps
-- Update `README.md` — new pipeline description, semgrep rules, confidence scores
-- End-to-end integration test with fixture repos + mock LLM provider
-
-**Acceptance**: `arch-atlas-import run config.yaml --yes` with mock provider writes valid `.arch.json`. `--aggregate-only` skips extraction.
-
----
-
-### Phase H: Neo4j Backend (Optional)
-
-**Deliverables**:
-
-- `graph/neo4j_graph.py` — `Neo4jGraph` implementing `ArchGraph` ABC
-- Config schema update: `graph_backend: { type: neo4j, uri: ..., user: ..., password: ... }`
-- Integration test: full pipeline with Neo4j (skipped if Neo4j not available)
-
-**Acceptance**: Pipeline completes with Neo4j backend producing identical output to in-memory backend.
+| Violation                                                                                                                                              | Why Needed                                                                                                                                                                                                                                                                                          | Simpler Alternative Rejected Because                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Python subprocess dependency inside an otherwise-TypeScript package (research.md D5, D13)                                                              | Reuses UA's already-correct batch-merge/normalize logic (dedupe by id/edge triple, node-id normalization, dangling-edge removal) without a risky reimplementation. Under D2's revision this script is invoked by the vendored skill itself, not by our own code, making the reuse even more direct. | Porting `merge-batch-graphs.py` to TypeScript now was considered and explicitly deferred — the user already accepted the Python-at-runtime tradeoff earlier in this project's design discussion; re-deciding it during planning would contradict that explicit call for no real benefit at this stage                                          |
+| Vendored (not package-imported) copy of pi's example subagent extension (research.md D3)                                                               | pi does not publish its example extensions as an installable package; the only way to reuse the isolated-subprocess-dispatch logic is to copy and adapt the source                                                                                                                                  | Depending on the user having it pre-installed under `~/.pi/agent/extensions/` was rejected (research.md D6) as non-reproducible; the tracked cost is manual re-sync against upstream `pi` changes, noted in the Constitution Check table above                                                                                                 |
+| Vendored, patched copy of Understand-Anything's `SKILL.md` and agent definitions, run natively rather than reimplemented (research.md D2 revision, D4) | Reuses UA's already-tested multi-phase orchestration, batching, and failure-tolerance logic directly instead of maintaining a parallel, likely-worse reimplementation of the same thing                                                                                                             | A from-scratch TypeScript orchestrator (the original D2) was built out in this plan's first draft and explicitly superseded once re-examined — it duplicated logic UA's own Error Handling section already provides (retry-once-then-skip-a-phase, always save partial results), for a reliability benefit that was more theoretical than real |
