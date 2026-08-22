@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { DefaultResourceLoader } from '@earendil-works/pi-coding-agent';
+import { DefaultResourceLoader, type SettingsManager } from '@earendil-works/pi-coding-agent';
 import { secretExclusionExtension } from './secret-exclusion-extension.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -22,12 +22,37 @@ export const PI_SUBAGENT_EXTENSION_PATH = join(PACKAGE_ROOT, 'vendor', 'pi-subag
 export function buildResourceLoader(options: {
   cwd: string;
   agentDir: string;
+  settingsManager?: SettingsManager;
 }): DefaultResourceLoader {
   return new DefaultResourceLoader({
     cwd: options.cwd,
     agentDir: options.agentDir,
+    ...(options.settingsManager ? { settingsManager: options.settingsManager } : {}),
     additionalSkillPaths: [UNDERSTAND_ANYTHING_SKILL_DIR],
     additionalExtensionPaths: [PI_SUBAGENT_EXTENSION_PATH],
     extensionFactories: [secretExclusionExtension],
   });
+}
+
+/**
+ * Load the loader's resources and verify the vendored skill actually resolved.
+ *
+ * pi's `createAgentSession` only calls `reload()` on a resource loader it
+ * constructs itself — a caller-supplied loader must be reloaded by the caller
+ * (see pi's sdk.md "full control" example). Skipping this leaves the session
+ * with NO skills and NO extensions: `/skill:understand` passes through as
+ * literal prose and, far worse, the FR-015 secret-exclusion extension is
+ * silently inert. Caught live in T062 — hence the hard failure here instead
+ * of a warning.
+ */
+export async function loadAndVerifyResources(loader: DefaultResourceLoader): Promise<void> {
+  await loader.reload();
+  const { skills, diagnostics } = loader.getSkills();
+  if (!skills.some((skill) => skill.name === 'understand')) {
+    const detail = diagnostics.map((d) => `${d.type}: ${d.message} (${d.path ?? '?'})`).join('; ');
+    throw new Error(
+      `Vendored "understand" skill did not load from ${UNDERSTAND_ANYTHING_SKILL_DIR}` +
+        (detail ? ` — ${detail}` : '')
+    );
+  }
 }

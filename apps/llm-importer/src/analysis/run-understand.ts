@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, mkdir, copyFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, mkdir, copyFile, access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -8,7 +8,7 @@ import {
   type ModelRuntime,
 } from '@earendil-works/pi-coding-agent';
 import type { Api, Model } from '@earendil-works/pi-ai/compat';
-import { buildResourceLoader } from './resource-loader.js';
+import { buildResourceLoader, loadAndVerifyResources } from './resource-loader.js';
 import {
   filterToTrimmedSchema,
   RepositoryKnowledgeGraphSchema,
@@ -45,9 +45,30 @@ function uaDirPath(repoPath: string): string {
   return join(repoPath, '.ua');
 }
 
+/** Same-session "keep going" prompts per attempt before the FR-010a outer
+ * retry kicks in. Each nudge reuses the session's full context, so it costs
+ * one turn — an outer retry costs the whole analysis from scratch. */
+const MAX_CONTINUE_NUDGES = 3;
+
+async function fileExists(p: string): Promise<boolean> {
+  try {
+    await access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function runOnce(options: RunUnderstandOptions): Promise<RepositoryKnowledgeGraph> {
   const agentDir = await mkdtemp(join(tmpdir(), 'arch-atlas-agent-'));
-  const resourceLoader = buildResourceLoader({ cwd: options.repoPath, agentDir });
+  // Shared between loader and session so resource discovery and the session
+  // see the same (hermetic, in-memory) settings — never the host's ~/.pi.
+  const settingsManager = SettingsManager.inMemory({});
+  const resourceLoader = buildResourceLoader({ cwd: options.repoPath, agentDir, settingsManager });
+  // MUST happen before createAgentSession: pi only reloads loaders it creates
+  // itself. Without this the session has no skills and no extensions — the
+  // FR-015 secret-exclusion extension included (T062 live-run finding).
+  await loadAndVerifyResources(resourceLoader);
 
   const { session } = await createAgentSession({
     cwd: options.repoPath,
@@ -56,7 +77,7 @@ async function runOnce(options: RunUnderstandOptions): Promise<RepositoryKnowled
     modelRuntime: options.modelRuntime,
     resourceLoader,
     sessionManager: SessionManager.inMemory(options.repoPath),
-    settingsManager: SettingsManager.inMemory({}),
+    settingsManager,
   });
 
   try {
@@ -85,6 +106,24 @@ async function runOnce(options: RunUnderstandOptions): Promise<RepositoryKnowled
     // SKILL.md Phase 0's decision table, avoiding its "ask the user" branch
     // for an unchanged-commit-hash graph — not viable in a headless session.
     await session.prompt('/skill:understand --full');
+
+    // Headless persistence (T062 live-run finding): local models routinely
+    // end their turn after *reading* the skill — a plan or summary instead of
+    // execution — leaving no graph on disk. A same-session nudge is far
+    // cheaper than the FR-010a outer retry (which discards all context and
+    // starts over), so spend a few of these before giving up on the attempt.
+    for (let nudge = 0; nudge < MAX_CONTINUE_NUDGES; nudge++) {
+      if (await fileExists(uaKnowledgeGraphPath(options.repoPath))) break;
+      options.onProgress?.(
+        `skill incomplete — nudging session to continue (${nudge + 1}/${MAX_CONTINUE_NUDGES})`
+      );
+      await session.prompt(
+        'The skill run is NOT complete: `.ua/knowledge-graph.json` does not exist yet. ' +
+          'This is a headless session — there is no user to confirm anything with. ' +
+          'Continue executing the remaining skill phases now, starting from where you stopped. ' +
+          'Execute the tools and scripts the skill specifies; do not summarize, plan, or ask questions.'
+      );
+    }
   } finally {
     session.dispose();
   }

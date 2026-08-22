@@ -70,6 +70,9 @@ node apps/llm-importer/dist/cli.js import.yaml --force-refresh --repos "Service 
 
 # Override the shared concurrency limit
 node apps/llm-importer/dist/cli.js import.yaml --max-concurrency 1
+
+# Print per-tool-call agent progress (useful for watching a slow local model work)
+node apps/llm-importer/dist/cli.js import.yaml --verbose
 ```
 
 ## Troubleshooting

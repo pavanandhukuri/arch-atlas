@@ -163,7 +163,7 @@
 
 ## Final Phase: Polish & Cross-Cutting Concerns
 
-- [ ] T062 [P] Run `quickstart.md` end-to-end against a real local Ollama instance and correct any drift between the documented steps and actual CLI behavior
+- [x] T062 [P] Run `quickstart.md` end-to-end against a real local Ollama instance and correct any drift between the documented steps and actual CLI behavior — done 2026-08-23 against oMLX (`openai-compatible` + `apiKey`, Qwen3-Coder-30B): full pipeline produced per-repo graphs, an evidence-correlation candidate with file:line reasoning, the review artifact, and `architecture.arch.json`. Surfaced two live-only defects, fixed as T073–T074
 - [x] T063 [P] Verify ≥80% test coverage across `apps/llm-importer` (constitution Definition of Done); add tests to close any gaps found
 - [x] T064 [P] Confirm `apps/llm-importer` runs cleanly under `turbo run typecheck lint test` alongside the rest of the monorepo (plan.md Structure Decision)
 - [x] T065 Security review pass: confirm T018's secret-path exclusions are enforced at the tool-permission layer (not post-hoc filtering), confirm T019's log redaction is effective, and document both in the PR description per the constitution's requirement for explicit security review on data-import-related changes
@@ -187,6 +187,17 @@ had also missed — in <100ms with zero model calls.
 - [x] T070 Implement `src/correlate/evidence-passes.ts` — manifest, endpoint (exact + gateway-suffix + literal-vs-literal fallback), schema (identical copy, proto drift, OpenAPI client coverage), compose (repo image/build-context mapping, service depends_on/env wiring, well-known external systems such as PostgreSQL/Kafka/Keycloak), and topic passes, each emitting evidenced `CrossRepositoryConnection`s at calibrated weights — with unit tests per pass
 - [x] T071 Rewire `correlateDeterministically` — evidence passes run first with per-pass failure isolation, the original name-mention matcher is retained as the final pass, `foundBy: 'evidence'` maps to a new no-bump `evidence-correlation` confidence source, pass summaries surface in `runImport`'s progress output, and a pair is unresolved (agentic-fallback input) only when no pass connects it in either direction
 - [x] T072 Integration coverage: fixture repos extended with a gateway-prefixed HTTP call (`/api/notifications/v1/send` vs `/v1/send`), correlation asserted end-to-end against real fixture source including byte-determinism across runs
+
+---
+
+## Phase: Live-Run Hardening (T062 findings, 2026-08-23)
+
+**Purpose**: Defects only observable against a real local model server, found during
+the T062 end-to-end run (oMLX, Qwen3-Coder-30B) — the mocked-session unit tests and
+skipped live-integration tests could not catch either.
+
+- [x] T073 Reload caller-supplied resource loaders: pi's `createAgentSession` only calls `resourceLoader.reload()` on loaders it constructs itself, so our custom loader exposed ZERO skills and ZERO extensions — `/skill:understand` passed through as literal prose (no graph ever written) and the FR-015 secret-exclusion extension was silently inert (the live agent read a fixture `.env`). Added `loadAndVerifyResources()` (reload + hard failure if the vendored skill didn't resolve), a shared in-memory `SettingsManager` between loader and session for hermeticity, and regression tests pinning the caller-side loading contract including the pre-reload zero-skill state
+- [x] T074 Headless persistence nudges: local models routinely end their turn after _reading_ the skill — a summary instead of execution — leaving no graph. `runOnce` now sends up to 3 same-session "continue executing" prompts (context retained, one turn each) before the FR-010a outer retry (full restart) engages; verified live — user-service needed exactly one nudge, then completed. Unit tests cover both the nudge cap and nudge-then-success
 
 ---
 

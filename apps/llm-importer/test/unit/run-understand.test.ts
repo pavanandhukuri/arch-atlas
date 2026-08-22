@@ -122,4 +122,41 @@ describe('runUnderstand', () => {
     await runUnderstand({ ...baseOptions(), limiter });
     expect(disposeMock).toHaveBeenCalled();
   });
+
+  // T062 live-run finding: local models often end their turn after reading
+  // the skill without executing it. runOnce must nudge the same session
+  // (cheap — context retained) before the FR-010a outer retry (expensive —
+  // starts over) gets involved.
+  it('nudges the session up to 3 times per attempt when no graph appears', async () => {
+    const limiter = new SharedLimiter(2);
+
+    const result = await runUnderstand({ ...baseOptions(), limiter });
+
+    expect(result.status).toBe('failed');
+    // 2 attempts × (1 skill prompt + 3 continue nudges)
+    expect(promptMock).toHaveBeenCalledTimes(8);
+    const nudgeCalls = promptMock.mock.calls.filter(([text]) =>
+      String(text).includes('NOT complete')
+    );
+    expect(nudgeCalls).toHaveLength(6);
+  });
+
+  it('completes without an outer retry when a nudge gets the graph written', async () => {
+    const limiter = new SharedLimiter(2);
+    let promptCount = 0;
+    promptMock.mockImplementation(async () => {
+      promptCount += 1;
+      // Initial skill prompt stalls; the first nudge produces the graph.
+      if (promptCount === 2) await writeUaGraph(VALID_GRAPH);
+    });
+
+    const result = await runUnderstand({ ...baseOptions(), limiter });
+
+    expect(result.status).toBe('complete');
+    if (result.status === 'complete') {
+      expect(result.graph.retryCount).toBe(0);
+    }
+    expect(pi.createAgentSession).toHaveBeenCalledTimes(1);
+    expect(promptMock).toHaveBeenCalledTimes(2); // skill prompt + one nudge, then done
+  });
 });
