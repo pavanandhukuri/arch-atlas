@@ -82,6 +82,18 @@ constants are repointed at `src/concurrency/shared-limiter.ts` so repo-level and
 internal-batch fan-out share one bound (research.md D8, FR-016) — see that file's diff
 against the pinned upstream commit when re-syncing.
 
+### Ported (not vendored): evidence-grounded correlation
+
+`src/correlate/evidence/` and `src/correlate/evidence-passes.ts` are a **port** — owned
+and maintained here, not re-synced against any upstream — of the deterministic
+cross-repository linker core from the author's `understand-everything` project
+(a multi-repo wrapper around Understand-Anything; MIT). Adapted to this package's
+trimmed knowledge-graph schema and `CrossRepositoryConnection` contract, with two
+additions developed here: gateway-prefix route matching with a concrete-segment
+requirement, and well-known external-system detection from compose files. Unlike the
+`vendor/` assets there is no pinned upstream commit to diff against; treat these as
+first-party code.
+
 ## Development
 
 ```bash

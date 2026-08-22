@@ -171,6 +171,25 @@
 
 ---
 
+## Phase: Evidence-Grounded Correlation (2026-08-22 revision)
+
+**Purpose**: Replace the FR-006 deterministic matcher's name-substring heuristic with
+evidence-grounded passes over raw repository source, ported from the
+understand-everything project's cross-repo linker core (developed and tested against
+Understand-Anything workspaces). Motivation: validated against a real 5-repo
+workspace (uds-sdk), the name-mention matcher found 0 connections while the ported
+passes found every known cross-repo connection — including one a hosted-model agent
+had also missed — in <100ms with zero model calls.
+
+- [x] T067 Extract the FR-015 secret-path pattern list into `src/analysis/secret-paths.ts`, shared by the tool-call extension and the new evidence collector (single source of truth)
+- [x] T068 Port the evidence parsers into `src/correlate/evidence/parsers/` — manifests (npm/pyproject/go.mod/Cargo/pom/gradle), routes (URL-literal extraction, method hints, normalization, gateway-prefix suffix matching with a concrete-segment-agreement requirement, OIDC third-party path exclusion), schemas (proto/GraphQL/OpenAPI digests), compose, topics — with unit tests
+- [x] T069 Implement `src/correlate/evidence/collect.ts` — bounded repository walk (depth/file-count/size caps) applying the FR-015 exclusions, resolving repo roots from the artifact's recorded path and degrading to graph-only correlation when a path is unavailable — with unit tests against the fixture repos (including a planted `.env` proving exclusion)
+- [x] T070 Implement `src/correlate/evidence-passes.ts` — manifest, endpoint (exact + gateway-suffix + literal-vs-literal fallback), schema (identical copy, proto drift, OpenAPI client coverage), compose (repo image/build-context mapping, service depends_on/env wiring, well-known external systems such as PostgreSQL/Kafka/Keycloak), and topic passes, each emitting evidenced `CrossRepositoryConnection`s at calibrated weights — with unit tests per pass
+- [x] T071 Rewire `correlateDeterministically` — evidence passes run first with per-pass failure isolation, the original name-mention matcher is retained as the final pass, `foundBy: 'evidence'` maps to a new no-bump `evidence-correlation` confidence source, pass summaries surface in `runImport`'s progress output, and a pair is unresolved (agentic-fallback input) only when no pass connects it in either direction
+- [x] T072 Integration coverage: fixture repos extended with a gateway-prefixed HTTP call (`/api/notifications/v1/send` vs `/v1/send`), correlation asserted end-to-end against real fixture source including byte-determinism across runs
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

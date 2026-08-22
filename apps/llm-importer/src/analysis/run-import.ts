@@ -118,8 +118,12 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
   }
 
   log(`\nCorrelating across ${graphs.length} repositories...`);
-  const { connections: deterministicConnections, unresolvedPairs } =
-    correlateDeterministically(graphs);
+  const {
+    connections: deterministicConnections,
+    unresolvedPairs,
+    passSummaries,
+  } = correlateDeterministically(graphs);
+  for (const summary of passSummaries) log(`    ${summary}`);
   log(
     `  Deterministic pass: ${deterministicConnections.length} connection(s) found, ${unresolvedPairs.length} pair(s) unresolved`
   );

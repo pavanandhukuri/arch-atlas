@@ -9,6 +9,7 @@ import type { CandidateConfidence } from '../review/review-file.js';
  */
 export type ConnectionSource =
   | 'agent-analysis'
+  | 'evidence-correlation'
   | 'deterministic-correlation'
   | 'agentic-correlation-fallback';
 
@@ -35,6 +36,10 @@ export function mapToConfidenceBucket(
   source: ConnectionSource
 ): CandidateConfidence {
   const base = weightToBucket(weight);
+  // Evidence-pass weights are already calibrated to the bucket thresholds
+  // (identical schema 0.9 → high, gateway-suffix heuristic 0.45 → low) —
+  // no adjustment.
+  if (source === 'evidence-correlation') return base;
   if (source === 'deterministic-correlation') return bump(base, 1);
   if (source === 'agentic-correlation-fallback') return cap(base, 'medium');
   return base;

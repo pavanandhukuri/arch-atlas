@@ -6,6 +6,8 @@ import {
   type ToolCallEventResult,
 } from '@earendil-works/pi-coding-agent';
 
+import { matchesSecretPattern } from './secret-paths.js';
+
 /**
  * FR-015 / Constitution Principle IV: secret-path exclusions enforced at the
  * agent's file-access tool layer — a deny-list applied before the tool
@@ -15,35 +17,9 @@ import {
  * than relying solely on the vendored `.understandignore` file, which is
  * advisory (the agent has to choose to respect it) not enforced.
  *
- * Same pattern list as contracts/config-schema-contract.md's hardcoded
- * exclusions.
+ * The pattern list itself lives in secret-paths.ts, shared with the
+ * deterministic evidence collector.
  */
-const SECRET_PATH_PATTERNS: RegExp[] = [
-  /\.env(\.[a-z]+)?$/i,
-  /\.key$/i,
-  /\.pem$/i,
-  /\.p12$/i,
-  /\.pfx$/i,
-  /secret/i,
-  /credential/i,
-  /password/i,
-  // Directory patterns match with OR without a trailing slash — a bare
-  // `ls`/`find` path argument like ".git" (no trailing slash) is just as
-  // real a request to list that directory as ".git/" is, and must be
-  // blocked the same way (caught by an actual test, not a hypothetical).
-  /(^|\/)node_modules(\/|$)/,
-  /(^|\/)\.git(\/|$)/,
-  /(^|\/)dist(\/|$)/,
-  /(^|\/)build(\/|$)/,
-  /(^|\/)coverage(\/|$)/,
-  /(^|\/)__pycache__(\/|$)/,
-  /(^|\/)\.venv(\/|$)/,
-  /(^|\/)venv(\/|$)/,
-];
-
-function matchesSecretPattern(candidate: string): boolean {
-  return SECRET_PATH_PATTERNS.some((pattern) => pattern.test(candidate));
-}
 
 function blockResult(path: string): ToolCallEventResult {
   return {

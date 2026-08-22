@@ -51,6 +51,38 @@ describe('multi-repo correlation against real (non-LLM-generated) fixture graphs
     ).toBe(true);
     expect(unresolvedPairs).toHaveLength(0);
   });
+
+  it('finds evidence-grounded connections when the recorded repo paths are real', async () => {
+    // Same graphs, but pointed at the actual fixture repositories on disk —
+    // the evidence passes then read raw source, independent of graph prose.
+    const userService = await loadFixtureGraph('user-service');
+    const notificationService = await loadFixtureGraph('notification-service');
+    userService.repository.path = join(FIXTURES_DIR, 'repos', 'user-service');
+    notificationService.repository.path = join(FIXTURES_DIR, 'repos', 'notification-service');
+
+    const { connections, passSummaries } = correlateDeterministically([
+      userService,
+      notificationService,
+    ]);
+
+    // The asserted evidence connection is the endpoint gateway-suffix match:
+    // user-service calls /api/notifications/v1/send; notification-service
+    // registers /v1/send — the uds-sdk pattern the name-mention pass misses.
+    const gatewayCall = connections.find(
+      (c) =>
+        c.foundBy === 'evidence' &&
+        c.type === 'calls' &&
+        c.sourceRepo === 'user-service' &&
+        c.targetRepo === 'notification-service'
+    );
+    expect(gatewayCall).toBeDefined();
+    expect(gatewayCall?.evidence[0]).toContain('/api/notifications/v1/send');
+    expect(passSummaries.some((s) => s.startsWith('endpoint:'))).toBe(true);
+
+    // Determinism: a second run over the same inputs yields identical output.
+    const again = correlateDeterministically([userService, notificationService]);
+    expect(JSON.stringify(again.connections)).toBe(JSON.stringify(connections));
+  });
 });
 
 let modelAvailable = false;

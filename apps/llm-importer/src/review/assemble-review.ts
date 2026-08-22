@@ -19,11 +19,15 @@ const EDGE_TYPE_TO_CANDIDATE_TYPE: Partial<Record<GraphEdgeType, Candidate['type
   subscribes: 'kafka',
   reads_from: 'database',
   writes_to: 'database',
+  // Compose-derived deployment wiring; the wizard has no dedicated deploy
+  // type, and http is its generic service-to-service bucket.
+  deploys: 'http',
 };
 
 function connectionSource(
   connection: CrossRepositoryConnection
-): 'deterministic-correlation' | 'agentic-correlation-fallback' {
+): 'evidence-correlation' | 'deterministic-correlation' | 'agentic-correlation-fallback' {
+  if (connection.foundBy === 'evidence') return 'evidence-correlation';
   return connection.foundBy === 'deterministic'
     ? 'deterministic-correlation'
     : 'agentic-correlation-fallback';
