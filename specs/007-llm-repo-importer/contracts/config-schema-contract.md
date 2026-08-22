@@ -9,7 +9,7 @@ Config files may be `.json`, `.yaml`, or `.yml`. **Breaking change from v1.0** (
   "version": "2.0",
   "localModel": {
     "provider": "ollama",
-    "endpoint": "http://localhost:11434",
+    "endpoint": "http://localhost:11434/v1",
     "modelId": "llama3"
   },
   "output": {
@@ -29,8 +29,9 @@ version: '2.0'
 
 localModel:
   provider: ollama # or "mlx" | "openai-compatible"
-  endpoint: http://localhost:11434
+  endpoint: http://localhost:11434/v1
   modelId: llama3
+  apiKey: '1234' # optional — omit for keyless servers (Ollama ignores it if set)
 
 output:
   directory: ./output
@@ -61,8 +62,9 @@ repositories:
 
 - `version` must be exactly `"2.0"`
 - `localModel.provider` must be `"ollama"`, `"mlx"`, or `"openai-compatible"`
-- `localModel.endpoint` is required and checked for reachability at startup, before any repository analysis begins (US4 scenario 2) — an unreachable endpoint fails the run immediately with a clear error
+- `localModel.endpoint` is required and checked for reachability at startup, before any repository analysis begins (US4 scenario 2) — an unreachable endpoint fails the run immediately with a clear error. Must be the server's OpenAI-compatible base URL, including the `/v1` path segment (e.g. `http://localhost:11434/v1`, not `http://localhost:11434`)
 - `localModel.modelId` is required
+- `localModel.apiKey` is optional. Omit it for keyless local servers (Ollama, most vLLM/LM Studio setups). Some local servers enforce a key even for localhost-only access (e.g. oMLX) — set it here if the endpoint check succeeds but requests are rejected with 401
 - `output.directory` is required; created if it does not exist
 - `repositories` must have at least one entry, and no more than 50
 - Each `repositories[].path` must be an accessible local directory at config load time

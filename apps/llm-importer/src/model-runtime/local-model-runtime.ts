@@ -22,7 +22,13 @@ function buildModelsJson(config: LocalModelConfig): Record<string, unknown> {
         api: 'openai-completions',
         // Local servers generally ignore the key, but pi requires a non-empty
         // value before a model is treated as "authenticated" — see models.md.
-        apiKey: 'not-required',
+        // Some local servers (e.g. oMLX) actually enforce it.
+        apiKey: config.apiKey ?? 'not-required',
+        // pi does not send `Authorization: Bearer <apiKey>` by default for
+        // openai-completions providers (authHeader defaults to false) — set
+        // explicitly so real API keys (not just pi's own auth bookkeeping)
+        // actually reach the server. Harmless when the server ignores auth.
+        authHeader: true,
         models: [{ id: config.modelId }],
       },
     },

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createServer, type Server } from 'node:http';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -70,6 +70,41 @@ describe('buildLocalModelRuntime', () => {
     const { model } = await buildLocalModelRuntime(config, workDir);
     expect(model.id).toBe('llama3.1:8b');
     expect(model.provider).toBe('ollama');
+  });
+
+  it('writes the configured apiKey and sets authHeader so real API keys reach the server', async () => {
+    workDir = await mkdtemp(join(tmpdir(), 'arch-atlas-runtime-test-'));
+    const config: LocalModelConfig = {
+      provider: 'openai-compatible',
+      endpoint: 'http://127.0.0.1:8000/v1',
+      modelId: 'some-model',
+      apiKey: 'secret-key-123',
+    };
+
+    await buildLocalModelRuntime(config, workDir);
+
+    const written = JSON.parse(await readFile(join(workDir, 'models.json'), 'utf8')) as {
+      providers: Record<string, { apiKey: string; authHeader: boolean }>;
+    };
+    expect(written.providers['openai-compatible']?.apiKey).toBe('secret-key-123');
+    expect(written.providers['openai-compatible']?.authHeader).toBe(true);
+  });
+
+  it('falls back to a placeholder apiKey when none is configured', async () => {
+    workDir = await mkdtemp(join(tmpdir(), 'arch-atlas-runtime-test-'));
+    const config: LocalModelConfig = {
+      provider: 'ollama',
+      endpoint: 'http://127.0.0.1:11434/v1',
+      modelId: 'llama3',
+    };
+
+    await buildLocalModelRuntime(config, workDir);
+
+    const written = JSON.parse(await readFile(join(workDir, 'models.json'), 'utf8')) as {
+      providers: Record<string, { apiKey: string; authHeader: boolean }>;
+    };
+    expect(written.providers['ollama']?.apiKey).toBe('not-required');
+    expect(written.providers['ollama']?.authHeader).toBe(true);
   });
 
   it('never makes a hosted/cloud provider available — FR-017 characterization', async () => {

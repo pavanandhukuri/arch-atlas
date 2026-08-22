@@ -1,11 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": ".",
+    "rootDir": "./src",
     "outDir": "./dist",
     "module": "NodeNext",
     "moduleResolution": "NodeNext"
   },
-  "include": ["src/**/*", "test/**/*"],
-  "exclude": ["node_modules", "dist", "vendor/**/*", "test/fixtures/repos/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "vendor/**/*", "test"]
 }

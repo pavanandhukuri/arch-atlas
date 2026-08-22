@@ -22,8 +22,9 @@ version: '2.0'
 
 localModel:
   provider: ollama
-  endpoint: http://localhost:11434
+  endpoint: http://localhost:11434/v1 # must be the OpenAI-compatible base URL, including /v1
   modelId: llama3
+  # apiKey: '1234'  # optional — omit for keyless servers; some local servers (e.g. oMLX) require one
 
 output:
   directory: ./architecture-output
@@ -76,6 +77,8 @@ node apps/llm-importer/dist/cli.js import.yaml --max-concurrency 1
 **"Repository path does not exist"**: Ensure the path in your config resolves to an existing, readable directory.
 
 **"Local model endpoint unreachable" (exit code 2)**: Verify your local model server is running and reachable at the configured `endpoint` (for Ollama: `ollama serve`, and confirm the model is pulled: `ollama pull llama3`).
+
+**Endpoint check passes but analysis fails with 401/authentication errors**: The reachability check only confirms the server answers HTTP requests — it does not validate credentials. Some local servers (e.g. oMLX) require an API key even for localhost-only access; set `localModel.apiKey` in your config to the key shown in that server's settings.
 
 **A repository's analysis fails after a retry**: The tool retries a repo's agent session exactly once (FR-010a) before skipping it and continuing with the rest. Check stderr for the failure reason — commonly the local model produced output that didn't parse as a valid knowledge graph. Smaller/weaker local models are more prone to this on large or unusual repositories; try a stronger local model, or add a `description` hint on that repo entry to help the agent orient itself.
 

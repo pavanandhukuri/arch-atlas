@@ -11,6 +11,9 @@ export const LocalModelConfigSchema = z.object({
   provider: z.enum(['ollama', 'mlx', 'openai-compatible']),
   endpoint: z.string().url(),
   modelId: z.string().min(1),
+  // Most local servers (Ollama) ignore this. Some (e.g. oMLX) require a real
+  // key even for localhost-only access — omit for keyless servers.
+  apiKey: z.string().min(1).optional(),
 });
 export type LocalModelConfig = z.infer<typeof LocalModelConfigSchema>;
 
