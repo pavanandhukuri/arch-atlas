@@ -1,0 +1,118 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import React from 'react';
+
+vi.mock('../../../src/components/import/diagram-preview', () => ({
+  DiagramPreview: vi.fn(() => <div data-testid="diagram-preview" />),
+}));
+
+const exportModelMock = vi.fn();
+vi.mock('../../../src/services/import-export', () => ({
+  exportModel: (...args: unknown[]) => exportModelMock(...args),
+}));
+
+import { FinalizeStep } from '../../../src/components/import/finalize-step';
+import type { WizardState, Candidate } from '../../../src/lib/import/types';
+import type { ArchitectureModel } from '@arch-atlas/core-model';
+
+const baseState: WizardState = {
+  step: 5,
+  reviewFile: { version: '1.0', generated_at: '', source_repos: ['a', 'b'], candidates: [] },
+  parseError: null,
+  baseDiagramError: null,
+  candidates: [],
+  systems: [],
+  elements: [],
+  selectedElementId: null,
+  reviewFilter: 'all',
+  editingCandidateId: null,
+};
+
+function candidate(overrides: Partial<Candidate> & Pick<Candidate, 'id'>): Candidate {
+  return {
+    source: 'a',
+    target: 'b',
+    type: 'http',
+    reasoning: 'x',
+    confidence: 'high',
+    status: 'accepted',
+    override_name: null,
+    override_type: null,
+    ...overrides,
+  };
+}
+
+describe('FinalizeStep', () => {
+  it('shows element, connection, and system summary counts', () => {
+    const state: WizardState = {
+      ...baseState,
+      elements: [
+        { id: 'e1', name: 'a', displayName: 'a', kind: 'system', isExternal: false, tags: [] },
+      ],
+      candidates: [candidate({ id: 'c1' })],
+      systems: [{ id: 's1', name: 'Core', repoNames: [] }],
+    };
+    render(<FinalizeStep state={state} baseDiagram={null} onOpenInStudio={vi.fn()} />);
+
+    expect(screen.getByText('Elements').previousElementSibling?.textContent).toBe('1');
+    expect(screen.getByText('Connections').previousElementSibling?.textContent).toBe('1');
+    expect(screen.getByText('Systems').previousElementSibling?.textContent).toBe('1');
+  });
+
+  it('falls back to counting distinct candidate sources for the system count when no systems are defined', () => {
+    const state: WizardState = {
+      ...baseState,
+      candidates: [
+        candidate({ id: 'c1', source: 'user-service' }),
+        candidate({ id: 'c2', source: 'notification-service' }),
+      ],
+    };
+    render(<FinalizeStep state={state} baseDiagram={null} onOpenInStudio={vi.fn()} />);
+
+    const systemStat = screen.getByText('Systems').previousElementSibling;
+    expect(systemStat?.textContent).toBe('2');
+  });
+
+  it('calls exportModel with the built model when Download is clicked', async () => {
+    const user = userEvent.setup();
+    render(<FinalizeStep state={baseState} baseDiagram={null} onOpenInStudio={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Download .arch.json' }));
+
+    expect(exportModelMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onOpenInStudio with the built model when Open in Studio is clicked', async () => {
+    const user = userEvent.setup();
+    const onOpenInStudio = vi.fn();
+    render(<FinalizeStep state={baseState} baseDiagram={null} onOpenInStudio={onOpenInStudio} />);
+
+    await user.click(screen.getByRole('button', { name: 'Open in Studio' }));
+
+    expect(onOpenInStudio).toHaveBeenCalledTimes(1);
+    const passedModel = onOpenInStudio.mock.calls[0]?.[0] as ArchitectureModel;
+    expect(passedModel.metadata.title).toBe('Imported Architecture');
+  });
+
+  it('merges into the base diagram when one is provided', async () => {
+    const user = userEvent.setup();
+    const onOpenInStudio = vi.fn();
+    const baseDiagram: ArchitectureModel = {
+      schemaVersion: '1.0.0',
+      metadata: { title: 'Existing' },
+      elements: [{ id: 'existing', kind: 'system', name: 'Existing' }],
+      relationships: [],
+      constraints: [],
+      views: [],
+    };
+
+    render(
+      <FinalizeStep state={baseState} baseDiagram={baseDiagram} onOpenInStudio={onOpenInStudio} />
+    );
+    await user.click(screen.getByRole('button', { name: 'Open in Studio' }));
+
+    const passedModel = onOpenInStudio.mock.calls[0]?.[0] as ArchitectureModel;
+    expect(passedModel.elements.some((e) => e.id === 'existing')).toBe(true);
+  });
+});

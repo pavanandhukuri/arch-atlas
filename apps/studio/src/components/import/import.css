@@ -1,0 +1,1492 @@
+/* ============================================================
+   Import Wizard CSS
+   All class names prefixed with `iw-` to avoid conflicts with
+   existing studio styles.
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   Layout
+   ---------------------------------------------------------- */
+
+.iw-layout {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.iw-header {
+  background: #2c3e50;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  color: white;
+  flex-shrink: 0;
+}
+
+.iw-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.iw-header-left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+}
+
+.iw-back-link {
+  background: none;
+  border: none;
+  color: #bdc3c7;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: inherit;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+}
+
+.iw-back-link:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.iw-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ----------------------------------------------------------
+   Sidebar (step progress)
+   ---------------------------------------------------------- */
+
+.iw-sidebar {
+  width: 220px;
+  background: #f8f9fa;
+  border-right: 1px solid #e9ecef;
+  padding: 1.5rem 1rem;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.iw-sidebar h3 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6c757d;
+  margin: 0 0 1rem 0;
+}
+
+.iw-step-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.iw-step-item {
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #6c757d;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.iw-step-item:hover:not(.iw-step-item--disabled) {
+  background: #e9ecef;
+  color: #343a40;
+}
+
+.iw-step-item--active {
+  background: #e7f3ff;
+  color: #0056b3;
+  font-weight: 600;
+}
+
+.iw-step-item--active:hover {
+  background: #d0eaff;
+  color: #0056b3;
+}
+
+.iw-step-item--completed {
+  color: #16a34a;
+}
+
+.iw-step-item--completed:hover {
+  background: #f0fff4;
+  color: #15803d;
+}
+
+.iw-step-item--disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.iw-step-number {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #dee2e6;
+  color: #6c757d;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.iw-step-item--active .iw-step-number {
+  background: #0056b3;
+  color: white;
+}
+
+.iw-step-item--completed .iw-step-number {
+  background: #16a34a;
+  color: white;
+}
+
+/* ----------------------------------------------------------
+   Main step panel
+   ---------------------------------------------------------- */
+
+.iw-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+}
+
+/* Modifier for the review step which needs full-bleed layout */
+.iw-main--review {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.iw-step-panel {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.iw-step-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a2332;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.iw-step-subtitle {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ----------------------------------------------------------
+   Cards
+   ---------------------------------------------------------- */
+
+.iw-card {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.iw-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 1rem 0;
+}
+
+/* ----------------------------------------------------------
+   Buttons
+   ---------------------------------------------------------- */
+
+.iw-btn {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.iw-btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.iw-btn-primary:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.iw-btn-secondary {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.iw-btn-secondary:hover:not(:disabled) {
+  background: #dee2e6;
+}
+
+.iw-btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.iw-btn-danger:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.iw-btn-ghost {
+  background: transparent;
+  border: 1px solid #dee2e6;
+  color: #495057;
+}
+
+.iw-btn-ghost:hover:not(:disabled) {
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.iw-btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.iw-btn-icon {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.iw-btn-icon:hover:not(:disabled) {
+  background: #f0f0f0;
+  border-color: #dee2e6;
+}
+
+.iw-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ----------------------------------------------------------
+   Nav footer
+   ---------------------------------------------------------- */
+
+.iw-nav {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 2rem;
+  border-top: 1px solid #e9ecef;
+  background: white;
+  flex-shrink: 0;
+}
+
+.iw-nav-right {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* ----------------------------------------------------------
+   Drop zones (Load step)
+   ---------------------------------------------------------- */
+
+.iw-dropzone-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.iw-dropzone {
+  border: 2px dashed #ced4da;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  background: #fafafa;
+  user-select: none;
+}
+
+.iw-dropzone:hover,
+.iw-dropzone--hover {
+  border-color: #007bff;
+  background: #f0f7ff;
+}
+
+.iw-dropzone--loaded {
+  border-color: #16a34a;
+  background: #f0fff4;
+  cursor: default;
+}
+
+.iw-dropzone--error {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+
+.iw-dropzone-icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.5rem;
+  line-height: 1;
+}
+
+.iw-dropzone-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #2c3e50;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.iw-dropzone-hint {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.iw-dropzone-filename {
+  font-size: 0.8rem;
+  color: #16a34a;
+  font-weight: 600;
+  display: block;
+  margin-top: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iw-parse-summary {
+  padding: 0.75rem 1rem;
+  background: #e7f3ff;
+  border: 1px solid #bee3f8;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #0056b3;
+  line-height: 1.5;
+}
+
+.iw-parse-error {
+  padding: 0.75rem 1rem;
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #c53030;
+  line-height: 1.5;
+}
+
+/* ----------------------------------------------------------
+   Systems step
+   ---------------------------------------------------------- */
+
+.iw-systems-layout {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.iw-systems-panel {
+  flex: 1;
+}
+
+.iw-systems-panel-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+  margin: 0 0 0.75rem 0;
+}
+
+.iw-repo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.iw-repo-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  border: 1px solid #e9ecef;
+  gap: 0.5rem;
+}
+
+.iw-repo-item--assigned {
+  background: #e7f3ff;
+  border-color: #bee3f8;
+}
+
+.iw-system-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.iw-system-card {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.iw-system-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.iw-system-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.iw-system-repos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.iw-repo-tag {
+  padding: 0.25rem 0.6rem;
+  background: #e7f3ff;
+  border: 1px solid #bee3f8;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #0056b3;
+}
+
+.iw-add-system-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.iw-add-system-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: #212529;
+  background: white;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.iw-add-system-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+/* ----------------------------------------------------------
+   Review step (split pane)
+   ---------------------------------------------------------- */
+
+.iw-review-layout {
+  display: flex;
+  gap: 0;
+  height: 100%;
+  overflow: hidden;
+  flex: 1;
+}
+
+.iw-review-main {
+  width: 60%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid #e9ecef;
+}
+
+.iw-review-preview {
+  width: 40%;
+  display: flex;
+  flex-direction: column;
+  background: #f8f9fa;
+  overflow: hidden;
+}
+
+.iw-review-toolbar {
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  background: white;
+}
+
+.iw-filter-tabs {
+  display: flex;
+  gap: 0;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.iw-filter-tab {
+  padding: 0.4rem 0.75rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: #6c757d;
+  border-right: 1px solid #dee2e6;
+  font-family: inherit;
+  transition: background 0.1s, color 0.1s;
+}
+
+.iw-filter-tab:last-child {
+  border-right: none;
+}
+
+.iw-filter-tab:hover:not(.iw-filter-tab--active) {
+  background: #f8f9fa;
+  color: #343a40;
+}
+
+.iw-filter-tab--active {
+  background: #007bff;
+  color: white;
+}
+
+.iw-candidate-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+.iw-candidate-group {
+  padding: 0 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.iw-candidate-group-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6c757d;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.iw-keyboard-hint {
+  padding: 0.5rem 1.5rem;
+  font-size: 0.72rem;
+  color: #9ca3af;
+  text-align: center;
+  flex-shrink: 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.iw-preview-label {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+  border-bottom: 1px solid #e9ecef;
+  background: white;
+  flex-shrink: 0;
+}
+
+.iw-preview-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.iw-preview-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+/* ----------------------------------------------------------
+   Candidate card
+   ---------------------------------------------------------- */
+
+.iw-cand-card {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-left: 3px solid transparent;
+  outline: none;
+}
+
+.iw-cand-card:hover {
+  background: #f8f9fa;
+}
+
+.iw-cand-card:focus-visible {
+  background: #f0f7ff;
+  border-left-color: #007bff;
+}
+
+.iw-cand-card--accepted {
+  border-left-color: #16a34a;
+}
+
+.iw-cand-card--rejected {
+  border-left-color: #dc3545;
+  opacity: 0.6;
+}
+
+.iw-cand-card--pending {
+  border-left-color: #e9ecef;
+}
+
+.iw-cand-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.iw-cand-names {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  min-width: 0;
+}
+
+.iw-cand-source {
+  font-weight: 600;
+  color: #1a2332;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iw-cand-arrow {
+  color: #6c757d;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.iw-cand-target {
+  font-weight: 600;
+  color: #1a2332;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iw-cand-override {
+  font-size: 0.75rem;
+  color: #6c757d;
+  flex-shrink: 0;
+}
+
+.iw-cand-type-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.iw-confidence-badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+}
+
+.iw-confidence-badge--high {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.iw-confidence-badge--medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.iw-confidence-badge--low {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.iw-cand-actions {
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.iw-cand-actions .iw-btn-icon[aria-pressed='true'] {
+  background: #e7f3ff;
+  border-color: #bee3f8;
+  color: #0056b3;
+}
+
+.iw-cand-actions .iw-btn-icon[aria-pressed='true']:last-of-type {
+  background: #fff0f0;
+  border-color: #fecaca;
+  color: #dc3545;
+}
+
+.iw-cand-reasoning {
+  font-size: 0.75rem;
+  color: #6c757d;
+  line-height: 1.4;
+  padding: 0 0.25rem;
+  margin: 0;
+}
+
+.iw-cand-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.iw-cand-edit-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.iw-cand-edit-input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: #212529;
+  background: white;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.iw-cand-edit-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+/* ----------------------------------------------------------
+   Tagging step
+   ---------------------------------------------------------- */
+
+.iw-tagging-layout {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.iw-element-list {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.iw-element-list-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+  margin: 0 0 0.75rem 0;
+}
+
+.iw-element-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.iw-element-item--selected {
+  background: #e7f3ff;
+  border-color: #bee3f8;
+}
+
+.iw-element-item:hover:not(.iw-element-item--selected) {
+  background: #f8f9fa;
+}
+
+.iw-element-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.iw-element-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  color: #2c3e50;
+}
+
+.iw-element-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  background: #e9ecef;
+  color: #495057;
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+}
+
+.iw-element-editor {
+  flex: 1;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem;
+  min-width: 0;
+}
+
+.iw-editor-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 1.25rem 0;
+}
+
+.iw-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.iw-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #495057;
+}
+
+.iw-field input[type='text'],
+.iw-field input[type='email'],
+.iw-field input[type='url'],
+.iw-field select,
+.iw-field textarea {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: #212529;
+  background: white;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.iw-field input[type='text']:focus,
+.iw-field input[type='email']:focus,
+.iw-field input[type='url']:focus,
+.iw-field select:focus,
+.iw-field textarea:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+.iw-field textarea {
+  min-height: 80px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.iw-radio-group {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.iw-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: #212529;
+}
+
+.iw-radio-label input[type='radio'] {
+  cursor: pointer;
+}
+
+.iw-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.iw-toggle-label {
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: #212529;
+}
+
+.iw-toggle-row input[type='checkbox'] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.iw-tags-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  padding: 0.375rem;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  min-height: 40px;
+  align-items: center;
+  background: white;
+  cursor: text;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.iw-tags-input:focus-within {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+.iw-tag {
+  padding: 0.2rem 0.5rem;
+  background: #e7f3ff;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #0056b3;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  line-height: 1.4;
+}
+
+.iw-tag-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #0056b3;
+  font-size: 0.75rem;
+  padding: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  opacity: 0.7;
+  transition: opacity 0.1s;
+}
+
+.iw-tag-remove:hover {
+  opacity: 1;
+}
+
+.iw-tag-input {
+  border: none;
+  outline: none;
+  font-size: 0.8rem;
+  min-width: 80px;
+  flex: 1;
+  font-family: inherit;
+  color: #212529;
+  background: transparent;
+  padding: 0.1rem 0.125rem;
+}
+
+.iw-tag-input::placeholder {
+  color: #adb5bd;
+}
+
+/* ----------------------------------------------------------
+   Finalize step
+   ---------------------------------------------------------- */
+
+.iw-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.iw-summary-stat {
+  text-align: center;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.iw-summary-stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #007bff;
+  line-height: 1;
+}
+
+.iw-summary-stat-label {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+}
+
+.iw-finalize-diagram {
+  height: 500px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: white;
+}
+
+.iw-finalize-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ----------------------------------------------------------
+   Aliases and missing classes
+   ---------------------------------------------------------- */
+
+/* Button modifier aliases (double-dash variant) */
+.iw-btn--primary { background: #007bff; color: white; }
+.iw-btn--primary:hover:not(:disabled) { background: #0056b3; }
+.iw-btn--secondary { background: #e9ecef; color: #495057; }
+.iw-btn--secondary:hover:not(:disabled) { background: #dee2e6; }
+.iw-btn--danger { background: #dc3545; color: white; }
+.iw-btn--danger:hover:not(:disabled) { background: #c82333; }
+.iw-btn--sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
+
+/* Review step layout aliases */
+.iw-review-left {
+  width: 60%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid #e9ecef;
+}
+
+.iw-review-right {
+  width: 40%;
+  display: flex;
+  flex-direction: column;
+  background: #f8f9fa;
+  overflow: hidden;
+}
+
+/* Review step extras */
+.iw-candidate-groups {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.iw-filter-tab-count {
+  margin-left: 0.25rem;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.iw-filter-tab--active .iw-filter-tab-count {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.iw-panel-heading {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+  margin: 0 0 0.75rem 0;
+  padding: 0.75rem 1rem 0;
+}
+
+.iw-panel-empty {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  font-style: italic;
+  padding: 0.5rem 1rem;
+  margin: 0;
+}
+
+/* Step content wrapper */
+.iw-step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.iw-step-hint {
+  font-size: 0.8rem;
+  color: #6c757d;
+  font-style: italic;
+  margin: 0;
+}
+
+/* Load step extras */
+.iw-dropzone-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.iw-dropzone-input {
+  display: none;
+}
+
+.iw-dropzone-required {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #dc3545;
+  margin-left: 0.375rem;
+}
+
+.iw-dropzone-optional {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+  margin-left: 0.375rem;
+}
+
+.iw-dropzone-status {
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.iw-dropzone-status--success {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.iw-error-box {
+  padding: 0.75rem 1rem;
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #c53030;
+  line-height: 1.5;
+}
+
+/* Finalize step — summary card with stats */
+.iw-summary-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.iw-summary-card .iw-summary-stat {
+  flex: 1;
+  text-align: center;
+  border: none;
+  box-shadow: none;
+  padding: 0.5rem 1rem;
+}
+
+.iw-summary-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #007bff;
+  line-height: 1;
+  display: block;
+}
+
+.iw-summary-label {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.iw-summary-divider {
+  width: 1px;
+  height: 48px;
+  background: #e9ecef;
+  flex-shrink: 0;
+}
+
+/* Tagging step extras */
+.iw-element-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.iw-element-display-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  color: #2c3e50;
+}
+
+.iw-element-badges {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.iw-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+}
+
+.iw-badge--kind {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.iw-badge--external {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.iw-editor-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  font-size: 0.9rem;
+  color: #9ca3af;
+}
+
+/* Systems step extras */
+.iw-system-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.iw-system-card-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.iw-system-empty {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  font-style: italic;
+  margin: 0;
+}
+
+.iw-repo-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.iw-repo-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  background: #e7f3ff;
+  border: 1px solid #bee3f8;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #0056b3;
+}
+
+.iw-repo-tag-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #0056b3;
+  font-size: 0.75rem;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.1s;
+}
+
+.iw-repo-tag-remove:hover {
+  opacity: 1;
+}
+
+.iw-new-system-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.iw-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: #212529;
+  background: white;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.iw-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+.iw-repo-name {
+  font-size: 0.875rem;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.iw-repo-assign-select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: #495057;
+  background: white;
+  cursor: pointer;
+}
+
+.iw-repo-assign-select:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+/* ── Resolution field (match to existing diagram element) ───────────────── */
+
+.iw-field--resolution {
+  border-top: 1px solid #e9ecef;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+}
+
+.iw-field--resolution > label {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.iw-field-hint {
+  font-size: 0.78rem;
+  color: #6c757d;
+  margin: 0.25rem 0 0.5rem;
+  line-height: 1.4;
+}
+
+.iw-field-resolved {
+  font-size: 0.78rem;
+  color: #28a745;
+  margin-top: 0.35rem;
+  font-weight: 500;
+}
+
+.iw-field-new {
+  font-size: 0.78rem;
+  color: #6c757d;
+  margin-top: 0.35rem;
+}
