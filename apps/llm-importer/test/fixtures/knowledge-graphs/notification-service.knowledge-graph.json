@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-07-25T00:00:00Z",
+  "repository": {
+    "name": "notification-service",
+    "path": "/fixtures/notification-service",
+    "description": "Sends notifications by consuming user-created events"
+  },
+  "nodes": [
+    {
+      "id": "file:src/consumer.ts",
+      "type": "file",
+      "name": "consumer.ts",
+      "filePath": "src/consumer.ts",
+      "summary": "Consumes the user-created topic published by user-service"
+    },
+    {
+      "id": "service:notification-service",
+      "type": "service",
+      "name": "notification-service",
+      "summary": "The analyzed repository itself"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:src/consumer.ts",
+      "target": "service:notification-service",
+      "type": "subscribes",
+      "weight": 0.85,
+      "description": "consumes the user-created topic published by user-service"
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

@@ -36,6 +36,13 @@ export interface StoragePromptDialogProps {
   /** Auth state lifted from the parent — single source of truth for the access token */
   driveAuth: GoogleDriveAuthState;
   onClose?: () => void;
+  /**
+   * 'startup' only — navigates to the Import Wizard instead of picking a
+   * storage location. This dialog is modal (no dismiss button), so it's
+   * otherwise the only way in or out of the app on first load — the Import
+   * Wizard entry point has to live here to be reachable at all.
+   */
+  onImportRepos?: () => void;
 }
 
 export function StoragePromptDialog({
@@ -43,6 +50,7 @@ export function StoragePromptDialog({
   onLocalSelected,
   onDriveSelected,
   driveAuth,
+  onImportRepos,
 }: StoragePromptDialogProps) {
   const [localProvider] = useState(() => new LocalFileProvider());
 
@@ -253,6 +261,29 @@ export function StoragePromptDialog({
                 Open a diagram from your computer or Google Drive
               </div>
             </button>
+            {onImportRepos && (
+              <button
+                onClick={onImportRepos}
+                style={{
+                  padding: '0.75rem 1rem',
+                  borderRadius: 6,
+                  border: '2px solid #ccc',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  textAlign: 'left',
+                  color: '#111',
+                  fontFamily: 'inherit',
+                  lineHeight: 1.4,
+                }}
+              >
+                Import from repos
+                <div style={{ fontWeight: 400, fontSize: '0.85rem', color: '#555', marginTop: 4 }}>
+                  Run the repo importer and build a new diagram from your code
+                </div>
+              </button>
+            )}
           </div>
         )}
 
