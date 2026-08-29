@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, mkdir, copyFile, access } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, mkdir, copyFile, access, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -56,6 +56,55 @@ async function fileExists(p: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * uds-sdk live-run finding: a local model can silently abandon the vendored
+ * skill mid-run and hand-write a shortcut `.ua/knowledge-graph.json` instead
+ * of actually executing SKILL.md's Phase 1-7 pipeline — the file-exists
+ * check the nudge loop uses can't tell a fabricated graph from a genuine
+ * one, so a hand-rolled, largely-templated graph was silently accepted as a
+ * successful analysis (and left stray script files in the analyzed repo).
+ *
+ * SKILL.md's own Phase 7 (SAVE) contract gives a reliable, deterministic
+ * signal instead of guessing from graph *content*: a genuine `--full` run
+ * always writes `meta.json` (step 3), always preserves
+ * `intermediate/scan-result.json` (step 4 — kept on purpose for incremental
+ * runs, issue #293), and always moves the rest of `intermediate/` into a
+ * `.trash-<epoch>/` directory during cleanup (step 4, issue #301) —
+ * regardless of repo size, since Phase 1 SCAN and Phase 7 SAVE both run
+ * unconditionally under `--full`. A hand-rolled substitute reproduces none
+ * of this. Only called when knowledge-graph.json itself exists — a plain
+ * missing graph already gets its own clear "file not found" error below.
+ */
+async function verifyGenuineAnalysis(repoPath: string): Promise<void> {
+  const uaDir = uaDirPath(repoPath);
+  const missing: string[] = [];
+
+  if (!(await fileExists(join(uaDir, 'meta.json')))) {
+    missing.push('meta.json');
+  }
+  if (!(await fileExists(join(uaDir, 'intermediate', 'scan-result.json')))) {
+    missing.push('intermediate/scan-result.json');
+  }
+
+  let hasTrashDir = false;
+  try {
+    const entries = await readdir(uaDir);
+    hasTrashDir = entries.some((entry) => entry.startsWith('.trash-'));
+  } catch {
+    // uaDir unreadable — treated the same as "no trash dir found" below.
+  }
+  if (!hasTrashDir) {
+    missing.push('.trash-<epoch>/');
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `knowledge-graph.json exists but the skill's genuine-analysis markers are missing (${missing.join(', ')}) — ` +
+        'the agent likely fabricated a shortcut instead of running the vendored skill (uds-sdk live-run finding).'
+    );
   }
 }
 
@@ -126,6 +175,10 @@ async function runOnce(options: RunUnderstandOptions): Promise<RepositoryKnowled
     }
   } finally {
     session.dispose();
+  }
+
+  if (await fileExists(uaKnowledgeGraphPath(options.repoPath))) {
+    await verifyGenuineAnalysis(options.repoPath);
   }
 
   const rawGraphText = await readFile(uaKnowledgeGraphPath(options.repoPath), 'utf8');

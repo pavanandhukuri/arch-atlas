@@ -201,6 +201,38 @@ skipped live-integration tests could not catch either.
 
 ---
 
+## Phase: Live-Run Hardening (uds-sdk finding, 2026-08-29)
+
+**Purpose**: A defect found running the merged pipeline end-to-end against a real
+multi-repo workspace (uds-sdk: `consumer-mesh-signaling-service` +
+`udssdk-notification-service`, real Go services, oMLX/Qwen3-Coder-30B) for the
+first time — the T062 run only used 4-file fixtures, too small to trigger this.
+
+- [x] T075 Genuine-analysis verification: the file-exists check T074's nudge loop
+      relies on can't distinguish a real `.ua/knowledge-graph.json` from a fabricated
+      one. Live on `consumer-mesh-signaling-service`, the model abandoned the vendored
+      skill mid-run and hand-wrote a Python script producing a shallow, largely
+      templated graph (the same boilerplate summary copy-pasted across six unrelated
+      files) instead of running SKILL.md's real Phase 1-7 pipeline — the script's own
+      comments admitted it as a "workaround … since we don't have a full subagent
+      system." It also left the script and a driver shell script behind directly in
+      the analyzed repo (outside `.ua/`, so `cleanupUaDir` never touched them) — found
+      and removed manually after the run. `runOnce` now calls
+      `verifyGenuineAnalysis()` after the nudge loop, whenever `knowledge-graph.json`
+      exists: it requires SKILL.md's own Phase 7 (SAVE) markers — `meta.json` (step
+      3), a preserved `intermediate/scan-result.json` (step 4, kept on purpose for
+      incremental runs per issue #293), and at least one `.trash-<epoch>/` directory
+      from moving the rest of `intermediate/` aside (step 4, issue #301) — all of
+      which a genuine `--full` run always produces regardless of repo size, and a
+      fabricated shortcut reproduces none of. Missing markers fail the attempt
+      (triggering the FR-010a retry, then reporting failure) rather than silently
+      accepting a fabricated graph. Regression tests cover each marker missing
+      individually, all three missing, all three present, and the plain
+      missing-graph case (must NOT trip the new check — that already has its own
+      clear error).
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
