@@ -28,11 +28,26 @@ export const AnalysisConfigSchema = z
     maxFilesPerRepo: z.number().int().min(10).max(1000).default(200),
     excludePatterns: z.array(z.string()).default([]),
     forceRefresh: z.boolean().default(false),
-    // Shared by repo-level fan-out AND the vendored subagent dispatcher's internal
-    // batch fan-out (research.md D8, FR-016) — NOT the same meaning as v1.0's
-    // repo-only `concurrency` field. Upper bound matches the vendored subagent
-    // extension's own hard cap (vendor/pi-subagent/index.ts MAX_PARALLEL_TASKS).
-    maxConcurrency: z.number().int().min(1).max(8).default(2),
+    // Max repositories analyzed in parallel — one bounded model call each
+    // (008). Default 1: a single local model serving two large-context 30B
+    // requests at once was observed returning unparseable output for one of
+    // them. Raise it (up to 8) for smaller models or a beefier endpoint.
+    maxConcurrency: z.number().int().min(1).max(8).default(1),
+    // Sampling temperature for the analysis + agentic-correlation calls
+    // (research.md D14). Low by default — analysis is extraction, not
+    // generation; a high temperature was the main source of run-to-run
+    // variance (a repo's route list changing between runs).
+    temperature: z.number().min(0).max(2).default(0.1),
+    // When true, a second bounded call re-checks the analysis against the
+    // gathered source and drops anything not grounded in it (research.md
+    // D14.8). Doubles the per-repo model cost — opt-in.
+    verifyGrounding: z.boolean().default(false),
+    // 'prompt' (default) = free-form JSON text + hardened parse. 'tool' =
+    // EXPERIMENTAL: one constrained-sampling `submit_analysis` tool call.
+    // Only worthwhile against an endpoint with fast, well-behaved json-schema
+    // guided decoding — observed pathologically slow against oMLX (research.md
+    // D14.6). Leave on 'prompt' unless you have measured otherwise.
+    structuredOutput: z.enum(['prompt', 'tool']).default('prompt'),
   })
   .default({});
 export type AnalysisConfig = z.infer<typeof AnalysisConfigSchema>;

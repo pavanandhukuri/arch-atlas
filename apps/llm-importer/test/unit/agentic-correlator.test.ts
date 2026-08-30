@@ -28,7 +28,7 @@ vi.mock('@earendil-works/pi-coding-agent', async () => {
                   {
                     direction: 'A_TO_B',
                     type: 'calls',
-                    confidence: 0.7,
+                    confidence: 0.85,
                     reasoning: 'plausible naming match',
                   },
                 ]),
@@ -87,7 +87,7 @@ describe('correlateAgentically', () => {
       targetRepo: 'service-b',
       type: 'calls',
       foundBy: 'agentic-fallback',
-      weight: 0.7,
+      weight: 0.85,
     });
   });
 
@@ -119,6 +119,103 @@ describe('correlateAgentically', () => {
     const connections = await correlateAgentically(
       [{ repoA: 'service-a', repoB: 'service-b' }],
       graphsByName,
+      { id: 'llama3', provider: 'ollama' } as never,
+      {} as never,
+      new SharedLimiter(2)
+    );
+    expect(connections).toEqual([]);
+  });
+
+  it('drops low-confidence and thinly-reasoned proposals (research.md D14.4)', async () => {
+    vi.mocked(pi.createAgentSession).mockImplementationOnce(() => {
+      let subscriber: ((event: unknown) => void) | undefined;
+      return Promise.resolve({
+        session: {
+          subscribe: (fn: (event: unknown) => void) => {
+            subscriber = fn;
+          },
+          prompt: (_text: string) => {
+            subscriber?.({
+              type: 'message_update',
+              assistantMessageEvent: {
+                type: 'text_delta',
+                delta: JSON.stringify([
+                  {
+                    direction: 'A_TO_B',
+                    type: 'calls',
+                    confidence: 0.5,
+                    reasoning: 'both are services',
+                  },
+                  { direction: 'A_TO_B', type: 'calls', confidence: 0.9, reasoning: 'ok' },
+                  {
+                    direction: 'B_TO_A',
+                    type: 'publishes',
+                    confidence: 0.85,
+                    reasoning: 'A subscribes to the "orders.created" topic that B publishes',
+                  },
+                ]),
+              },
+            });
+            return Promise.resolve();
+          },
+          dispose: disposeMock,
+        },
+        extensionsResult: { extensions: [], errors: [] },
+      }) as never;
+    });
+
+    const connections = await correlateAgentically(
+      [{ repoA: 'service-a', repoB: 'service-b' }],
+      new Map([
+        ['service-a', makeGraph('service-a')],
+        ['service-b', makeGraph('service-b')],
+      ]),
+      { id: 'llama3', provider: 'ollama' } as never,
+      {} as never,
+      new SharedLimiter(2)
+    );
+    // only the one with confidence >= 0.8 AND a concrete, non-infra reason survives
+    expect(connections).toHaveLength(1);
+    expect(connections[0]).toMatchObject({ type: 'publishes', weight: 0.85 });
+  });
+
+  it('drops "both repos use <shared third-party>" reasoning even at high confidence (D14.4)', async () => {
+    vi.mocked(pi.createAgentSession).mockImplementationOnce(() => {
+      let subscriber: ((event: unknown) => void) | undefined;
+      return Promise.resolve({
+        session: {
+          subscribe: (fn: (event: unknown) => void) => {
+            subscriber = fn;
+          },
+          prompt: (_text: string) => {
+            subscriber?.({
+              type: 'message_update',
+              assistantMessageEvent: {
+                type: 'text_delta',
+                delta: JSON.stringify([
+                  {
+                    direction: 'A_TO_B',
+                    type: 'depends_on',
+                    confidence: 0.9,
+                    reasoning: 'Both repositories depend on Keycloak for JWT authentication',
+                  },
+                ]),
+              },
+            });
+            return Promise.resolve();
+          },
+          dispose: disposeMock,
+        },
+        extensionsResult: { extensions: [], errors: [] },
+      }) as never;
+    });
+
+    const connections = await correlateAgentically(
+      [{ repoA: 'service-a', repoB: 'service-b' }],
+      new Map([
+        ['service-a', makeGraph('service-a')],
+        ['service-b', makeGraph('service-b')],
+      ]),
       { id: 'llama3', provider: 'ollama' } as never,
       {} as never,
       new SharedLimiter(2)

@@ -13,26 +13,44 @@ import type { SharedLimiter } from '../concurrency/shared-limiter.js';
 import type { CrossRepositoryConnection, UnresolvedRepoPair } from './deterministic-correlator.js';
 
 /**
- * research.md D7 pass 2: bounded fallback for repository pairs the
- * deterministic pass could not resolve, given condensed per-repo summaries
- * (node/edge counts + names — not full graphs, to keep this cheap on a local
- * model). This is our own correlation logic, not part of UA's vendored
- * skill (D2/D4) — it runs no-tools, single-turn, purely as a text-reasoning
- * call, so it doesn't need the resource loader or vendored skill at all.
+ * 007 research.md D7 pass 2: bounded fallback for repository pairs the
+ * deterministic pass could not resolve, given condensed per-repo summaries.
+ * research.md D14.4 tightened it: the summary now includes served interfaces,
+ * the prompt demands a concrete name/path/topic match (not generic
+ * similarity), and only high-confidence results are kept.
  */
+const MIN_AGENTIC_CONFIDENCE = 0.8;
+
+/**
+ * research.md D14.4: the model keeps dressing up "both repos use AWS / Keycloak
+ * / Postgres" as a concrete match. Drop a proposal whose reasoning rests only on
+ * a shared third-party dependency and offers no repo-specific route / topic /
+ * identifier.
+ */
+const SHARED_INFRA_RE =
+  /\b(aws|s3|kms|bedrock|keycloak|okta|auth0|cognito|postgres|postgresql|mysql|redis|kafka|rabbitmq|nats|zookeeper|elasticsearch|mongodb|dynamodb|gcs|azure)\b/i;
+const CONCRETE_MATCH_RE = /(["'`/][\w./{}-]+["'`/]?|\btopic\b|:\d{2,5}\b|\bendpoint\b|\broute\b)/i;
+
+function isGenericInfraReasoning(reasoning: string): boolean {
+  const lc = reasoning.toLowerCase();
+  const leansOnBoth = lc.includes('both ') || lc.includes('shared') || lc.includes('same aws');
+  return leansOnBoth && SHARED_INFRA_RE.test(reasoning) && !CONCRETE_MATCH_RE.test(reasoning);
+}
+
 function condenseForPrompt(graph: RepositoryKnowledgeGraph): string {
-  const services = graph.nodes.filter(
-    (n) => n.type === 'service' || n.type === 'endpoint' || n.type === 'config'
+  const served = graph.nodes.filter((n) =>
+    ['endpoint', 'table', 'resource', 'service'].includes(n.type)
   );
   const outbound = graph.edges
     .filter((e) => ['calls', 'depends_on', 'publishes', 'subscribes'].includes(e.type))
     .map((e) => `${e.type}: ${e.description ?? e.target}`);
   return [
     `Repository: ${graph.repository.name}`,
-    services.length > 0 ? `Key components: ${services.map((s) => s.name).join(', ')}` : '',
-    outbound.length > 0
-      ? `Outbound connections:\n${outbound.map((o) => `  - ${o}`).join('\n')}`
+    graph.repository.description ? `Summary: ${graph.repository.description}` : '',
+    served.length > 0
+      ? `Serves / owns:\n${served.map((s) => `  - ${s.type}: ${s.name}`).join('\n')}`
       : '',
+    outbound.length > 0 ? `Outbound intents:\n${outbound.map((o) => `  - ${o}`).join('\n')}` : '',
   ]
     .filter(Boolean)
     .join('\n');
@@ -75,9 +93,11 @@ async function correlatePair(
   try {
     await session.prompt(
       [
-        'Two repository summaries follow. Identify likely connections between them',
-        '(one calling the other, publishing/subscribing to a shared topic, sharing a',
-        'database, etc.) based on naming and described behavior alone.',
+        'Two repository summaries follow. Propose a connection ONLY when a specific',
+        "name, route path, topic string, datastore, or dependency in one repo's summary",
+        'plausibly refers to something the other repo serves or owns. Do NOT propose a',
+        'connection from generic similarity (e.g. "both use AWS", "both are services").',
+        'When in doubt, propose nothing.',
         '',
         '--- Repository A ---',
         condenseForPrompt(repoA),
@@ -87,8 +107,8 @@ async function correlatePair(
         '',
         'Respond with ONLY a JSON array (no prose), each element:',
         '{ "direction": "A_TO_B" | "B_TO_A", "type": "calls"|"depends_on"|"publishes"|"subscribes"|"reads_from"|"writes_to",',
-        '  "confidence": 0.0-1.0, "reasoning": "one sentence" }',
-        'If there is no likely connection, respond with [].',
+        '  "confidence": 0.0-1.0, "reasoning": "cite the specific matching name/path/topic" }',
+        'If there is no concrete match, respond with [].',
       ].join('\n')
     );
   } finally {
@@ -104,7 +124,11 @@ async function correlatePair(
       obj.direction === 'A_TO_B' || obj.direction === 'B_TO_A' ? obj.direction : undefined;
     const type = obj.type;
     const confidence = typeof obj.confidence === 'number' ? obj.confidence : undefined;
+    const reasoning = typeof obj.reasoning === 'string' ? obj.reasoning.trim() : '';
     if (!direction || typeof type !== 'string' || confidence === undefined) continue;
+    // research.md D14.4: keep only confident, concretely-reasoned proposals.
+    if (confidence < MIN_AGENTIC_CONFIDENCE || reasoning.length < 12) continue;
+    if (isGenericInfraReasoning(reasoning)) continue;
 
     const [from, to] = direction === 'A_TO_B' ? [repoA, repoB] : [repoB, repoA];
     connections.push({
@@ -114,7 +138,7 @@ async function correlatePair(
       targetNodeId: `service:${to.repository.name}`,
       type: type as CrossRepositoryConnection['type'],
       foundBy: 'agentic-fallback',
-      evidence: typeof obj.reasoning === 'string' ? [obj.reasoning] : [],
+      evidence: [reasoning],
       weight: Math.max(0, Math.min(1, confidence)),
     });
   }

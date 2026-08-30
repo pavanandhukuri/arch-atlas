@@ -41,6 +41,9 @@ export function mapToConfidenceBucket(
   // no adjustment.
   if (source === 'evidence-correlation') return base;
   if (source === 'deterministic-correlation') return bump(base, 1);
-  if (source === 'agentic-correlation-fallback') return cap(base, 'medium');
+  // research.md D14.4: an agentic-fallback connection is an unverified prose
+  // guess — always surface it as `low` so a reviewer treats it as "check this",
+  // not "probably real" (was capped at `medium` in D11).
+  if (source === 'agentic-correlation-fallback') return cap(base, 'low');
   return base;
 }

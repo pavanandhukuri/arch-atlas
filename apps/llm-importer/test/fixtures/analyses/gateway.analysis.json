@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-08-30T12:00:00.000Z",
+  "repository": {
+    "name": "gateway",
+    "path": "/fixtures/repos/gateway",
+    "description": "Public API gateway"
+  },
+  "description": "An Express API gateway that proxies /api/users/* to user-service, /api/notifications/* to notification-service, and /api/audit/* to audit-service.",
+  "languages": ["TypeScript"],
+  "frameworks": ["Express", "http-proxy-middleware"],
+  "served": {
+    "httpRoutes": [
+      { "path": "/api/users", "filePath": "src/routes.ts" },
+      { "path": "/api/notifications", "filePath": "src/routes.ts" },
+      { "path": "/api/audit", "filePath": "src/routes.ts" }
+    ],
+    "grpcServices": [],
+    "topics": [],
+    "datastores": []
+  },
+  "outbound": [
+    {
+      "target": "user-service",
+      "verb": "calls",
+      "detail": "proxies /api/users/* to user-service",
+      "confidence": 0.8
+    },
+    {
+      "target": "notification-service",
+      "verb": "calls",
+      "detail": "proxies /api/notifications/* to notification-service and probes POST /api/notifications/v1/send",
+      "confidence": 0.8
+    },
+    {
+      "target": "audit-service",
+      "verb": "calls",
+      "detail": "proxies /api/audit/* to audit-service",
+      "confidence": 0.8
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

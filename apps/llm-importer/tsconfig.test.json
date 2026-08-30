@@ -6,5 +6,11 @@
     "noEmit": true
   },
   "include": ["src/**/*", "test/**/*"],
-  "exclude": ["node_modules", "dist", "vendor/**/*", "test/fixtures/repos/**/*"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "vendor/**/*",
+    "test/fixtures/repos/**/*",
+    "test/eval/golden/*/workspace/**/*"
+  ]
 }

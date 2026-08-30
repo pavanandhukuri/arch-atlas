@@ -42,10 +42,10 @@ describe('SharedLimiter', () => {
     await expect(limiter.run(() => Promise.resolve('ok'))).resolves.toBe('ok');
   });
 
-  it('represents both repo-level and internal-batch fan-out sharing one pool (FR-016 intent)', async () => {
-    // Simulates two independent call sites (e.g. repo-level fan-out and the
-    // vendored subagent dispatcher's internal batch fan-out) drawing from
-    // the SAME limiter instance, as run-import.ts wires it.
+  it('represents multiple call sites sharing one pool (FR-016 intent)', async () => {
+    // Simulates two independent call sites (repo-level analysis fan-out and
+    // the agentic correlation fallback) drawing from the SAME limiter
+    // instance, as run-import.ts wires it.
     const limiter = new SharedLimiter(2);
     let current = 0;
     let maxObserved = 0;

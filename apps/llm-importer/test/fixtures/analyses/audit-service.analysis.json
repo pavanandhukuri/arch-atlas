@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-08-30T12:00:00.000Z",
+  "repository": {
+    "name": "audit-service",
+    "path": "/fixtures/repos/audit-service",
+    "description": "Records an audit trail"
+  },
+  "description": "A Go service that consumes the user-created Kafka topic and writes an entry to the audit_log PostgreSQL table, and exposes POST /v1/audit (behind the /api/audit gateway prefix) for manual entries.",
+  "languages": ["Go"],
+  "frameworks": ["kafka-go", "pgx"],
+  "served": {
+    "httpRoutes": [{ "method": "POST", "path": "/v1/audit", "filePath": "cmd/audit/http.go" }],
+    "grpcServices": [],
+    "topics": [{ "name": "user-created", "direction": "consume", "filePath": "cmd/audit/main.go" }],
+    "datastores": [{ "name": "audit_log", "kind": "relational" }]
+  },
+  "outbound": [],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

@@ -4,7 +4,14 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    exclude: ['**/node_modules/**', '**/dist/**', 'vendor/**'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      'vendor/**',
+      // externally-cloned golden workspaces for the eval (their own test files
+      // are not ours to run)
+      'test/eval/golden/*/workspace/**',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

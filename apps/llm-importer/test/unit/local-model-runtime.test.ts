@@ -7,8 +7,49 @@ import {
   checkLocalModelReachable,
   LocalModelUnreachableError,
   buildLocalModelRuntime,
+  withSamplingDefaults,
 } from '../../src/model-runtime/local-model-runtime.js';
+import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import type { LocalModelConfig } from '../../src/config/config.schema.js';
+
+describe('withSamplingDefaults (research.md D14.1)', () => {
+  it('injects the temperature into stream/complete option args, and passes other methods through', () => {
+    const calls: Array<{ method: string; options: unknown }> = [];
+    const fake = {
+      stream: (_m: unknown, _c: unknown, options?: unknown) => {
+        calls.push({ method: 'stream', options });
+        return 'stream-result';
+      },
+      complete: (_m: unknown, _c: unknown, options?: unknown) => {
+        calls.push({ method: 'complete', options });
+        return 'complete-result';
+      },
+      getModel: (p: string, id: string) => `${p}/${id}`,
+    } as unknown as ModelRuntime;
+
+    const wrapped = withSamplingDefaults(fake, 0.1);
+    void wrapped.stream({} as never, {} as never);
+    void wrapped.complete({} as never, {} as never, { maxTokens: 100 } as never);
+
+    expect(calls[0]?.options).toEqual({ temperature: 0.1 });
+    // explicit caller options are preserved alongside the injected temperature
+    expect(calls[1]?.options).toEqual({ temperature: 0.1, maxTokens: 100 });
+    // non-sampling methods are untouched
+    expect(wrapped.getModel('ollama', 'llama3')).toBe('ollama/llama3');
+  });
+
+  it('a caller-supplied temperature wins over the default', () => {
+    let seen: unknown;
+    const fake = {
+      stream: (_m: unknown, _c: unknown, options?: unknown) => {
+        seen = options;
+        return undefined;
+      },
+    } as unknown as ModelRuntime;
+    withSamplingDefaults(fake, 0.1).stream({} as never, {} as never, { temperature: 0.9 } as never);
+    expect(seen).toEqual({ temperature: 0.9 });
+  });
+});
 
 let server: Server | undefined;
 let workDir: string | undefined;

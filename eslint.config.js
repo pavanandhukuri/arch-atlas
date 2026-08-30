@@ -123,6 +123,9 @@ export default tseslint.config(
       // *analyze* — arbitrary content standing in for a real target repo,
       // not our own source code. Never part of this package's TS project.
       'apps/llm-importer/test/fixtures/repos/**',
+      // External golden workspaces the eval clones at a pinned SHA (git-ignored)
+      // — third-party code we analyze, not lint.
+      'apps/llm-importer/test/eval/golden/*/workspace/**',
     ],
   }
 );

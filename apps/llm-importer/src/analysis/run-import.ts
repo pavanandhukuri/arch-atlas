@@ -3,13 +3,17 @@ import { join, resolve } from 'node:path';
 import type { ImportConfig } from '../config/config.schema.js';
 import { buildLocalModelRuntime } from '../model-runtime/local-model-runtime.js';
 import { SharedLimiter } from '../concurrency/shared-limiter.js';
-import { runUnderstand, ensureOutputDir } from './run-understand.js';
+import { analyzeRepo } from './analyze-repo.js';
 import {
-  hasValidCachedArtifact,
-  readKnowledgeGraph,
-  writeKnowledgeGraph,
-  listAllKnowledgeGraphs,
-} from '../graph/knowledge-graph-store.js';
+  ensureOutputDir,
+  hasValidCachedAnalysis,
+  listAllAnalyses,
+  readAnalysis,
+  writeAnalysis,
+} from './analysis-store.js';
+import { toCorrelationGraph } from './to-correlation-graph.js';
+import type { RepoAnalysis } from './repo-analysis.schema.js';
+import type { RepoMeta } from '../review/review-file.js';
 import type { RepositoryKnowledgeGraph } from '../graph/schema.js';
 import { correlateDeterministically } from '../correlate/deterministic-correlator.js';
 import { correlateAgentically } from '../correlate/agentic-correlator.js';
@@ -30,11 +34,35 @@ function log(line: string): void {
   console.error(line);
 }
 
-/** US2/FR-010: partial-failure summary — never silently drops a failed repo. */
+/** US2/FR-014: partial-failure summary — never silently drops a failed repo. */
 function reportFailures(failures: Array<{ name: string; error: string }>): void {
   if (failures.length === 0) return;
   log(`\n⚠ ${failures.length} repositor${failures.length === 1 ? 'y' : 'ies'} failed after retry:`);
   for (const f of failures) log(`  - ${f.name}: ${f.error}`);
+}
+
+function techLabel(analysis: RepoAnalysis): string {
+  return (
+    analysis.frameworks[0] ??
+    (analysis.languages.length > 0 ? analysis.languages.join('/') : 'unknown')
+  );
+}
+
+function servedSummary(analysis: RepoAnalysis): string {
+  const routes = analysis.served.httpRoutes.length + analysis.served.grpcServices.length;
+  const topics = analysis.served.topics.length;
+  const outbound = analysis.outbound.length;
+  return `${routes} route(s), ${topics} topic(s), ${outbound} outbound intent(s)`;
+}
+
+/** 008 US3: per-repo metadata carried onto the review artifact + diagram. */
+function toRepoMeta(analysis: RepoAnalysis): RepoMeta {
+  const tech = techLabel(analysis);
+  return {
+    name: analysis.repository.name,
+    ...(analysis.description ? { description: analysis.description } : {}),
+    ...(tech !== 'unknown' ? { technology: tech } : {}),
+  };
 }
 
 export async function runImport(config: ImportConfig, options: RunImportOptions): Promise<void> {
@@ -43,48 +71,53 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
 
   const maxConcurrency = options.maxConcurrencyOverride ?? config.analysis.maxConcurrency;
   const limiter = new SharedLimiter(maxConcurrency);
-  // research.md D8/FR-016: the vendored subagent extension (vendor/pi-subagent)
-  // reads this env var for its own internal batch-fan-out limit, so it shares
-  // the same bound as our repo-level SharedLimiter above rather than
-  // multiplying two independently-scaling concurrency layers.
-  process.env.ARCH_ATLAS_MAX_CONCURRENCY = String(maxConcurrency);
 
-  const { modelRuntime, model } = await buildLocalModelRuntime(config.localModel, outputDir);
+  const { modelRuntime, model } = await buildLocalModelRuntime(
+    config.localModel,
+    outputDir,
+    config.analysis.temperature
+  );
 
   const selectedRepos = options.repoNamesFilter
     ? config.repositories.filter((r) => options.repoNamesFilter?.includes(r.name ?? r.path))
     : config.repositories;
 
   const graphs: RepositoryKnowledgeGraph[] = [];
+  const analysesByName = new Map<string, RepoAnalysis>();
   const failures: Array<{ name: string; error: string }> = [];
 
+  const register = (analysis: RepoAnalysis): void => {
+    analysesByName.set(analysis.repository.name, analysis);
+    graphs.push(toCorrelationGraph(analysis));
+  };
+
   if (options.aggregateOnly) {
-    // FR-012: skip analysis entirely, load every existing artifact in the output dir.
-    graphs.push(...(await listAllKnowledgeGraphs(outputDir)));
+    // FR-012: skip analysis entirely, load every existing analysis artifact.
+    for (const analysis of await listAllAnalyses(outputDir)) register(analysis);
   } else {
     await Promise.all(
       selectedRepos.map(async (repo) => {
         const name = repo.name ?? repo.path.split('/').filter(Boolean).pop() ?? repo.path;
 
-        // US3/FR-011: skip repos with a valid existing artifact unless --force-refresh.
+        // US3/FR-012: skip repos with a valid existing artifact unless --force-refresh.
         const forceThisRun = options.forceRefresh || config.analysis.forceRefresh;
-        if (!forceThisRun && (await hasValidCachedArtifact(outputDir, name))) {
-          log(`[skip] ${name}: valid cached knowledge graph exists`);
-          graphs.push(await readKnowledgeGraph(outputDir, name));
+        if (!forceThisRun && (await hasValidCachedAnalysis(outputDir, name))) {
+          log(`[skip] ${name}: valid cached analysis exists`);
+          register(await readAnalysis(outputDir, name));
           return;
         }
 
-        log(`[analyze] ${name}: starting...`);
-        const result = await runUnderstand({
+        const result = await analyzeRepo({
           repoName: name,
           repoPath: resolve(repo.path),
           repoDescription: repo.description,
           model,
           modelRuntime,
           limiter,
-          verbose: options.verbose,
+          structuredOutput: config.analysis.structuredOutput,
+          verifyGrounding: config.analysis.verifyGrounding,
           onProgress: (line) => {
-            if (options.verbose) log(`  [${name}] ${line}`);
+            log(`[analyze] ${name}: ${line}`);
           },
         });
 
@@ -94,11 +127,9 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
           return;
         }
 
-        await writeKnowledgeGraph(outputDir, result.graph);
-        log(
-          `[done] ${name}: ${result.graph.nodes.length} nodes, ${result.graph.edges.length} edges`
-        );
-        graphs.push(result.graph);
+        await writeAnalysis(outputDir, result.analysis);
+        log(`[done] ${name}: ${techLabel(result.analysis)} · ${servedSummary(result.analysis)}`);
+        register(result.analysis);
       })
     );
   }
@@ -107,7 +138,7 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
 
   if (options.analyzeOnly) {
     log(
-      `\nAnalysis complete (--analyze-only): ${graphs.length} repositor${graphs.length === 1 ? 'y' : 'ies'} analyzed.`
+      `\nAnalysis complete (--analyze-only): ${analysesByName.size} repositor${analysesByName.size === 1 ? 'y' : 'ies'} analyzed.`
     );
     return;
   }
@@ -142,24 +173,22 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
     log(`  Agentic pass: ${agenticConnections.length} connection(s) found`);
   }
 
-  const review = assembleReviewFile(graphs, [...deterministicConnections, ...agenticConnections]);
+  const repoMetaByName = new Map(
+    [...analysesByName.values()].map((a) => [a.repository.name, toRepoMeta(a)])
+  );
+
+  const review = assembleReviewFile(
+    graphs,
+    [...deterministicConnections, ...agenticConnections],
+    repoMetaByName
+  );
   const reviewPath = join(outputDir, 'architecture.review.yaml');
-  // Written as JSON (a valid YAML subset) — no yaml-serialization dependency
-  // needed beyond what loadConfig already pulls in for reading, and Studio's
-  // wizard parses this file with the same YAML/JSON-tolerant loader it
-  // already uses for config.
   await writeFile(reviewPath, JSON.stringify(review, null, 2), 'utf8');
   log(`\n✓ Review artifact written to ${reviewPath}`);
 
-  // For repos with candidates still pending human review, the final diagram
-  // only reflects accepted candidates (buildDiagram filters on status
-  // 'accepted') — on a fresh run that's typically empty, which is correct:
-  // Studio's import wizard is where a human accepts/rejects before a
-  // meaningful diagram exists. We still write whatever's accepted so far
-  // (e.g. on a re-run after partial review) rather than skip export.
   const diagramTitle =
     config.output.diagramFileName.replace(/\.arch\.json$/, '') || 'Imported Architecture';
-  const diagram = buildDiagram(review, diagramTitle);
+  const diagram = buildDiagram(review, diagramTitle, repoMetaByName);
   const diagramPath = join(outputDir, config.output.diagramFileName);
   await writeFile(diagramPath, JSON.stringify(diagram, null, 2), 'utf8');
   log(`✓ Diagram written to ${diagramPath}`);

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-08-30T12:00:00.000Z",
+  "repository": {
+    "name": "user-service",
+    "path": "/fixtures/repos/user-service",
+    "description": "Owns user accounts"
+  },
+  "description": "A TypeScript service that owns user accounts, persists them to PostgreSQL, and publishes a user-created event to Kafka on registration.",
+  "languages": ["TypeScript"],
+  "frameworks": ["node-postgres", "KafkaJS"],
+  "served": {
+    "httpRoutes": [],
+    "grpcServices": [],
+    "topics": [{ "name": "user-created", "direction": "publish", "filePath": "src/publisher.ts" }],
+    "datastores": [{ "name": "users", "kind": "relational" }]
+  },
+  "outbound": [
+    {
+      "target": "notification-service",
+      "verb": "calls",
+      "detail": "sends welcome notifications via POST /api/notifications/v1/send through the API gateway",
+      "confidence": 0.7
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

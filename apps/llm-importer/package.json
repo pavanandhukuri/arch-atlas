@@ -1,7 +1,7 @@
 {
   "name": "@arch-atlas/llm-importer",
   "version": "0.1.0",
-  "description": "Agentic, local-model-driven repository architecture importer built on the pi coding-agent SDK",
+  "description": "Local-model-driven repository architecture importer",
   "type": "module",
   "bin": {
     "arch-atlas-import": "./dist/cli.js"
@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc",
     "import": "tsx src/cli.ts",
+    "eval": "tsx test/eval/run.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src/ test/",
@@ -22,10 +23,8 @@
     "@arch-atlas/layout": "workspace:*",
     "@earendil-works/pi-coding-agent": "^0.82.0",
     "@earendil-works/pi-ai": "^0.82.0",
-    "@earendil-works/pi-agent-core": "^0.82.0",
-    "@earendil-works/pi-tui": "^0.82.0",
-    "typebox": "1.1.38",
     "commander": "^12.1.0",
+    "typebox": "1.1.38",
     "js-yaml": "^4.1.0",
     "zod": "^3.23.8"
   },

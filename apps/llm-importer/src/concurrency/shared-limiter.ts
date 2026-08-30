@@ -1,8 +1,8 @@
 /**
- * research.md D8 / FR-016: a single semaphore shared by repo-level fan-out
- * AND the vendored subagent dispatcher's internal batch fan-out, so a single
- * local model endpoint never receives more concurrent requests than
- * `maxConcurrency` regardless of which layer is asking.
+ * FR-016: a single semaphore bounding total concurrent load on the local
+ * model endpoint. Acquired by repo-level analysis fan-out and by the agentic
+ * correlation fallback, so neither — nor the two together — ever exceeds
+ * `maxConcurrency` in-flight requests.
  */
 export class SharedLimiter {
   private available: number;

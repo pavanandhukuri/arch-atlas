@@ -1,7 +1,7 @@
 import type { RepositoryKnowledgeGraph, GraphEdgeType } from '../graph/schema.js';
 import type { CrossRepositoryConnection } from '../correlate/deterministic-correlator.js';
 import { mapToConfidenceBucket } from '../confidence/bucket-mapper.js';
-import type { Candidate, ReviewFile } from './review-file.js';
+import type { Candidate, RepoMeta, ReviewFile } from './review-file.js';
 
 /**
  * Our trimmed GraphEdgeType (research.md D10) is a superset of the retired
@@ -35,7 +35,8 @@ function connectionSource(
 
 export function assembleReviewFile(
   graphs: RepositoryKnowledgeGraph[],
-  connections: CrossRepositoryConnection[]
+  connections: CrossRepositoryConnection[],
+  repoMetaByName?: Map<string, RepoMeta>
 ): ReviewFile {
   const candidates: Candidate[] = connections.map((connection, index) => {
     const candidateType = EDGE_TYPE_TO_CANDIDATE_TYPE[connection.type] ?? 'http';
@@ -52,6 +53,10 @@ export function assembleReviewFile(
     };
   });
 
+  const repos: RepoMeta[] = graphs.map(
+    (g) => repoMetaByName?.get(g.repository.name) ?? { name: g.repository.name }
+  );
+
   return {
     version: '1.0',
     generated_at: new Date().toISOString(),
@@ -61,5 +66,6 @@ export function assembleReviewFile(
     // reviewer, never auto-guessed — matches the retired pipeline's design).
     systems: [],
     candidates,
+    repos,
   };
 }

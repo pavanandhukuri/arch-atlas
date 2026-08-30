@@ -1,0 +1,108 @@
+{
+  "_source": "GoogleCloudPlatform/microservices-demo README service table + protos/demo.proto. All inter-service calls are gRPC; frontend also serves HTTP.",
+  "repos": {
+    "frontend": {
+      "role": "Go web storefront: serves the HTML/HTTP UI and is a gRPC client to every backend service.",
+      "languages": ["Go"],
+      "frameworks": ["gRPC"],
+      "served": {
+        "httpRoutes": ["/", "/product/*", "/cart", "/cart/checkout", "/setCurrency", "/logout"]
+      },
+      "outbound": [
+        "cartservice",
+        "productcatalogservice",
+        "currencyservice",
+        "checkoutservice",
+        "recommendationservice",
+        "adservice",
+        "shippingservice"
+      ]
+    },
+    "cartservice": {
+      "role": "C# gRPC service storing shopping-cart contents in Redis.",
+      "languages": ["C#"],
+      "frameworks": ["ASP.NET Core", "gRPC"],
+      "served": { "grpcServices": ["hipstershop.CartService"], "datastores": ["redis"] },
+      "outbound": ["redis"]
+    },
+    "productcatalogservice": {
+      "role": "Go gRPC service serving the product catalog from a JSON file.",
+      "languages": ["Go"],
+      "frameworks": ["gRPC"],
+      "served": { "grpcServices": ["hipstershop.ProductCatalogService"] },
+      "outbound": []
+    },
+    "currencyservice": {
+      "role": "Node.js gRPC service converting money amounts between currencies.",
+      "languages": ["JavaScript"],
+      "frameworks": ["Node.js", "gRPC"],
+      "served": { "grpcServices": ["hipstershop.CurrencyService"] },
+      "outbound": []
+    },
+    "paymentservice": {
+      "role": "Node.js gRPC service that charges a (mock) credit card and returns a transaction id.",
+      "languages": ["JavaScript"],
+      "frameworks": ["Node.js", "gRPC"],
+      "served": { "grpcServices": ["hipstershop.PaymentService"] },
+      "outbound": []
+    },
+    "shippingservice": {
+      "role": "Go gRPC service giving shipping cost estimates and mock tracking ids.",
+      "languages": ["Go"],
+      "frameworks": ["gRPC"],
+      "served": { "grpcServices": ["hipstershop.ShippingService"] },
+      "outbound": []
+    },
+    "emailservice": {
+      "role": "Python gRPC service that sends an order-confirmation email.",
+      "languages": ["Python"],
+      "frameworks": ["gRPC"],
+      "served": { "grpcServices": ["hipstershop.EmailService"] },
+      "outbound": []
+    },
+    "checkoutservice": {
+      "role": "Go gRPC service that orchestrates a purchase: reads the cart, prices it, charges payment, ships, and emails.",
+      "languages": ["Go"],
+      "frameworks": ["gRPC"],
+      "served": { "grpcServices": ["hipstershop.CheckoutService"] },
+      "outbound": [
+        "cartservice",
+        "productcatalogservice",
+        "currencyservice",
+        "paymentservice",
+        "shippingservice",
+        "emailservice"
+      ]
+    },
+    "recommendationservice": {
+      "role": "Python gRPC service recommending products; reads the catalog from productcatalogservice.",
+      "languages": ["Python"],
+      "frameworks": ["gRPC"],
+      "served": { "grpcServices": ["hipstershop.RecommendationService"] },
+      "outbound": ["productcatalogservice"]
+    },
+    "adservice": {
+      "role": "Java gRPC service returning contextual text ads.",
+      "languages": ["Java"],
+      "frameworks": ["gRPC"],
+      "served": { "grpcServices": ["hipstershop.AdService"] },
+      "outbound": []
+    }
+  },
+  "connections": [
+    { "from": "frontend", "to": "cartservice" },
+    { "from": "frontend", "to": "productcatalogservice" },
+    { "from": "frontend", "to": "currencyservice" },
+    { "from": "frontend", "to": "checkoutservice" },
+    { "from": "frontend", "to": "recommendationservice" },
+    { "from": "frontend", "to": "adservice" },
+    { "from": "frontend", "to": "shippingservice" },
+    { "from": "checkoutservice", "to": "cartservice" },
+    { "from": "checkoutservice", "to": "productcatalogservice" },
+    { "from": "checkoutservice", "to": "currencyservice" },
+    { "from": "checkoutservice", "to": "paymentservice" },
+    { "from": "checkoutservice", "to": "shippingservice" },
+    { "from": "checkoutservice", "to": "emailservice" },
+    { "from": "recommendationservice", "to": "productcatalogservice" }
+  ]
+}

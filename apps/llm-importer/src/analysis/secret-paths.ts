@@ -1,12 +1,9 @@
 /**
- * FR-015 / Constitution Principle IV: the single source of truth for
- * secret-path exclusion patterns. Consumed by two enforcement layers:
- * the agent tool-call extension (secret-exclusion-extension.ts) and the
- * deterministic evidence collector (correlate/evidence/collect.ts), so a
- * file the agent may not read is never read by our own scanners either.
- *
- * Same pattern list as contracts/config-schema-contract.md's hardcoded
- * exclusions.
+ * 007 FR-015 / 008 FR-003 / Constitution Principle IV: the single source of
+ * truth for secret-path exclusion patterns. Consumed by both filesystem-touching
+ * stages — the analysis-context gatherer (`analysis/gather-context.ts`) and
+ * the deterministic evidence collector (`correlate/evidence/collect.ts`) — so
+ * an excluded file never reaches a model prompt or our own scanners.
  */
 export const SECRET_PATH_PATTERNS: RegExp[] = [
   /\.env(\.[a-z]+)?$/i,

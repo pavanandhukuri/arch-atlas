@@ -29,11 +29,14 @@ describe('mapToConfidenceBucket', () => {
     });
   });
 
-  describe('agentic-correlation-fallback source (capped at medium)', () => {
-    it('caps a would-be-high weight at medium', () => {
-      expect(mapToConfidenceBucket(0.95, 'agentic-correlation-fallback')).toBe('medium');
+  describe('agentic-correlation-fallback source (capped at low — research.md D14.4)', () => {
+    it('caps a would-be-high weight at low', () => {
+      expect(mapToConfidenceBucket(0.95, 'agentic-correlation-fallback')).toBe('low');
     });
-    it('leaves a low weight at low (capping only lowers, never raises)', () => {
+    it('caps a would-be-medium weight at low', () => {
+      expect(mapToConfidenceBucket(0.6, 'agentic-correlation-fallback')).toBe('low');
+    });
+    it('leaves a low weight at low', () => {
       expect(mapToConfidenceBucket(0.1, 'agentic-correlation-fallback')).toBe('low');
     });
   });

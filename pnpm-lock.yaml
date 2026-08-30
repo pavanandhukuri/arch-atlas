@@ -41,18 +41,12 @@ importers:
       '@arch-atlas/layout':
         specifier: workspace:*
         version: link:../../packages/layout
-      '@earendil-works/pi-agent-core':
-        specifier: ^0.82.0
-        version: 0.82.0(zod@3.25.76)
       '@earendil-works/pi-ai':
         specifier: ^0.82.0
         version: 0.82.0(zod@3.25.76)
       '@earendil-works/pi-coding-agent':
         specifier: ^0.82.0
         version: 0.82.0(zod@3.25.76)
-      '@earendil-works/pi-tui':
-        specifier: ^0.82.0
-        version: 0.82.0
       commander:
         specifier: ^12.1.0
         version: 12.1.0

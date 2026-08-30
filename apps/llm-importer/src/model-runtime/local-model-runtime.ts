@@ -80,25 +80,49 @@ export interface BuiltLocalModelRuntime {
 }
 
 /**
+ * research.md D14.1: pi's `AgentSession.prompt` exposes no sampling knob, and
+ * models.json carries no `temperature` field — but `ModelRuntime.stream/complete`
+ * accept it in their options arg. Wrap the runtime so every generation call it
+ * makes defaults to our (low) temperature, unless a caller passes one explicitly.
+ */
+const SAMPLING_METHODS = new Set(['stream', 'complete', 'streamSimple', 'completeSimple']);
+
+export function withSamplingDefaults(runtime: ModelRuntime, temperature: number): ModelRuntime {
+  return new Proxy(runtime, {
+    get(target, prop, receiver): unknown {
+      const value: unknown = Reflect.get(target, prop, receiver);
+      if (typeof value !== 'function') return value;
+      const fn = value as (...args: unknown[]) => unknown;
+      if (typeof prop === 'string' && SAMPLING_METHODS.has(prop)) {
+        return (model: unknown, context: unknown, options?: Record<string, unknown>) =>
+          fn.call(target, model, context, { temperature, ...(options ?? {}) });
+      }
+      return fn.bind(target);
+    },
+  });
+}
+
+/**
  * Writes a temporary models.json describing the configured local endpoint,
  * then builds a pi ModelRuntime from it. Call checkLocalModelReachable()
  * first — this function does not itself validate reachability.
  */
 export async function buildLocalModelRuntime(
   config: LocalModelConfig,
-  workDir: string
+  workDir: string,
+  temperature = 0.1
 ): Promise<BuiltLocalModelRuntime> {
   const modelsPath = join(workDir, 'models.json');
   await writeFile(modelsPath, JSON.stringify(buildModelsJson(config), null, 2), 'utf8');
 
-  const modelRuntime = await ModelRuntime.create({
+  const rawRuntime = await ModelRuntime.create({
     modelsPath,
     // We never want ModelRuntime.create() reaching out to a network catalog
     // (FR-017 — no path in this package should ever touch a hosted service).
     allowModelNetwork: false,
   });
 
-  const model = modelRuntime.getModel(config.provider, config.modelId);
+  const model = rawRuntime.getModel(config.provider, config.modelId);
   if (!model) {
     throw new Error(
       `Model "${config.modelId}" was not found on provider "${config.provider}" after registering ` +
@@ -106,5 +130,5 @@ export async function buildLocalModelRuntime(
     );
   }
 
-  return { modelRuntime, model };
+  return { modelRuntime: withSamplingDefaults(rawRuntime, temperature), model };
 }

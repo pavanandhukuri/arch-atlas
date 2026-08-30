@@ -23,3 +23,5 @@ Thumbs.db
 *.tmp
 .vscode/
 .idea/
+# eval — externally cloned golden workspaces (pinned by SHA in eval.config.yaml)
+apps/llm-importer/test/eval/golden/*/workspace/

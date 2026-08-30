@@ -1,6 +1,6 @@
 import type { ArchitectureModel, Element, Relationship, View } from '@arch-atlas/core-model';
 import { computeLayout } from '@arch-atlas/layout';
-import type { ReviewFile } from '../review/review-file.js';
+import type { RepoMeta, ReviewFile } from '../review/review-file.js';
 
 function slug(name: string): string {
   return (
@@ -21,20 +21,30 @@ const CANDIDATE_TYPE_TO_RELATIONSHIP: Record<string, string> = {
 
 /**
  * Builds the final .arch.json from an accepted-candidates review file.
- * Schema unchanged from the retired revision (spec.md: explicitly out of
- * scope) — this mirrors what the retired Python build_diagram_from_review()
- * did, just in TypeScript against the real @arch-atlas/core-model types.
+ * Schema unchanged (spec.md: explicitly out of scope). 008 additionally sets
+ * `description` + `technology` on each analyzed repo's container element.
  */
 export function buildDiagram(
   review: ReviewFile,
-  title = 'Imported Architecture'
+  title = 'Imported Architecture',
+  repoMetaByName?: Map<string, RepoMeta>
 ): ArchitectureModel {
   const elementMap = new Map<string, Element>();
+  // 008 US3: prefer the passed map, fall back to the review file's own `repos`
+  // block so `--aggregate-only` (which re-reads the review) still enriches.
+  const metaByName = repoMetaByName ?? new Map((review.repos ?? []).map((r) => [r.name, r]));
 
   for (const repoName of review.source_repos) {
     const id = slug(repoName);
     if (!elementMap.has(id)) {
-      elementMap.set(id, { id, kind: 'container', name: repoName });
+      const meta = metaByName.get(repoName);
+      elementMap.set(id, {
+        id,
+        kind: 'container',
+        name: repoName,
+        ...(meta?.description ? { description: meta.description } : {}),
+        ...(meta?.technology ? { technology: meta.technology } : {}),
+      });
     }
   }
 

@@ -1,8 +1,11 @@
 # arch-atlas Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-07-25
+Auto-generated from all feature plans. Last updated: 2026-08-30
 
 ## Active Technologies
+
+- TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target — monorepo convention), Node.js ≥ 22 (retained; the `pi` SDK is still used for the bounded call and the agentic correlator) + `@earendil-works/pi-coding-agent` (`createAgentSession` with `tools: []`, single `session.prompt` — same pattern `src/correlate/agentic-correlator.ts` already uses), `@earendil-works/pi-ai` (`getModel` via the existing `model-runtime`), `zod` (new `RepoAnalysis` schema + existing config/graph schemas), `commander` (CLI — unchanged). **No package.json dependency is added or removed**; the removals in this feature are two vendored source trees and a runtime Python prerequisite, not npm packages. (008-bounded-repo-analysis)
+- Local filesystem — per-repository `{repo-name}.analysis.json` artifacts (replace 007's `{repo-name}.knowledge-graph.json`); review artifact (`architecture.review.yaml`) and final `.arch.json` unchanged in location and (except two additive optional fields) in schema. (008-bounded-repo-analysis)
 
 - TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target — matches monorepo convention), Node.js ≥ 22 (matches `pi`'s own stated minimum) + `@earendil-works/pi-coding-agent` (SDK — `ModelRuntime`, `createAgentSession`, `DefaultResourceLoader`/custom `ResourceLoader`, `SessionManager`, `SettingsManager`), `@earendil-works/pi-ai` (`getModel`), `zod` (knowledge-graph + config schema validation), `commander` (CLI, replaces Python `click`) (007-llm-repo-importer)
 - Local filesystem — per-repository `{name}.knowledge-graph.json` artifacts (successor to `.metadata.json`), final `.arch.json` and review artifact (unchanged format/location) (007-llm-repo-importer)
@@ -36,11 +39,11 @@ TypeScript 5.3.0: Follow standard conventions
 
 ## Recent Changes
 
+- 008-bounded-repo-analysis: Added TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target — monorepo convention), Node.js ≥ 22 (retained; the `pi` SDK is still used for the bounded call and the agentic correlator) + `@earendil-works/pi-coding-agent` (`createAgentSession` with `tools: []`, single `session.prompt` — same pattern `src/correlate/agentic-correlator.ts` already uses), `@earendil-works/pi-ai` (`getModel` via the existing `model-runtime`), `zod` (new `RepoAnalysis` schema + existing config/graph schemas), `commander` (CLI — unchanged). **No package.json dependency is added or removed**; the removals in this feature are two vendored source trees and a runtime Python prerequisite, not npm packages.
+
 - 007-llm-repo-importer: Added TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target — matches monorepo convention), Node.js ≥ 22 (matches `pi`'s own stated minimum) + `@earendil-works/pi-coding-agent` (SDK — `ModelRuntime`, `createAgentSession`, `DefaultResourceLoader`/custom `ResourceLoader`, `SessionManager`, `SettingsManager`), `@earendil-works/pi-ai` (`getModel`), `zod` (knowledge-graph + config schema validation), `commander` (CLI, replaces Python `click`)
 
 - 007-llm-repo-importer: Revised approach — graph extraction pipeline (tree-sitter + semgrep + networkx) with single LLM enrichment call; replaced LLM-first analysis with static analysis first; added confidence scoring per connection signal
-
-- 006-diagram-viewer-zoom: Added TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target) + Next.js 14.1.0 (App Router), React 18.2.0, `@arch-atlas/renderer` (workspace, PixiJS v7), `@arch-atlas/core-model` (workspace), `@arch-atlas/layout` (workspace)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

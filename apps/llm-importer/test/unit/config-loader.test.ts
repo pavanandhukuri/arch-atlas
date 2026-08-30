@@ -32,7 +32,7 @@ describe('loadConfig', () => {
     expect(config.version).toBe('2.0');
     expect(config.localModel.provider).toBe('ollama');
     expect(config.repositories).toHaveLength(1);
-    expect(config.analysis.maxConcurrency).toBe(2); // default
+    expect(config.analysis.maxConcurrency).toBe(1); // default (serial — safest for one local model)
   });
 
   it('parses a valid YAML v2.0 config', async () => {
@@ -88,7 +88,7 @@ describe('loadConfig', () => {
     await expect(loadConfig(path)).rejects.toThrow(ConfigValidationError);
   });
 
-  it('rejects maxConcurrency above the vendored subagent extension hard cap of 8', async () => {
+  it('rejects maxConcurrency above the hard cap of 8', async () => {
     const config = JSON.stringify({
       version: '2.0',
       localModel: { provider: 'ollama', endpoint: 'http://localhost:11434', modelId: 'llama3' },

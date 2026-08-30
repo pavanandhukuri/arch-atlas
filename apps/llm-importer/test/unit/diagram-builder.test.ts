@@ -136,6 +136,64 @@ describe('buildDiagram', () => {
     expect(diagram.relationships[0]?.type).toBe('calls'); // grpc -> calls
   });
 
+  it('carries description + technology from the repo-meta map onto source-repo containers (US3)', () => {
+    const meta = new Map([
+      [
+        'service-a',
+        { name: 'service-a', description: 'the accounts service', technology: 'NestJS' },
+      ],
+    ]);
+    const diagram = buildDiagram(
+      makeReview({ source_repos: ['service-a', 'service-b'] }),
+      'T',
+      meta
+    );
+    const a = diagram.elements.find((e) => e.name === 'service-a');
+    const b = diagram.elements.find((e) => e.name === 'service-b');
+    expect(a?.description).toBe('the accounts service');
+    expect(a?.technology).toBe('NestJS');
+    // service-b had no meta entry — still a valid element, just no extra fields.
+    expect(b?.description).toBeUndefined();
+    expect(b?.technology).toBeUndefined();
+  });
+
+  it('falls back to review.repos when no meta map is passed (aggregate-only path)', () => {
+    const review = makeReview({
+      source_repos: ['service-a'],
+      repos: [{ name: 'service-a', description: 'from the review file', technology: 'Go' }],
+    });
+    const diagram = buildDiagram(review);
+    const a = diagram.elements.find((e) => e.name === 'service-a');
+    expect(a?.description).toBe('from the review file');
+    expect(a?.technology).toBe('Go');
+  });
+
+  it('does not enrich elements introduced only as candidate targets (external systems)', () => {
+    const meta = new Map([
+      ['ext-system', { name: 'ext-system', description: 'should not leak', technology: 'X' }],
+    ]);
+    const review = makeReview({
+      source_repos: ['service-a'],
+      candidates: [
+        {
+          id: 'cand_1',
+          source: 'service-a',
+          target: 'ext-system',
+          type: 'http',
+          reasoning: 'calls',
+          confidence: 'high',
+          status: 'accepted',
+          override_name: null,
+          override_type: null,
+        },
+      ],
+    });
+    const diagram = buildDiagram(review, 'T', meta);
+    const ext = diagram.elements.find((e) => e.name === 'ext-system');
+    expect(ext?.description).toBeUndefined();
+    expect(ext?.technology).toBeUndefined();
+  });
+
   it('does not emit a self-loop relationship', () => {
     const review = makeReview({
       source_repos: ['service-a'],

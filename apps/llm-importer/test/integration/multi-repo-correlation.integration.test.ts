@@ -6,13 +6,12 @@ import {
   checkLocalModelReachable,
   buildLocalModelRuntime,
 } from '../../src/model-runtime/local-model-runtime.js';
-import { runUnderstand } from '../../src/analysis/run-understand.js';
+import { analyzeRepo } from '../../src/analysis/analyze-repo.js';
+import { toCorrelationGraph } from '../../src/analysis/to-correlation-graph.js';
+import { RepoAnalysisSchema } from '../../src/analysis/repo-analysis.schema.js';
 import { SharedLimiter } from '../../src/concurrency/shared-limiter.js';
 import { correlateDeterministically } from '../../src/correlate/deterministic-correlator.js';
-import {
-  RepositoryKnowledgeGraphSchema,
-  type RepositoryKnowledgeGraph,
-} from '../../src/graph/schema.js';
+import type { RepositoryKnowledgeGraph } from '../../src/graph/schema.js';
 
 const ENDPOINT = process.env.ARCH_ATLAS_TEST_MODEL_ENDPOINT ?? 'http://localhost:11434';
 const MODEL_ID = process.env.ARCH_ATLAS_TEST_MODEL_ID ?? 'llama3.1:8b';
@@ -20,54 +19,38 @@ const MODEL_ID = process.env.ARCH_ATLAS_TEST_MODEL_ID ?? 'llama3.1:8b';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES_DIR = join(__dirname, '..', 'fixtures');
 
-async function loadFixtureGraph(repoName: string): Promise<RepositoryKnowledgeGraph> {
+async function fixtureGraph(repoName: string, realPath = false): Promise<RepositoryKnowledgeGraph> {
   const raw = JSON.parse(
-    await readFile(
-      join(FIXTURES_DIR, 'knowledge-graphs', `${repoName}.knowledge-graph.json`),
-      'utf8'
-    )
+    await readFile(join(FIXTURES_DIR, 'analyses', `${repoName}.analysis.json`), 'utf8')
   ) as unknown;
-  return RepositoryKnowledgeGraphSchema.parse(raw);
+  const analysis = RepoAnalysisSchema.parse(raw);
+  if (realPath) analysis.repository.path = join(FIXTURES_DIR, 'repos', repoName);
+  return toCorrelationGraph(analysis);
 }
 
-describe('multi-repo correlation against real (non-LLM-generated) fixture graphs', () => {
-  // No local model required for this part — the deterministic correlator
-  // (research.md D7 pass 1) is pure logic over already-produced knowledge
-  // graphs. This runs in ordinary CI, unlike the agentic half below.
-  it('finds the known user-service -> notification-service Kafka connection deterministically', async () => {
-    const userService = await loadFixtureGraph('user-service');
-    const notificationService = await loadFixtureGraph('notification-service');
-
-    const { connections, unresolvedPairs } = correlateDeterministically([
-      userService,
-      notificationService,
-    ]);
-
-    expect(connections.length).toBeGreaterThan(0);
+describe('multi-repo correlation over pre-canned analysis fixtures (no model)', () => {
+  it('finds the user-service -> notification-service topic connection from graph text', async () => {
+    // Fake paths → evidence passes degrade to graph-only; the adapter puts the
+    // outbound intent's prose on an edge, so the name-mention pass connects them.
+    const graphs = [await fixtureGraph('user-service'), await fixtureGraph('notification-service')];
+    const { connections } = correlateDeterministically(graphs);
     expect(
       connections.some(
         (c) => c.sourceRepo === 'user-service' && c.targetRepo === 'notification-service'
       )
     ).toBe(true);
-    expect(unresolvedPairs).toHaveLength(0);
   });
 
-  it('finds evidence-grounded connections when the recorded repo paths are real', async () => {
-    // Same graphs, but pointed at the actual fixture repositories on disk —
-    // the evidence passes then read raw source, independent of graph prose.
-    const userService = await loadFixtureGraph('user-service');
-    const notificationService = await loadFixtureGraph('notification-service');
-    userService.repository.path = join(FIXTURES_DIR, 'repos', 'user-service');
-    notificationService.repository.path = join(FIXTURES_DIR, 'repos', 'notification-service');
+  it('finds evidence-grounded connections when repo paths are real', async () => {
+    const graphs = [
+      await fixtureGraph('user-service', true),
+      await fixtureGraph('notification-service', true),
+    ];
+    const { connections, passSummaries } = correlateDeterministically(graphs);
 
-    const { connections, passSummaries } = correlateDeterministically([
-      userService,
-      notificationService,
-    ]);
-
-    // The asserted evidence connection is the endpoint gateway-suffix match:
-    // user-service calls /api/notifications/v1/send; notification-service
-    // registers /v1/send — the uds-sdk pattern the name-mention pass misses.
+    // Endpoint pass: user-service calls /api/notifications/v1/send; notification-service
+    // serves /v1/send (an `endpoint` node the adapter synthesised from the
+    // analysis) — the gateway-prefixed match the name-mention pass misses.
     const gatewayCall = connections.find(
       (c) =>
         c.foundBy === 'evidence' &&
@@ -79,8 +62,8 @@ describe('multi-repo correlation against real (non-LLM-generated) fixture graphs
     expect(gatewayCall?.evidence[0]).toContain('/api/notifications/v1/send');
     expect(passSummaries.some((s) => s.startsWith('endpoint:'))).toBe(true);
 
-    // Determinism: a second run over the same inputs yields identical output.
-    const again = correlateDeterministically([userService, notificationService]);
+    // Determinism.
+    const again = correlateDeterministically(graphs);
     expect(JSON.stringify(again.connections)).toBe(JSON.stringify(connections));
   });
 });
@@ -99,9 +82,9 @@ beforeAll(async () => {
 });
 
 describe.skipIf(!process.env.ARCH_ATLAS_RUN_INTEGRATION_TESTS)(
-  'multi-repo-correlation (integration, real skill + real local model, both fixture repos)',
+  'multi-repo-correlation (integration, real bounded call + real local model)',
   () => {
-    it('analyzes both fixture repos with the real skill and correlates a connection between them', async (ctx) => {
+    it('analyzes both fixture repos with the bounded call and correlates a connection', async (ctx) => {
       if (!modelAvailable) {
         ctx.skip();
         return;
@@ -115,7 +98,7 @@ describe.skipIf(!process.env.ARCH_ATLAS_RUN_INTEGRATION_TESTS)(
 
       const results = await Promise.all(
         ['user-service', 'notification-service'].map((repoName) =>
-          runUnderstand({
+          analyzeRepo({
             repoName,
             repoPath: join(FIXTURES_DIR, 'repos', repoName),
             model,
@@ -125,11 +108,13 @@ describe.skipIf(!process.env.ARCH_ATLAS_RUN_INTEGRATION_TESTS)(
         )
       );
 
-      const graphs = results.flatMap((r) => (r.status === 'complete' ? [r.graph] : []));
-      expect(graphs.length).toBe(2); // both repos should analyze successfully
+      const graphs = results.flatMap((r) =>
+        r.status === 'complete' ? [toCorrelationGraph(r.analysis)] : []
+      );
+      expect(graphs.length).toBe(2);
 
       const { connections } = correlateDeterministically(graphs);
       expect(connections.length).toBeGreaterThan(0);
-    }, 600_000); // two real agent sessions — generous timeout
+    }, 240_000);
   }
 );

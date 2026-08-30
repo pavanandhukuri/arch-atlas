@@ -23,10 +23,22 @@ export interface Candidate {
   override_type: string | null;
 }
 
+/**
+ * 008: per-repository metadata for the Studio classify step to pre-fill.
+ * Optional and ignored by Studio's current `parseReviewYaml` (which reads only
+ * known top-level keys) — see 008 research.md D7.
+ */
+export interface RepoMeta {
+  name: string;
+  description?: string;
+  technology?: string;
+}
+
 export interface ReviewFile {
   version: string;
   generated_at: string;
   source_repos: string[];
   systems: Array<{ name: string; repositories: string[] }>;
   candidates: Candidate[];
+  repos?: RepoMeta[];
 }
