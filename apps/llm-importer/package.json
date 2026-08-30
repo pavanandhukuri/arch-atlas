@@ -1,0 +1,39 @@
+{
+  "name": "@arch-atlas/llm-importer",
+  "version": "0.1.0",
+  "description": "Local-model-driven repository architecture importer",
+  "type": "module",
+  "bin": {
+    "arch-atlas-import": "./dist/cli.js"
+  },
+  "main": "./dist/cli.js",
+  "types": "./dist/cli.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "import": "tsx src/cli.ts",
+    "eval": "tsx test/eval/run.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ test/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage"
+  },
+  "dependencies": {
+    "@arch-atlas/core-model": "workspace:*",
+    "@arch-atlas/layout": "workspace:*",
+    "@earendil-works/pi-coding-agent": "^0.82.0",
+    "@earendil-works/pi-ai": "^0.82.0",
+    "commander": "^12.1.0",
+    "typebox": "1.1.38",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.11.0",
+    "@vitest/coverage-v8": "^1.6.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  }
+}

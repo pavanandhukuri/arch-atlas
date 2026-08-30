@@ -48,6 +48,7 @@
       "enum": [
         "default",
         "database",
+        "message-queue",
         "storage-bucket",
         "static-content",
         "user-interface",

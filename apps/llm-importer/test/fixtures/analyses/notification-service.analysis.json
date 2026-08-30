@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-08-30T12:00:00.000Z",
+  "repository": {
+    "name": "notification-service",
+    "path": "/fixtures/repos/notification-service",
+    "description": "Delivers user-facing notifications"
+  },
+  "description": "A TypeScript service that consumes the user-created Kafka topic and exposes POST /v1/send (behind the /api/notifications gateway prefix) for ad-hoc notification sends.",
+  "languages": ["TypeScript"],
+  "frameworks": ["KafkaJS"],
+  "served": {
+    "httpRoutes": [{ "method": "POST", "path": "/v1/send", "filePath": "src/server.ts" }],
+    "grpcServices": [],
+    "topics": [{ "name": "user-created", "direction": "consume", "filePath": "src/consumer.ts" }],
+    "datastores": []
+  },
+  "outbound": [],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

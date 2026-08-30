@@ -38,14 +38,38 @@ export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerPr
     return getVisibleElements(model, currentLevel, focusedElementId);
   }, [model, currentLevel, focusedElementId]);
 
-  // Compute external systems (neighbors with cross-boundary relationships) — only when drilled in
-  const externalElements = useMemo(() => {
-    if (!model || !focusedElementId) return [];
+  // Relationships whose endpoints aren't both visible at the current level (e.g. two
+  // containers in different systems, viewed at the landscape level) need to be bubbled
+  // up to their nearest visible ancestor so a connection still renders between the two
+  // system boxes. Computed at every level, not just when drilled in, since the renderer
+  // only ever draws edges whose exact sourceId/targetId are present in the visible node set.
+  const viewRelationships = useMemo(() => {
+    if (!model) return { directRelationships: [], derivedRelationships: [], externalElements: [] };
     const visibleIds = new Set(visibleElements.map((e) => e.id));
-    return deriveViewRelationships(model, visibleIds).externalElements;
-  }, [model, focusedElementId, visibleElements]);
+    return deriveViewRelationships(model, visibleIds);
+  }, [model, visibleElements]);
+
+  // External neighbor boxes are only shown when drilled into a boundary (system/container)
+  const externalElements = useMemo(
+    () => (focusedElementId ? viewRelationships.externalElements : []),
+    [focusedElementId, viewRelationships]
+  );
 
   const externalElementIds = useMemo(() => externalElements.map((e) => e.id), [externalElements]);
+
+  // Substitute the model's relationships with the level-scoped (direct + derived) set so
+  // MapCanvas — which draws straight from `model.relationships` — only ever sees edges
+  // whose endpoints are actually present in the visible node set at this level.
+  const renderedModel = useMemo(() => {
+    if (!model) return null;
+    return {
+      ...model,
+      relationships: [
+        ...viewRelationships.directRelationships,
+        ...viewRelationships.derivedRelationships,
+      ],
+    };
+  }, [model, viewRelationships]);
 
   const filteredView = useMemo(() => {
     if (!view) return null;
@@ -219,7 +243,7 @@ export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerPr
       )}
       <MapCanvas
         readOnly
-        model={model}
+        model={renderedModel ?? model}
         view={filteredView ?? view}
         onElementDoubleClick={handleDrillDown}
         onRendererMount={onRendererMount}

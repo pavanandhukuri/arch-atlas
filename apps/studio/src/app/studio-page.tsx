@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MapCanvas, ZoomControls, useZoom } from '@arch-atlas/viewer-components';
+import {
+  MapCanvas,
+  ZoomControls,
+  useZoom,
+  deriveViewRelationships,
+} from '@arch-atlas/viewer-components';
 import type { Renderer } from '@arch-atlas/renderer';
 import { ElementEditor, RelationshipEditor } from '@/components/model-editor';
 import { ElementPalette } from '@/components/element-palette';
@@ -19,7 +24,7 @@ import { useStorageSession } from '@/hooks/useStorageSession';
 import { exportModel } from '@/services/import-export';
 import type { StorageHandle, LoadResult } from '@/services/storage/storage-provider';
 import { addRelationshipToModel, removeRelationshipFromModel } from '@/services/relationships';
-import { deriveViewRelationships, buildElementOptions } from '@/services/derived-relationships';
+import { buildElementOptions } from '@/services/derived-relationships';
 import type {
   ArchitectureModel,
   Element,
@@ -70,6 +75,8 @@ export default function StudioPage() {
   const { zoomLevel, zoomIn, zoomOut, fitToView, attachToRenderer } = useZoom();
   const studioCanvasRef = useRef<HTMLElement>(null);
   const studioRendererRef = useRef<Renderer | null>(null);
+  // Guards the pending-import / startup-prompt decision against Strict Mode's dev double-invoke.
+  const hasHandledMountRef = useRef(false);
   const onStudioRendererMount = useCallback((r: Renderer) => {
     studioRendererRef.current = r;
   }, []);
@@ -115,13 +122,39 @@ export default function StudioPage() {
     const unsubscribe = modelStore.subscribe((state) => {
       setModel(state.model);
     });
-    // Hydrate immediately from current store state (subscribe() doesn't fire retroactively).
-    setModel(modelStore.getState().model);
 
-    // Only prompt on fresh load — if a handle is already in session storage (e.g. after HMR),
-    // skip the dialog so the user isn't interrupted mid-session.
-    if (!handle) {
-      setShowStoragePrompt('startup');
+    // Guard against React 18 Strict Mode's dev-only double-invoke of mount
+    // effects: sessionStorage.removeItem below is destructive, so a second
+    // invocation would find it already cleared and fall through to the
+    // 'startup' branch, silently overwriting the correct 'new' decision.
+    if (!hasHandledMountRef.current) {
+      hasHandledMountRef.current = true;
+
+      // Pick up a model handed off from the Import Wizard ("Open in Studio"), if any.
+      // Consume it once so a page refresh doesn't keep re-importing the same model.
+      const pendingImport = sessionStorage.getItem('import_model');
+      if (pendingImport) {
+        sessionStorage.removeItem('import_model');
+        try {
+          modelStore.loadModel(JSON.parse(pendingImport) as ArchitectureModel);
+        } catch {
+          // Malformed payload — ignore and fall through to the normal startup flow.
+        }
+      }
+
+      // Hydrate immediately from current store state (subscribe() doesn't fire retroactively).
+      setModel(modelStore.getState().model);
+
+      if (pendingImport) {
+        // A model was just handed off from the Import Wizard — skip the "New or
+        // Open" question (it's obviously a new, unsaved diagram) and go straight
+        // to picking where to save it.
+        setShowStoragePrompt('new');
+      } else if (!handle) {
+        // Only prompt on fresh load — if a handle is already in session storage (e.g. after HMR),
+        // skip the dialog so the user isn't interrupted mid-session.
+        setShowStoragePrompt('startup');
+      }
     }
 
     // Subscribe to StorageManager events for save status
@@ -959,6 +992,7 @@ export default function StudioPage() {
           onLocalSelected={handleStorageSelected}
           onDriveSelected={handleStorageSelected}
           driveAuth={driveAuth}
+          onImportRepos={showStoragePrompt === 'startup' ? () => router.push('/import') : undefined}
         />
       )}
 
@@ -999,6 +1033,7 @@ export default function StudioPage() {
               {saveStatus === 'saving' ? 'Saving…' : saveStatusMessage}
             </span>
           )}
+          <button onClick={() => router.push('/import')}>Import Repos</button>
           <button onClick={handleNewFile}>New</button>
           <button onClick={handleImportClick}>Open</button>
           <button onClick={handleManualSave} disabled={!handle || !model}>

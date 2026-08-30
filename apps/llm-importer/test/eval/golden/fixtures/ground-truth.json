@@ -1,0 +1,51 @@
+{
+  "repos": {
+    "user-service": {
+      "role": "Owns user accounts, persists them to PostgreSQL, publishes a user-created event to Kafka, and calls notification-service through the API gateway.",
+      "languages": ["TypeScript"],
+      "frameworks": ["node-postgres", "KafkaJS"],
+      "served": {
+        "datastores": ["users"],
+        "topics": ["user-created:pub"]
+      },
+      "outbound": ["notification-service"]
+    },
+    "notification-service": {
+      "role": "Consumes the user-created Kafka topic and serves POST /v1/send (behind the /api/notifications gateway prefix) for ad-hoc notification sends.",
+      "languages": ["TypeScript"],
+      "frameworks": ["KafkaJS"],
+      "served": {
+        "httpRoutes": ["/v1/send"],
+        "topics": ["user-created:sub"]
+      },
+      "outbound": []
+    },
+    "audit-service": {
+      "role": "Go service that consumes the user-created topic, writes an entry to the audit_log PostgreSQL table, and serves POST /v1/audit.",
+      "languages": ["Go"],
+      "frameworks": ["kafka-go", "pgx"],
+      "served": {
+        "httpRoutes": ["/v1/audit"],
+        "topics": ["user-created:sub"],
+        "datastores": ["audit_log"]
+      },
+      "outbound": []
+    },
+    "gateway": {
+      "role": "Express API gateway that proxies /api/users/*, /api/notifications/*, and /api/audit/* to the three backend services.",
+      "languages": ["TypeScript"],
+      "frameworks": ["Express", "http-proxy-middleware"],
+      "served": {
+        "httpRoutes": ["/api/users", "/api/notifications", "/api/audit"]
+      },
+      "outbound": ["user-service", "notification-service", "audit-service"]
+    }
+  },
+  "connections": [
+    { "from": "user-service", "to": "notification-service", "kind": "http+topic" },
+    { "from": "user-service", "to": "audit-service", "kind": "topic" },
+    { "from": "gateway", "to": "user-service", "kind": "http" },
+    { "from": "gateway", "to": "notification-service", "kind": "http" },
+    { "from": "gateway", "to": "audit-service", "kind": "http" }
+  ]
+}
