@@ -39,7 +39,14 @@ export function assembleReviewFile(
   repoMetaByName?: Map<string, RepoMeta>
 ): ReviewFile {
   const candidates: Candidate[] = connections.map((connection, index) => {
-    const candidateType = EDGE_TYPE_TO_CANDIDATE_TYPE[connection.type] ?? 'http';
+    // 009: a gRPC-tagged `calls` connection surfaces as candidate type 'grpc'
+    // (already a valid CandidateType; diagram-builder maps grpc → 'calls').
+    // Connections from every other pass carry no `transport`, so their mapping
+    // is unchanged.
+    const candidateType =
+      connection.type === 'calls' && connection.transport === 'grpc'
+        ? 'grpc'
+        : (EDGE_TYPE_TO_CANDIDATE_TYPE[connection.type] ?? 'http');
     return {
       id: `cand_${index + 1}`,
       source: connection.sourceRepo,

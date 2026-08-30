@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-08-30T12:00:00.000Z",
+  "repository": {
+    "name": "storefront",
+    "path": "/fixtures/repos/storefront",
+    "description": "Web storefront"
+  },
+  "description": "A Go web storefront. Holds no gRPC service of its own; it is a gRPC client of catalog-service, constructing the stub with pb.NewCatalogServiceClient(conn) in internal/catalog/client.go.",
+  "languages": ["Go"],
+  "frameworks": ["gRPC"],
+  "served": {
+    "httpRoutes": [],
+    "grpcServices": [],
+    "topics": [],
+    "datastores": []
+  },
+  "outbound": [
+    {
+      "target": "catalog-service",
+      "verb": "calls",
+      "detail": "gRPC CatalogService client constructed in internal/catalog/client.go",
+      "confidence": 0.9
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

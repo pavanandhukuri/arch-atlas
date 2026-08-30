@@ -8,6 +8,18 @@ import { isComposeFile, parseComposeFile } from './parsers/compose.js';
 import { extractSchemaDigest, isSchemaish } from './parsers/schemas.js';
 import { extractUrlLiterals } from './parsers/routes.js';
 import { extractTopicRefs } from './parsers/topics.js';
+import { extractGrpcClientRefs } from './parsers/grpc.js';
+
+const GRPC_ENDPOINT_PREFIX = 'endpoint:grpc:';
+const PROTO_SERVICE_PREFIX = 'service:';
+
+/** gRPC services a repo serves, per its knowledge graph — the `endpoint:grpc:*`
+ * nodes `to-correlation-graph.ts` emits from `analysis.served.grpcServices`. */
+function grpcServicesFromGraph(graph: RepositoryKnowledgeGraph): string[] {
+  return graph.nodes
+    .filter((n) => n.type === 'endpoint' && n.id.startsWith(GRPC_ENDPOINT_PREFIX))
+    .map((n) => n.name);
+}
 
 /**
  * Evidence collection: the single correlation module that touches the
@@ -132,10 +144,18 @@ export function collectRepoEvidence(graph: RepositoryKnowledgeGraph): RepoEviden
     endpointNodes: graph.nodes.filter((n) => n.type === 'endpoint'),
     topicRefs: [],
     urlLiterals: [],
+    grpcServices: [],
+    grpcClientRefs: [],
   };
 
+  // Graph-derived served gRPC services are available even without a repo root.
+  const graphGrpcServices = grpcServicesFromGraph(graph);
+
   const repoRoot = resolveRepoRoot(graph);
-  if (repoRoot === null) return evidence;
+  if (repoRoot === null) {
+    evidence.grpcServices = [...new Set(graphGrpcServices)].sort();
+    return evidence;
+  }
 
   evidence.root = repoRoot;
   for (const rel of walkRepo(repoRoot)) {
@@ -157,8 +177,16 @@ export function collectRepoEvidence(graph: RepositoryKnowledgeGraph): RepoEviden
     if (CODE_EXTENSIONS.has(path.extname(rel).toLowerCase())) {
       evidence.urlLiterals.push(...extractUrlLiterals(rel, content));
       evidence.topicRefs.push(...extractTopicRefs(rel, content));
+      evidence.grpcClientRefs.push(...extractGrpcClientRefs(rel, content));
     }
   }
+
+  // Union: graph `endpoint:grpc:*` node names + `.proto` `service:<Name>` ids.
+  const protoServices = evidence.schemaDigests
+    .flatMap((d) => d.identifiers)
+    .filter((id) => id.startsWith(PROTO_SERVICE_PREFIX))
+    .map((id) => id.slice(PROTO_SERVICE_PREFIX.length));
+  evidence.grpcServices = [...new Set([...graphGrpcServices, ...protoServices])].sort();
 
   return evidence;
 }

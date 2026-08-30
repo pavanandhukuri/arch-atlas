@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package shop;
+
+option go_package = "shop/catalog-service/pb";
+
+// The product catalog. Consumed over gRPC by storefront.
+service CatalogService {
+  rpc GetItem(GetItemRequest) returns (Item);
+  rpc ListItems(ListItemsRequest) returns (ListItemsResponse);
+}
+
+message GetItemRequest {
+  string id = 1;
+}
+
+message ListItemsRequest {}
+
+message Item {
+  string id = 1;
+  string name = 2;
+  int64 price_cents = 3;
+}
+
+message ListItemsResponse {
+  repeated Item items = 1;
+}

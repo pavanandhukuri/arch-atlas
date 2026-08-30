@@ -16,6 +16,10 @@ export interface CrossRepositoryConnection {
   foundBy: 'evidence' | 'deterministic' | 'agentic-fallback';
   evidence: string[];
   weight: number;
+  /** Set to 'grpc' only by `grpcPass` (009-grpc-cross-repo-correlation).
+   * In-memory only, never persisted; consumed solely by `assemble-review.ts`
+   * to pick candidate type 'grpc' instead of the generic 'http'. */
+  transport?: 'grpc';
 }
 
 /** Repository pairs no pass could resolve — input to the agentic fallback (D7 pass 2). */

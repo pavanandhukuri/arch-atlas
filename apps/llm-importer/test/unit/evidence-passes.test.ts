@@ -4,6 +4,8 @@ import {
   composePass,
   dedupeConnections,
   endpointPass,
+  EVIDENCE_PASSES,
+  grpcPass,
   manifestPass,
   schemaPass,
   topicPass,
@@ -21,6 +23,8 @@ function emptyEvidence(name: string, root: string | null = `/repos/${name}`): Re
     endpointNodes: [],
     topicRefs: [],
     urlLiterals: [],
+    grpcServices: [],
+    grpcClientRefs: [],
   };
 }
 
@@ -376,6 +380,30 @@ describe('topicPass', () => {
       targetRepo: 'worker',
       weight: 0.4,
     });
+  });
+});
+
+describe('grpcPass registration & additivity (009)', () => {
+  it('runs immediately after endpointPass in the fixed pass order', () => {
+    const names = EVIDENCE_PASSES.map((p) => p({ repos: [], graphsByName: new Map() }).pass);
+    expect(names).toEqual(['manifest', 'endpoint', 'grpc', 'schema', 'compose', 'topic']);
+  });
+
+  it('is a no-op for evidence with no gRPC services and no gRPC client refs', () => {
+    const a = emptyEvidence('web');
+    a.urlLiterals.push({ relPath: 'a.ts', line: 1, path: '/v1/things', template: false });
+    const b = emptyEvidence('api');
+    b.endpointNodes.push({
+      id: 'endpoint:GET /v1/things',
+      type: 'endpoint',
+      name: 'GET /v1/things',
+      summary: '',
+    });
+    const { connections, notes } = grpcPass(input([a, b]));
+    expect(connections).toEqual([]);
+    expect(notes).toEqual([]);
+    // endpointPass still finds the HTTP link — grpcPass did not disturb it.
+    expect(endpointPass(input([a, b])).connections).toHaveLength(1);
   });
 });
 

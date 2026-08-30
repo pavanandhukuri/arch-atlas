@@ -13,6 +13,11 @@
   - Known cross-repo edges: user→notification (gateway HTTP), user↛audit↛notification via
     the shared `user-created` topic, gateway→{user,notification,audit} (gateway HTTP),
     user & audit both on PostgreSQL.
+  - **catalog-service** (Go) — serves the gRPC `shop.CatalogService` (`catalog.proto`,
+    `pb.RegisterCatalogServiceServer`); no HTTP, no datastore. (009-grpc-cross-repo-correlation)
+  - **storefront** (Go) — gRPC **client** of catalog-service; constructs the stub with
+    `pb.NewCatalogServiceClient(conn)` in `internal/catalog/client.go`. (009-grpc-cross-repo-correlation)
+  - Known gRPC edge: storefront → catalog-service (`calls`, transport gRPC).
 - `repos/user-service/.env` — a **planted fake secret**. Proves the FR-015 / SC-007
   exclusion: `src/analysis/gather-context.ts` and the evidence collector must never read it.
 - `analyses/` — pre-canned `RepoAnalysis` artifacts (008), one per fixture repo.

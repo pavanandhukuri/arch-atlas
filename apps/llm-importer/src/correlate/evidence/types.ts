@@ -67,6 +67,25 @@ export interface TopicRef {
   role: 'pub' | 'sub' | 'unknown';
 }
 
+/**
+ * A site in a repository's source where a generated gRPC client/stub for a
+ * named service is *constructed* (not merely referenced by type). Literal
+ * pattern match only — no data-flow. Consumed by `grpcPass`
+ * (009-grpc-cross-repo-correlation).
+ */
+export interface GrpcClientRef {
+  /** File path relative to the repo root. */
+  relPath: string;
+  /** 1-indexed line of the construction site. */
+  line: number;
+  /** Service name exactly as captured from source — may be package-qualified,
+   * may or may not carry a trailing "Service". Normalization happens in
+   * `grpcPass`, never here. */
+  service: string;
+  /** Which language form matched — for evidence text and debugging. */
+  form: 'go' | 'csharp' | 'node' | 'python' | 'java' | 'generic';
+}
+
 export interface RepoEvidence {
   name: string;
   /** Absolute repo root the evidence was collected from; null when the
@@ -80,4 +99,13 @@ export interface RepoEvidence {
   endpointNodes: GraphNode[];
   topicRefs: TopicRef[];
   urlLiterals: UrlLiteral[];
+  /** gRPC services this repo *serves* — union of graph `endpoint:grpc:*` node
+   * names and `.proto` `service:<Name>` schema identifiers. De-duplicated,
+   * sorted. `[]` when the repo serves no gRPC.
+   * (009-grpc-cross-repo-correlation) */
+  grpcServices: string[];
+  /** gRPC client/stub construction sites found in this repo's source, in
+   * sorted-walk then line order. `[]` when the source is unavailable or has no
+   * gRPC clients. (009-grpc-cross-repo-correlation) */
+  grpcClientRefs: GrpcClientRef[];
 }
