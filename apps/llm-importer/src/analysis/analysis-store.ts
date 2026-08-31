@@ -39,6 +39,42 @@ export async function readAnalysis(outputDir: string, repoName: string): Promise
   return RepoAnalysisSchema.parse(raw);
 }
 
+export type TryReadAnalysisResult =
+  | { ok: true; analysis: RepoAnalysis }
+  | { ok: false; reason: 'missing' | 'invalid'; detail?: string };
+
+/**
+ * 010: per-configured-repo artifact intake for the model-free `import` command.
+ * Never throws — a missing or malformed `{repo}.analysis.json` is reported and
+ * the repository is skipped (FR-003).
+ */
+export async function tryReadAnalysis(
+  outputDir: string,
+  repoName: string
+): Promise<TryReadAnalysisResult> {
+  let contents: string;
+  try {
+    contents = await readFile(artifactPath(outputDir, repoName), 'utf8');
+  } catch {
+    return { ok: false, reason: 'missing' };
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(contents);
+  } catch {
+    return { ok: false, reason: 'invalid', detail: 'not valid JSON' };
+  }
+  const parsed = RepoAnalysisSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      reason: 'invalid',
+      detail: parsed.error.issues[0]?.message ?? 'schema mismatch',
+    };
+  }
+  return { ok: true, analysis: parsed.data };
+}
+
 export async function writeAnalysis(outputDir: string, analysis: RepoAnalysis): Promise<string> {
   RepoAnalysisSchema.parse(analysis); // throws on invalid — never persist bad data
   await mkdir(outputDir, { recursive: true });

@@ -31,36 +31,63 @@ Not `.strict()` — a producer's extra keys are stripped, not rejected (spec Ass
 
 The serialised form of `gatherContext()`'s `AnalysisContext`, plus a version tag.
 
+The `AnalysisContext` interface in `gather-context.ts` is the source of truth. `ContextBundleSchema`
+mirrors it **exactly** (real field names, verified against the code) plus a version tag:
+
 ```ts
+const ContextFileSchema = z.object({ relPath: z.string().min(1), text: z.string() });
+const SourceExcerptSchema = ContextFileSchema.extend({ truncated: z.boolean() });
+const DependencySplitSchema = z.object({
+  relPath: z.string().min(1),
+  dependencies: z.array(z.string()),
+  devDependencies: z.array(z.string()),
+  peerDependencies: z.array(z.string()),
+});
+const DetectedInterfacesSchema = z.object({
+  httpRoutes: z.array(
+    z.object({
+      method: z.string().optional(),
+      path: z.string(),
+      relPath: z.string(),
+      line: z.number().int(),
+    })
+  ),
+  topics: z.array(
+    z.object({
+      name: z.string(),
+      role: z.enum(['pub', 'sub', 'unknown']),
+      relPath: z.string(),
+      line: z.number().int(),
+    })
+  ),
+});
+
 export const ContextBundleSchema = z.object({
   schemaVersion: z.literal('1.0'),
   generatedAt: z.string(), // ISO
   repoName: z.string().min(1),
   repoPath: z.string().min(1),
   descriptionHint: z.string().optional(),
-  readmes: z.array(ContextFileSchema), // { relPath, text }
+  readmes: z.array(ContextFileSchema),
   manifests: z.array(ContextFileSchema),
-  dependencySplits: z.array(DependencySplitSchema), // { relPath, dependencies, devDependencies, peerDependencies }
-  listing: z.array(z.string()), // bounded directory listing
-  sourceExcerpts: z.array(SourceExcerptSchema), // { relPath, text, rank }
-  detected: DetectedInterfacesSchema, // { urlLiterals, topicRefs } — deterministic hints
+  dependencySplits: z.array(DependencySplitSchema),
+  listing: z.array(z.string()),
+  sourceExcerpts: z.array(SourceExcerptSchema),
+  detected: DetectedInterfacesSchema,
   totalBytes: z.number().int().nonnegative(),
 });
 export type ContextBundle = z.infer<typeof ContextBundleSchema>;
 ```
-
-`ContextFileSchema`, `DependencySplitSchema`, `SourceExcerptSchema`, `DetectedInterfacesSchema` are
-`zod` mirrors of the existing `gather-context.ts` interfaces (which stay the source of truth for the
-TS types; the schemas validate the on-disk form).
 
 **Functions**:
 
 - `serializeContextBundle(ctx: AnalysisContext): ContextBundle` — adds `schemaVersion`/`generatedAt`, otherwise a structural copy.
 - `readContextBundle(path: string): ContextBundle` — read + `ContextBundleSchema.parse`; on `schemaVersion` mismatch throw `ContextBundleVersionError` ("regenerate with `gather-context`").
 
-**Validation rules**: `totalBytes` must equal the sum of excerpt/readme/manifest byte lengths
-(a cheap integrity check); every `relPath` is repo-relative and `/`-separated; no `relPath` matches
-the secret-path exclusion set (enforced by `gatherContext`, re-asserted in the serializer).
+**Validation rules**: every `relPath` is repo-relative and `/`-separated; no `relPath` matches the
+secret-path exclusion set (`matchesSecretPattern`) — enforced by `gatherContext`, re-asserted in the
+serializer. (`totalBytes` is `gatherContext`'s own running byte budget, copied through as-is — the
+serializer does not recompute it.)
 
 **Written to**: `{outDir}/{repoName}.context.json` by the `gather-context` CLI subcommand.
 

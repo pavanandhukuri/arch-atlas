@@ -76,19 +76,19 @@ fields deep-equal the `AnalysisContext`.
 
 ## Guarantees
 
-| #   | Guarantee                                                                                           | Maps to                   |
-| --- | --------------------------------------------------------------------------------------------------- | ------------------------- |
-| CB1 | No `relPath` in any bundle array matches the secret-path exclusion set.                             | FR-005, SC-005            |
-| CB2 | `gather-context` makes zero outbound network connections.                                           | FR-001, FR-004            |
-| CB3 | The bundle is a pure function of (repo tree, `maxFilesPerRepo`, `excludePatterns`) — deterministic. | FR-004                    |
-| CB4 | `totalBytes` equals the summed byte length of all `text` fields.                                    | data-model integrity rule |
-| CB5 | A version-mismatched bundle is rejected with an actionable message, never silently used.            | Edge Cases                |
+| #   | Guarantee                                                                                                          | Maps to                    |
+| --- | ------------------------------------------------------------------------------------------------------------------ | -------------------------- |
+| CB1 | No `relPath` in any bundle array matches the secret-path exclusion set.                                            | FR-005, SC-005             |
+| CB2 | `gather-context` makes zero outbound network connections.                                                          | FR-001, FR-004             |
+| CB3 | The bundle is a pure function of the repo tree (`gatherContext`'s fixed `context-limits.ts` caps) — deterministic. | FR-004                     |
+| CB4 | `serialize` → JSON → `readContextBundle` round-trips every field (incl. `totalBytes`) unchanged.                   | data-model round-trip rule |
+| CB5 | A version-mismatched bundle is rejected with an actionable message, never silently used.                           | Edge Cases                 |
 
 ## Tests (`test/unit/context-bundle.test.ts`, `test/integration/*`)
 
 - Round-trip: `gatherContext` on a fixture repo → serialise → `readContextBundle` → deep-equal.
 - CB1: run over `user-service` (has the planted `.env`) → no `relPath` contains `.env`.
-- CB4: tamper `totalBytes` → `parse` fails.
+- CB4: `readContextBundle(serialize(gatherContext(...)) as JSON)` deep-equals the input bundle.
 - CB5: `schemaVersion: '9.9'` → `ContextBundleVersionError`.
 - CLI: `gather-context` over the fixtures workspace writes one `*.context.json` per repo; a
   missing-path repo is skipped, exit `0`.

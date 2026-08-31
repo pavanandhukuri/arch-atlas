@@ -1,27 +1,21 @@
 {
-  "name": "@arch-atlas/llm-importer",
+  "name": "@arch-atlas/analysis-runner-local",
   "version": "0.1.0",
-  "description": "Local-model-driven repository architecture importer",
+  "description": "Reference local-model producer of per-repository RepoAnalysis artifacts for the arch-atlas importer",
   "type": "module",
-  "bin": {
-    "arch-atlas-import": "./dist/cli.js"
-  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./cli": {
-      "types": "./dist/cli.d.ts",
-      "default": "./dist/cli.js"
     }
+  },
+  "bin": {
+    "analysis-runner-local": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
-    "import": "tsx src/cli.ts",
-    "eval": "tsx test/eval/run.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src/ test/",
@@ -29,12 +23,8 @@
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {
-    "@arch-atlas/core-model": "workspace:*",
-    "@arch-atlas/layout": "workspace:*",
-    "@earendil-works/pi-coding-agent": "^0.82.0",
-    "@earendil-works/pi-ai": "^0.82.0",
+    "@arch-atlas/llm-importer": "workspace:*",
     "commander": "^12.1.0",
-    "typebox": "1.1.38",
     "js-yaml": "^4.1.0",
     "zod": "^3.23.8"
   },
