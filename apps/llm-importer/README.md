@@ -1,37 +1,43 @@
 # @arch-atlas/llm-importer
 
-Local-model-driven repository architecture importer. For each local repository it makes a
-single bounded, structured-output call to a user-supplied local model (Ollama, MLX, or any
-other OpenAI-compatible local endpoint — no hosted/cloud API path exists in this package)
-over a deterministically-gathered context (README(s), manifest file(s), a bounded directory
-listing, a few relevance-ranked source files). It then correlates connections across
-repositories — deterministic evidence passes over raw repository source, with a bounded
-agentic fallback for pairs those can't resolve — and produces the same review-artifact
-format the Studio import wizard already consumes.
+**Deterministic, model-free** repository architecture importer. It gathers a bounded per-repo
+context, reads one `{repo}.analysis.json` per repository (produced by _some_ analysis producer —
+see below), correlates connections across repositories with deterministic evidence passes over the
+raw source, and writes the review artifact the Studio import wizard consumes. **This package makes
+no model call and no network request under any configuration.**
 
-See `specs/008-bounded-repo-analysis/` in the repo root for the current spec, plan,
-research decisions, data model, and contracts. `specs/007-llm-repo-importer/` is the
-historical record of the earlier agentic-skill approach this replaced.
+The one LLM step — turning a repository into its `{repo}.analysis.json` — is external and swappable
+(010):
+
+| Producer                            | Where                            | Model                                                                       |
+| ----------------------------------- | -------------------------------- | --------------------------------------------------------------------------- |
+| `@arch-atlas/analysis-runner-local` | `packages/analysis-runner-local` | **local** OpenAI-compatible endpoint, offline                               |
+| `repo-analysis` skill               | `.claude/skills/repo-analysis`   | Claude Code — **hosted API, opt-in**                                        |
+| your own                            | anything                         | anything — the contract is `RepoAnalysisSchema` + the context-bundle format |
+
+See `specs/010-harness-neutral-importer/` for the producer contract. `specs/008-…` / `specs/007-…`
+are the historical record of the earlier in-process agentic approaches.
 
 ## Prerequisites
 
-- Node.js ≥ 22
-- A running local model server (Ollama: `ollama serve` + `ollama pull <model>`, or an
-  MLX / OpenAI-compatible server)
-
-_(No Python. The 007 revision required a Python 3.11+ interpreter for a vendored
-Understand-Anything merge script; this revision has no Python dependency.)_
+- Node.js ≥ 22. **No Python. No local model server** for the importer itself (a producer may need one).
 
 ## Pipeline
 
 ```
-repo → gather-context (bounded, deterministic, secret-paths excluded)
-     → analyze-repo   (ONE model call, tools:[], one turn, one retry)  → {repo}.analysis.json
-     → to-correlation-graph (adapter)
-     → correlate      (evidence passes over raw source; agentic fallback for the rest)
-     → assemble-review → architecture.review.yaml
-     → build-diagram   → architecture.arch.json
+repo → gather-context (bounded, deterministic, secret-paths excluded)  → {repo}.context.json
+     → <external producer>                                             → {repo}.analysis.json
+     → import:
+         to-correlation-graph (adapter)
+       → correlate            (deterministic evidence passes over raw source)
+       → (+ optional architecture.extra-connections.json from a producer's fallback pass)
+       → assemble-review      → architecture.review.yaml
+       → build-diagram        → architecture.arch.json
 ```
+
+`arch-atlas-import` has two subcommands: `gather-context <config>` (write the bundles) and
+`import <config>` (build the diagram from `{repo}.analysis.json` artifacts). Neither contacts a
+model or the network.
 
 `src/correlate/evidence/` and `src/correlate/evidence-passes.ts` are a **port** — owned
 and maintained here — of the deterministic cross-repository linker core from the author's

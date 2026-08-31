@@ -16,26 +16,19 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { load as parseYaml } from 'js-yaml';
 import {
-  createAgentSession,
-  SessionManager,
-  SettingsManager,
-} from '@earendil-works/pi-coding-agent';
+  toCorrelationGraph,
+  correlateDeterministically,
+  type RepoAnalysis,
+  type CrossRepositoryConnection,
+} from '@arch-atlas/llm-importer';
 import {
-  buildLocalModelRuntime,
+  analyzeRepoLocal,
+  resolveUnresolvedPairs,
+  chatComplete,
   checkLocalModelReachable,
-} from '../../src/model-runtime/local-model-runtime.js';
-import type { LocalModelConfig } from '../../src/config/config.schema.js';
-import { analyzeRepo } from '../../src/analysis/analyze-repo.js';
-import { toCorrelationGraph } from '../../src/analysis/to-correlation-graph.js';
-import { correlateDeterministically } from '../../src/correlate/deterministic-correlator.js';
-import { correlateAgentically } from '../../src/correlate/agentic-correlator.js';
-import { SharedLimiter } from '../../src/concurrency/shared-limiter.js';
-import type { RepoAnalysis } from '../../src/analysis/repo-analysis.schema.js';
-import type { CrossRepositoryConnection } from '../../src/correlate/deterministic-correlator.js';
+} from '@arch-atlas/analysis-runner-local';
 import { ensureClonedWorkspace } from './clone-workspace.js';
 import {
   analysisFields,
@@ -88,16 +81,19 @@ function parseArgs(argv: string[]): Args {
   return a;
 }
 
-function modelConfigFromEnv(): LocalModelConfig {
-  const provider = (process.env.EVAL_MODEL_PROVIDER ?? 'openai-compatible') as
-    | 'ollama'
-    | 'mlx'
-    | 'openai-compatible';
+interface EvalModelConfig {
+  endpoint: string;
+  modelId: string;
+  apiKey?: string;
+  temperature: number;
+}
+
+function modelConfigFromEnv(): EvalModelConfig {
   return {
-    provider,
     endpoint: process.env.EVAL_MODEL_ENDPOINT ?? 'http://127.0.0.1:8000/v1',
     modelId: process.env.EVAL_MODEL_ID ?? 'Qwen3-Coder-30B-A3B-Instruct-MLX-4bit',
     ...(process.env.EVAL_MODEL_API_KEY ? { apiKey: process.env.EVAL_MODEL_API_KEY } : {}),
+    temperature: Number(process.env.EVAL_TEMPERATURE ?? '0.1'),
   };
 }
 
@@ -108,51 +104,38 @@ function resolveWorkspaceBase(name: string, cfg: EvalConfig): string {
   return cfg.workspace.clone.subdir ? join(root, cfg.workspace.clone.subdir) : root;
 }
 
-type ModelRuntimeBundle = Awaited<ReturnType<typeof buildLocalModelRuntime>>;
-
 async function judgeDescription(
-  bundle: ModelRuntimeBundle,
+  model: EvalModelConfig,
   role: string,
   description: string
 ): Promise<number> {
   if (!description.trim()) return 1;
-  const agentDir = await mkdtemp(join(tmpdir(), 'eval-judge-'));
-  const { session } = await createAgentSession({
-    agentDir,
-    model: bundle.model,
-    modelRuntime: bundle.modelRuntime,
-    tools: [],
-    sessionManager: SessionManager.inMemory(),
-    settingsManager: SettingsManager.inMemory({}),
+  const text = await chatComplete({
+    endpoint: model.endpoint,
+    modelId: model.modelId,
+    ...(model.apiKey !== undefined ? { apiKey: model.apiKey } : {}),
+    temperature: model.temperature,
+    messages: [
+      {
+        role: 'user',
+        content:
+          `A repository's TRUE role:\n"${role}"\n\nA generated DESCRIPTION of it:\n"${description}"\n\n` +
+          'Rate how accurately the description captures that role: 5 = accurate and specific, ' +
+          '3 = vague but not wrong, 1 = wrong or hallucinated. Reply with ONLY the single digit.',
+      },
+    ],
   });
-  let text = '';
-  session.subscribe((e: unknown) => {
-    const ev = e as { type?: string; assistantMessageEvent?: { type?: string; delta?: string } };
-    if (ev.type === 'message_update' && ev.assistantMessageEvent?.type === 'text_delta') {
-      text += ev.assistantMessageEvent.delta ?? '';
-    }
-  });
-  try {
-    await session.prompt(
-      `A repository's TRUE role:\n"${role}"\n\nA generated DESCRIPTION of it:\n"${description}"\n\n` +
-        'Rate how accurately the description captures that role: 5 = accurate and specific, ' +
-        '3 = vague but not wrong, 1 = wrong or hallucinated. Reply with ONLY the single digit.'
-    );
-  } finally {
-    session.dispose();
-  }
   const m = /[1-5]/.exec(text);
   return m ? Number(m[0]) : 3;
 }
 
-async function evalSet(name: string, args: Args, bundle: ModelRuntimeBundle): Promise<EvalReport> {
+async function evalSet(name: string, args: Args, model: EvalModelConfig): Promise<EvalReport> {
   const goldenDir = join(GOLDEN_DIR, name);
   const cfg = parseYaml(readFileSync(join(goldenDir, 'eval.config.yaml'), 'utf8')) as EvalConfig;
   const gt = JSON.parse(
     readFileSync(join(goldenDir, 'ground-truth.json'), 'utf8')
   ) as WorkspaceGroundTruth;
   const base = resolveWorkspaceBase(name, cfg);
-  const limiter = new SharedLimiter(1);
 
   // analyses[runIdx][repoName]
   const analyses: Array<Record<string, RepoAnalysis>> = [];
@@ -162,15 +145,15 @@ async function evalSet(name: string, args: Args, bundle: ModelRuntimeBundle): Pr
     process.stderr.write(`  [${name}] run ${run + 1}/${args.runs}\n`);
     const byRepo: Record<string, RepoAnalysis> = {};
     for (const repo of cfg.repos) {
-      const res = await analyzeRepo({
+      const res = await analyzeRepoLocal({
         repoName: repo.name,
-        repoPath: join(base, repo.path),
-        model: bundle.model,
-        modelRuntime: bundle.modelRuntime,
-        limiter,
-        onProgress: () => undefined,
+        input: { repoPath: join(base, repo.path) },
+        endpoint: model.endpoint,
+        modelId: model.modelId,
+        ...(model.apiKey !== undefined ? { apiKey: model.apiKey } : {}),
+        temperature: model.temperature,
       });
-      if (res.status === 'complete') byRepo[repo.name] = res.analysis;
+      if (res.status !== 'failed') byRepo[repo.name] = res.analysis;
       else process.stderr.write(`    ! ${repo.name} failed: ${res.error}\n`);
     }
     analyses.push(byRepo);
@@ -182,13 +165,14 @@ async function evalSet(name: string, args: Args, bundle: ModelRuntimeBundle): Pr
       const graphsByName = new Map(graphs.map((g) => [g.repository.name, g]));
       connections = [
         ...connections,
-        ...(await correlateAgentically(
-          det.unresolvedPairs,
+        ...(await resolveUnresolvedPairs({
+          pairs: det.unresolvedPairs,
           graphsByName,
-          bundle.model,
-          bundle.modelRuntime,
-          limiter
-        )),
+          endpoint: model.endpoint,
+          modelId: model.modelId,
+          ...(model.apiKey !== undefined ? { apiKey: model.apiKey } : {}),
+          temperature: model.temperature,
+        })),
       ];
     }
     connScores.push(scoreConnections(connections, gt));
@@ -228,7 +212,7 @@ async function evalSet(name: string, args: Args, bundle: ModelRuntimeBundle): Pr
     if (args.judge && runsForRepo.length > 0) {
       const scores: number[] = [];
       for (const a of runsForRepo) {
-        scores.push(await judgeDescription(bundle, expected.role, a.description));
+        scores.push(await judgeDescription(model, expected.role, a.description));
       }
       descriptionScore = mean(scores);
     }
@@ -240,7 +224,7 @@ async function evalSet(name: string, args: Args, bundle: ModelRuntimeBundle): Pr
   return {
     set: name,
     runs: args.runs,
-    model: bundle.model.id,
+    model: model.modelId,
     generatedAt: new Date().toISOString(),
     perRepo,
     aggregate,
@@ -352,13 +336,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  const workDir = await mkdtemp(join(tmpdir(), 'arch-atlas-eval-'));
-  const temperature = Number(process.env.EVAL_TEMPERATURE ?? '0.1');
-  const bundle = await buildLocalModelRuntime(modelConfig, workDir, temperature);
-
   const reports: Record<string, EvalReport> = {};
   for (const name of setNames) {
-    const report = await evalSet(name, args, bundle);
+    const report = await evalSet(name, args, modelConfig);
     reports[name] = report;
     printReport(report);
   }

@@ -31,14 +31,12 @@
   "dependencies": {
     "@arch-atlas/core-model": "workspace:*",
     "@arch-atlas/layout": "workspace:*",
-    "@earendil-works/pi-coding-agent": "^0.82.0",
-    "@earendil-works/pi-ai": "^0.82.0",
     "commander": "^12.1.0",
-    "typebox": "1.1.38",
     "js-yaml": "^4.1.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@arch-atlas/analysis-runner-local": "workspace:*",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.11.0",
     "@vitest/coverage-v8": "^1.6.1",
