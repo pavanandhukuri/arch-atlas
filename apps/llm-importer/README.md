@@ -57,7 +57,9 @@ detection from compose files, and (009) a **gRPC pass**.
 | `compose`  | compose files wiring services to repos / to well-known external systems (databases, brokers, auth)                                                                                           |
 | `topic`    | cross-repo pub/sub on the same literal topic string                                                                                                                                          |
 
-Pairs no pass resolves fall through to the bounded agentic fallback.
+Pairs no pass resolves can optionally be linked by a producer's model-assisted fallback, written to
+`architecture.extra-connections.json` and merged by `import` (e.g.
+`analysis-runner-local resolve-pairs`).
 
 ## Development
 
@@ -67,4 +69,5 @@ pnpm --filter @arch-atlas/llm-importer test
 pnpm --filter @arch-atlas/llm-importer lint
 ```
 
-See `specs/008-bounded-repo-analysis/quickstart.md` for end-to-end usage.
+See `specs/010-harness-neutral-importer/quickstart.md` for end-to-end usage (the three producer
+paths + the model-free run).

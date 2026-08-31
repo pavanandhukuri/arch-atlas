@@ -15,7 +15,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    exclude: ['**/node_modules/**', '**/dist/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'eval/golden/*/workspace/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

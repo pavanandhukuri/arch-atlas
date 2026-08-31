@@ -11,8 +11,8 @@ import {
   averagePrf,
   stddev,
 } from './score.js';
-import type { RepoAnalysis } from '../../src/analysis/repo-analysis.schema.js';
-import type { CrossRepositoryConnection } from '../../src/correlate/deterministic-correlator.js';
+import type { RepoAnalysis } from '@arch-atlas/llm-importer';
+import type { CrossRepositoryConnection } from '@arch-atlas/llm-importer';
 import type { WorkspaceGroundTruth } from './types.js';
 
 describe('normalizeRoute', () => {

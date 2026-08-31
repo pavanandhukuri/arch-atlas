@@ -287,9 +287,9 @@
   },
   "online-boutique": {
     "set": "online-boutique",
-    "runs": 3,
+    "runs": 2,
     "model": "Qwen3-Coder-30B-A3B-Instruct-MLX-4bit",
-    "generatedAt": "2026-08-30T15:15:14.106Z",
+    "generatedAt": "2026-08-31T06:44:51.479Z",
     "perRepo": {
       "frontend": {
         "languages": {
@@ -360,11 +360,11 @@
       "cartservice": {
         "languages": {
           "tp": 1,
-          "fp": 1,
+          "fp": 0,
           "fn": 0,
-          "precision": 0.5,
+          "precision": 1,
           "recall": 1,
-          "f1": 0.6666666666666666
+          "f1": 1
         },
         "frameworks": {
           "tp": 2,
@@ -399,27 +399,27 @@
           "f1": 1
         },
         "datastores": {
-          "tp": 0,
-          "fp": 1,
-          "fn": 1,
-          "precision": 0,
-          "recall": 0,
-          "f1": 0
+          "tp": 1,
+          "fp": 2,
+          "fn": 0,
+          "precision": 0.3333333333333333,
+          "recall": 1,
+          "f1": 0.5
         },
         "outbound": {
-          "tp": 1,
-          "fp": 3,
-          "fn": 0,
-          "precision": 0.25,
-          "recall": 1,
-          "f1": 0.4000000000000001
+          "tp": 0.5,
+          "fp": 2,
+          "fn": 0.5,
+          "precision": 0.125,
+          "recall": 0.5,
+          "f1": 0.2
         },
         "consistency": {
           "httpRoutes": 1,
           "grpcServices": 1,
           "topics": 1,
-          "datastores": 1,
-          "frameworks": 0.5555555555555555
+          "datastores": 0.5,
+          "frameworks": 1
         },
         "descriptionScore": null
       },
@@ -474,7 +474,7 @@
         },
         "outbound": {
           "tp": 0,
-          "fp": 2,
+          "fp": 4,
           "fn": 0,
           "precision": 0,
           "recall": 1,
@@ -499,12 +499,12 @@
           "f1": 1
         },
         "frameworks": {
-          "tp": 2,
+          "tp": 1,
           "fp": 0,
-          "fn": 0,
+          "fn": 1,
           "precision": 1,
-          "recall": 1,
-          "f1": 1
+          "recall": 0.5,
+          "f1": 0.6666666666666666
         },
         "httpRoutes": {
           "tp": 0,
@@ -540,11 +540,11 @@
         },
         "outbound": {
           "tp": 0,
-          "fp": 0,
+          "fp": 1,
           "fn": 0,
-          "precision": 1,
+          "precision": 0,
           "recall": 1,
-          "f1": 1
+          "f1": 0
         },
         "consistency": {
           "httpRoutes": 1,
@@ -606,11 +606,11 @@
         },
         "outbound": {
           "tp": 0,
-          "fp": 0.6666666666666666,
+          "fp": 1,
           "fn": 0,
-          "precision": 0.3333333333333333,
+          "precision": 0,
           "recall": 1,
-          "f1": 0.3333333333333333
+          "f1": 0
         },
         "consistency": {
           "httpRoutes": 1,
@@ -698,11 +698,11 @@
         },
         "frameworks": {
           "tp": 1,
-          "fp": 1,
+          "fp": 0,
           "fn": 0,
-          "precision": 0.5,
+          "precision": 1,
           "recall": 1,
-          "f1": 0.6666666666666666
+          "f1": 1
         },
         "httpRoutes": {
           "tp": 0,
@@ -764,11 +764,11 @@
         },
         "frameworks": {
           "tp": 1,
-          "fp": 1,
+          "fp": 0,
           "fn": 0,
-          "precision": 0.5,
+          "precision": 1,
           "recall": 1,
-          "f1": 0.6666666666666666
+          "f1": 1
         },
         "httpRoutes": {
           "tp": 0,
@@ -779,12 +779,12 @@
           "f1": 1
         },
         "grpcServices": {
-          "tp": 0,
-          "fp": 1,
-          "fn": 1,
-          "precision": 0,
-          "recall": 0,
-          "f1": 0
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1
         },
         "topics": {
           "tp": 0,
@@ -804,11 +804,11 @@
         },
         "outbound": {
           "tp": 6,
-          "fp": 0,
+          "fp": 1,
           "fn": 0,
-          "precision": 1,
+          "precision": 0.8571428571428571,
           "recall": 1,
-          "f1": 1
+          "f1": 0.923076923076923
         },
         "consistency": {
           "httpRoutes": 1,
@@ -953,17 +953,17 @@
       }
     },
     "aggregate": {
-      "languagesF1": 0.967,
-      "frameworksF1": 0.833,
+      "languagesF1": 1,
+      "frameworksF1": 0.867,
       "httpRoutesF1": 0.867,
-      "grpcServicesF1": 0.733,
+      "grpcServicesF1": 0.833,
       "topicsF1": 1,
-      "datastoresF1": 0.8,
-      "outboundRecall": 1,
+      "datastoresF1": 0.85,
+      "outboundRecall": 0.95,
       "connectionsPrecision": 0.667,
       "connectionsRecall": 1,
       "connectionsRecallStddev": 0,
-      "meanConsistency": 0.991,
+      "meanConsistency": 0.99,
       "meanDescriptionScore": 0
     }
   }

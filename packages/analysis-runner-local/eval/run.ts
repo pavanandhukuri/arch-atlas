@@ -28,7 +28,7 @@ import {
   resolveUnresolvedPairs,
   chatComplete,
   checkLocalModelReachable,
-} from '@arch-atlas/analysis-runner-local';
+} from '../src/index.js';
 import { ensureClonedWorkspace } from './clone-workspace.js';
 import {
   analysisFields,

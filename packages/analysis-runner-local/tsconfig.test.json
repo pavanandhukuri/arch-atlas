@@ -11,5 +11,6 @@
       "@arch-atlas/llm-importer": ["../../apps/llm-importer/src/index.ts"]
     }
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*", "test/**/*", "eval/**/*"],
+  "exclude": ["eval/golden/*/workspace/**/*"]
 }

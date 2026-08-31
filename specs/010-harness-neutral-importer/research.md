@@ -172,19 +172,22 @@ documented-experimental (008 D14.6: pathologically slow on oMLX).
 
 ---
 
-## D10 — Eval harness rewire
+## D10 — Eval harness rewire (revised during implementation)
 
-**Decision**: `apps/llm-importer/test/eval/run.ts` imports `analyzeRepoLocal` and `chatComplete` from
-`@arch-atlas/analysis-runner-local` (a **devDependency** of `apps/llm-importer` — a dev-only cycle,
-which pnpm/turbo handle) instead of `analyzeRepo` + `buildLocalModelRuntime` + `createAgentSession`.
-`correlateAgentically` → the runner's `resolveUnresolvedPairs`. The LLM-judge's `createAgentSession`
-→ `chatComplete`. `baseline.json` is regenerated; the 009 connection numbers must hold within the
-harness's 0.05 `TOLERANCE`.
+**Decision**: the eval moves from `apps/llm-importer/test/eval/` to
+`packages/analysis-runner-local/eval/`. `run.ts` uses `analyzeRepoLocal` / `chatComplete` /
+`resolveUnresolvedPairs` from the runner's own `../src/index.js`, and `RepoAnalysis` /
+`CrossRepositoryConnection` / `toCorrelationGraph` / `correlateDeterministically` from
+`@arch-atlas/llm-importer`. The `pnpm eval` script moves to the runner package too. `baseline.json`
+moves with it; 009 connection numbers must hold within the harness's 0.05 `TOLERANCE`.
 
-**Rationale**: The eval fundamentally measures analysis + correlation quality; it now needs the
-runner for the analysis half. A dev-cycle is acceptable for a non-shipped test. Moving `test/eval`
-into the runner package was considered (cleaner dependency direction) but rejected to keep the diff
-smaller and the eval discoverable where it has always lived.
+**Why the move (not a devDependency)**: the eval needs _both_ the runner (analysis half) and the
+importer (correlation half). A devDependency `apps/llm-importer → @arch-atlas/analysis-runner-local`
+alongside the runtime `@arch-atlas/analysis-runner-local → @arch-atlas/llm-importer` is a cycle that
+**turbo rejects** ("Invalid package dependency graph: cyclic dependency detected") regardless of
+dev/prod. The runner already depends on the importer, so hosting the eval there is the only acyclic
+home. The `golden/*/workspace/` git-ignore + eslint/tsconfig/vitest excludes are repointed to the
+new path.
 
 ---
 

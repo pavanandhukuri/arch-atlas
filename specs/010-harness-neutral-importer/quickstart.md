@@ -80,7 +80,7 @@ RUN_LIVE=1 EVAL_MODEL_ENDPOINT=http://127.0.0.1:8000/v1 EVAL_MODEL_API_KEY=… \
   pnpm --filter @arch-atlas/analysis-runner-local test -- live-analyze
 
 # 3. eval baseline holds
-EVAL_MODEL_ENDPOINT=… EVAL_MODEL_ID=… EVAL_MODEL_API_KEY=… pnpm eval --set fixtures --runs 3 --no-judge --check
+EVAL_MODEL_ENDPOINT=… EVAL_MODEL_ID=… EVAL_MODEL_API_KEY=… pnpm --filter @arch-atlas/analysis-runner-local eval --set fixtures --runs 3 --no-judge --check
 ```
 
 Recorded in `specs/010-harness-neutral-importer/proof.md`. Pass: model-free run byte-equivalent

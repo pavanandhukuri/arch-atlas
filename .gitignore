@@ -24,4 +24,4 @@ Thumbs.db
 .vscode/
 .idea/
 # eval — externally cloned golden workspaces (pinned by SHA in eval.config.yaml)
-apps/llm-importer/test/eval/golden/*/workspace/
+packages/analysis-runner-local/eval/golden/*/workspace/
