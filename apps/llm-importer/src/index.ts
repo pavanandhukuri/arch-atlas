@@ -61,7 +61,12 @@ export type {
   DeterministicCorrelationResult,
 } from './correlate/deterministic-correlator.js';
 
-export { readExtraConnections, ExtraConnectionsSchema } from './correlate/extra-connections.js';
+export {
+  readExtraConnections,
+  ExtraConnectionsSchema,
+  EXTRA_CONNECTIONS_FILE,
+  EXTRA_CONNECTIONS_VERSION,
+} from './correlate/extra-connections.js';
 
 export {
   RepositoryKnowledgeGraphSchema,
