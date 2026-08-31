@@ -50,18 +50,17 @@ function makeConfig(over: Partial<ImportConfig> = {}): ImportConfig {
 const OPTS: RunImportOptions = { verbose: false };
 
 let errs: string[];
-let errSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(async () => {
   outputDir = await mkdtemp(join(tmpdir(), 'run-import-'));
   errs = [];
-  errSpy = vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => {
+  vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => {
     errs.push(a.map(String).join(' '));
   });
 });
 
 afterEach(async () => {
-  errSpy.mockRestore();
+  vi.restoreAllMocks();
   await rm(outputDir, { recursive: true, force: true });
 });
 

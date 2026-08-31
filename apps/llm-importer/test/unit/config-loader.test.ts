@@ -68,7 +68,7 @@ describe('loadConfig', () => {
     ].join('\n');
     const path = await writeConfigFile('valid.yaml', yamlContents);
     const config = await loadConfig(path);
-    expect(config.localModel.provider).toBe('mlx');
+    expect(config.localModel?.provider).toBe('mlx');
     expect(config.repositories[0]?.name).toBe('Repo A');
   });
 
