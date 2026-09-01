@@ -61,7 +61,11 @@ export type RepositoryEntry = z.infer<typeof RepositoryEntrySchema>;
 
 export const ImportConfigSchema = z.object({
   version: z.literal(CONFIG_VERSION),
-  localModel: LocalModelConfigSchema,
+  // 010-harness-neutral-importer: the importer core is model-free and never reads
+  // this block. It is retained (optional) so a single `import.yaml` can also
+  // configure an analysis producer such as `@arch-atlas/analysis-runner-local`,
+  // which requires it. Old configs that still carry a `localModel` stay valid.
+  localModel: LocalModelConfigSchema.optional(),
   output: OutputConfigSchema,
   analysis: AnalysisConfigSchema,
   repositories: z.array(RepositoryEntrySchema).min(1).max(50),

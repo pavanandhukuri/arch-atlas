@@ -3,7 +3,12 @@
   "compilerOptions": {
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@arch-atlas/llm-importer": ["./src/index.ts"],
+      "@arch-atlas/analysis-runner-local": ["../../packages/analysis-runner-local/src/index.ts"]
+    }
   },
   "include": ["src/**/*", "test/**/*"],
   "exclude": [

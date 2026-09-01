@@ -125,7 +125,7 @@ export default tseslint.config(
       'apps/llm-importer/test/fixtures/repos/**',
       // External golden workspaces the eval clones at a pinned SHA (git-ignored)
       // — third-party code we analyze, not lint.
-      'apps/llm-importer/test/eval/golden/*/workspace/**',
+      'packages/analysis-runner-local/eval/golden/*/workspace/**',
     ],
   }
 );

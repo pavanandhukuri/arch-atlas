@@ -1,0 +1,41 @@
+{
+  "name": "@arch-atlas/analysis-runner-local",
+  "version": "0.1.0",
+  "description": "Reference local-model producer of per-repository RepoAnalysis artifacts for the arch-atlas importer",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "analysis-runner-local": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ test/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "eval": "tsx eval/run.ts"
+  },
+  "dependencies": {
+    "@arch-atlas/llm-importer": "workspace:*",
+    "commander": "^12.1.0",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.11.0",
+    "@vitest/coverage-v8": "^1.6.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0",
+    "js-yaml": "^4.1.0"
+  }
+}

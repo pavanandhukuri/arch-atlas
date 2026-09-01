@@ -4,6 +4,17 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Changed (010-harness-neutral-importer)
+
+- **`apps/llm-importer` is now deterministic and model-free.** It reads one `{repo}.analysis.json` per repository, correlates, and writes the review artifact + diagram — no model call, no network request, no agent-framework dependency. The `@earendil-works/pi-coding-agent`, `@earendil-works/pi-ai`, and `typebox` dependencies are removed.
+- The per-repository analysis step is now an **external, swappable producer**. Two ship in-repo, plus a documented contract for your own:
+  - `@arch-atlas/analysis-runner-local` (`packages/analysis-runner-local`) — reference runner against a **local** OpenAI-compatible endpoint (offline; carries the 007/008 local-only guarantee).
+  - `.claude/skills/repo-analysis` — a Claude Code skill; **opt-in hosted-API** path.
+  - Contract: `RepoAnalysisSchema` (unchanged) + the new `{repo}.context.json` bundle format — see `specs/010-harness-neutral-importer/contracts/`.
+- CLI: `arch-atlas-import` gains `gather-context <config>` (write context bundles) and `import <config>` (build the diagram from artifacts). Removed: `--analyze-only`, the model-endpoint reachability gate, exit code 2. A missing/malformed `{repo}.analysis.json` is named and skipped; the rest still produce a diagram.
+- The model-assisted cross-repo fallback moved out of the core: a producer may write an optional `architecture.extra-connections.json` which `import` merges (unchanged `low`-confidence mapping).
+- Schemas for `{repo}.analysis.json`, the review artifact, and `.arch.json` are unchanged; Studio needs no change.
+
 ### Added (009-grpc-cross-repo-correlation)
 
 - **gRPC service-to-service calls are now detected** and drawn as connections. The deterministic evidence-grounded correlator gains a sixth pass (`grpc`) that matches gRPC client/stub construction sites in one repository's source (Go, C#, Node/JS, Python, Java, plus a generic fallback) against the gRPC services another repository serves (from the per-repo analysis and/or `.proto` `service` declarations), producing directed `calls` connections with file/line evidence. Previously a workspace whose services talked only over gRPC produced containers with no connections between them.

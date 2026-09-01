@@ -1,45 +1,49 @@
 #!/usr/bin/env node
+import { writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { loadConfig, ConfigValidationError } from './config/loader.js';
-import {
-  checkLocalModelReachable,
-  LocalModelUnreachableError,
-} from './model-runtime/local-model-runtime.js';
 import { runImport } from './analysis/run-import.js';
+import { ensureOutputDir } from './analysis/analysis-store.js';
+import { gatherContext } from './analysis/gather-context.js';
+import { serializeContextBundle } from './analysis/context-bundle.js';
 
-export interface CliOptions {
+/**
+ * 010-harness-neutral-importer: the importer core is deterministic and
+ * model-free. Two subcommands, neither of which makes a model call or a network
+ * request:
+ *   import <config>          — review.yaml + arch.json from {repo}.analysis.json artifacts
+ *   gather-context <config>  — write {repo}.context.json bundles for an external producer
+ *
+ * Exit codes: 0 = success (incl. per-repo skips / nothing to export),
+ *             1 = config validation error or unexpected error.
+ * (No "endpoint unreachable" code — the core never contacts an endpoint.)
+ */
+
+export interface ImportCommandOptions {
   output?: string;
-  forceRefresh?: boolean;
   repos?: string;
-  analyzeOnly?: boolean;
-  aggregateOnly?: boolean;
-  maxConcurrency?: number;
   verbose?: boolean;
 }
 
-/**
- * Exit codes per contracts/cli-contract.md: 1 = config validation error,
- * 2 = local model endpoint unreachable (fails before any repository
- * analysis begins — US4 acceptance scenario 2), other uncaught errors also
- * exit 1.
- */
-export async function runCli(configFile: string, options: CliOptions): Promise<number> {
+export interface GatherContextCommandOptions {
+  out?: string;
+  repos?: string;
+}
+
+function reposFilter(csv: string | undefined): string[] | undefined {
+  return csv?.split(',').map((s) => s.trim());
+}
+
+export async function runImportCommand(
+  configFile: string,
+  options: ImportCommandOptions
+): Promise<number> {
   try {
     const config = await loadConfig(configFile);
-
-    console.error(
-      `Checking local model endpoint... ${config.localModel.endpoint} (${config.localModel.provider})`
-    );
-    await checkLocalModelReachable(config.localModel);
-    console.error(`✓ Model "${config.localModel.modelId}" endpoint is reachable`);
-
     await runImport(config, {
       outputDirOverride: options.output,
-      forceRefresh: Boolean(options.forceRefresh),
-      repoNamesFilter: options.repos?.split(',').map((s) => s.trim()),
-      analyzeOnly: Boolean(options.analyzeOnly),
-      aggregateOnly: Boolean(options.aggregateOnly),
-      maxConcurrencyOverride: options.maxConcurrency,
+      repoNamesFilter: reposFilter(options.repos),
       verbose: Boolean(options.verbose),
     });
     return 0;
@@ -48,9 +52,48 @@ export async function runCli(configFile: string, options: CliOptions): Promise<n
       console.error(error.message);
       return 1;
     }
-    if (error instanceof LocalModelUnreachableError) {
+    console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
+    return 1;
+  }
+}
+
+export async function runGatherContextCommand(
+  configFile: string,
+  options: GatherContextCommandOptions
+): Promise<number> {
+  try {
+    const config = await loadConfig(configFile);
+    const outDir = resolve(options.out ?? config.output.directory);
+    await ensureOutputDir(outDir);
+
+    const filter = reposFilter(options.repos);
+    const selected = filter
+      ? config.repositories.filter((r) => filter.includes(r.name ?? r.path))
+      : config.repositories;
+
+    for (const entry of selected) {
+      const name = entry.name ?? entry.path.split('/').filter(Boolean).pop() ?? entry.path;
+      const ctx = gatherContext(name, resolve(entry.path), entry.description);
+      if (
+        ctx.readmes.length === 0 &&
+        ctx.manifests.length === 0 &&
+        ctx.sourceExcerpts.length === 0
+      ) {
+        console.error(`[skip] ${name}: path not found or empty (${entry.path})`);
+        continue;
+      }
+      const bundle = serializeContextBundle(ctx);
+      const path = join(outDir, `${name}.context.json`);
+      await writeFile(path, JSON.stringify(bundle, null, 2), 'utf8');
+      console.error(
+        `[done] ${name}: ${bundle.sourceExcerpts.length} source excerpt(s), ${bundle.totalBytes} bytes → ${path}`
+      );
+    }
+    return 0;
+  } catch (error) {
+    if (error instanceof ConfigValidationError) {
       console.error(error.message);
-      return 2;
+      return 1;
     }
     console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
     return 1;
@@ -61,37 +104,37 @@ export function buildProgram(): Command {
   const program = new Command();
   program
     .name('arch-atlas-import')
-    .description('Agentic, local-model-driven repository architecture importer')
+    .description('Deterministic, model-free repository architecture importer');
+
+  program
+    .command('import')
+    .description('Build review.yaml + arch.json from existing {repo}.analysis.json artifacts')
     .argument('<config-file>', 'Path to import config (.json or .yaml/.yml)')
     .option('--output <dir>', 'Override output directory from config')
-    .option(
-      '--force-refresh',
-      'Re-analyze all repos even if a knowledge-graph artifact exists',
-      false
-    )
-    .option('--repos <names>', 'Comma-separated repo names to analyze (subset of config)')
-    .option(
-      '--analyze-only',
-      'Run per-repo agent analysis but skip correlation/review-assembly',
-      false
-    )
-    .option(
-      '--aggregate-only',
-      'Skip analysis, run correlation + review-assembly from existing artifacts',
-      false
-    )
-    .option('--max-concurrency <n>', 'Override analysis.maxConcurrency', (v) => parseInt(v, 10))
+    .option('--repos <names>', 'Comma-separated repo names to include (subset of config)')
     .option('--verbose', 'Print detailed progress', false)
-    .action(async (configFile: string, options: CliOptions) => {
-      const exitCode = await runCli(configFile, options);
-      if (exitCode !== 0) process.exitCode = exitCode;
+    .action(async (configFile: string, options: ImportCommandOptions) => {
+      const code = await runImportCommand(configFile, options);
+      if (code !== 0) process.exitCode = code;
     });
+
+  program
+    .command('gather-context')
+    .description('Write {repo}.context.json bundles for an external analysis producer')
+    .argument('<config-file>', 'Path to import config (.json or .yaml/.yml)')
+    .option(
+      '--out <dir>',
+      'Directory for the context bundles (defaults to config output.directory)'
+    )
+    .option('--repos <names>', 'Comma-separated repo names to include (subset of config)')
+    .action(async (configFile: string, options: GatherContextCommandOptions) => {
+      const code = await runGatherContextCommand(configFile, options);
+      if (code !== 0) process.exitCode = code;
+    });
+
   return program;
 }
 
-// Only parse real argv when this file is the actual process entrypoint —
-// not on every import, which is what made this file untestable before
-// (module-load-time `program.parseAsync(process.argv)` as a side effect).
 const isEntryPoint = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
 if (isEntryPoint) {
   buildProgram()

@@ -1,40 +1,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ImportConfig } from '../../src/config/config.schema.js';
 import type { RepoAnalysis } from '../../src/analysis/repo-analysis.schema.js';
-
-const analyzeRepoMock = vi.fn();
-
-vi.mock('../../src/analysis/analyze-repo.js', async () => {
-  const actual = await vi.importActual<typeof import('../../src/analysis/analyze-repo.js')>(
-    '../../src/analysis/analyze-repo.js'
-  );
-  return { ...actual, analyzeRepo: analyzeRepoMock };
-});
-
-vi.mock('../../src/model-runtime/local-model-runtime.js', async () => {
-  const actual = await vi.importActual<
-    typeof import('../../src/model-runtime/local-model-runtime.js')
-  >('../../src/model-runtime/local-model-runtime.js');
-  return {
-    ...actual,
-    buildLocalModelRuntime: vi.fn(() =>
-      Promise.resolve({ model: { id: 'llama3', provider: 'ollama' }, modelRuntime: {} })
-    ),
-  };
-});
-
-const { runImport } = await import('../../src/analysis/run-import.js');
-const { writeAnalysis } = await import('../../src/analysis/analysis-store.js');
+import { runImport, type RunImportOptions } from '../../src/analysis/run-import.js';
+import { writeAnalysis } from '../../src/analysis/analysis-store.js';
+import {
+  EXTRA_CONNECTIONS_FILE,
+  EXTRA_CONNECTIONS_VERSION,
+} from '../../src/correlate/extra-connections.js';
 
 let outputDir: string;
 
-function makeAnalysis(name: string): RepoAnalysis {
+function makeAnalysis(name: string, over: Partial<RepoAnalysis> = {}): RepoAnalysis {
   return {
     schemaVersion: '1.0',
-    analyzedAt: '2026-08-30T00:00:00.000Z',
+    analyzedAt: '2026-08-31T00:00:00.000Z',
     repository: { name, path: `/${name}` },
     description: `${name} summary`,
     languages: ['TypeScript'],
@@ -43,194 +25,215 @@ function makeAnalysis(name: string): RepoAnalysis {
     outbound: [],
     analysisStatus: 'complete',
     retryCount: 0,
+    ...over,
   };
 }
 
-function makeConfig(overrides: Partial<ImportConfig> = {}): ImportConfig {
+function makeConfig(over: Partial<ImportConfig> = {}): ImportConfig {
   return {
     version: '2.0',
-    localModel: { provider: 'ollama', endpoint: 'http://localhost:11434', modelId: 'llama3' },
     output: { directory: outputDir, diagramFileName: 'architecture.arch.json' },
     analysis: {
       maxFilesPerRepo: 200,
       excludePatterns: [],
       forceRefresh: false,
-      maxConcurrency: 2,
+      maxConcurrency: 1,
       temperature: 0.1,
       verifyGrounding: false,
       structuredOutput: 'prompt',
     },
     repositories: [{ path: '/service-a', name: 'service-a' }],
-    ...overrides,
+    ...over,
   };
 }
 
+const OPTS: RunImportOptions = { verbose: false };
+
+let errs: string[];
+
 beforeEach(async () => {
-  outputDir = await mkdtemp(join(tmpdir(), 'arch-atlas-run-import-test-'));
-  analyzeRepoMock
-    .mockReset()
-    .mockImplementation(({ repoName }: { repoName: string }) =>
-      Promise.resolve({ status: 'complete', analysis: makeAnalysis(repoName), retryCount: 0 })
-    );
+  outputDir = await mkdtemp(join(tmpdir(), 'run-import-'));
+  errs = [];
+  vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => {
+    errs.push(a.map(String).join(' '));
+  });
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await rm(outputDir, { recursive: true, force: true });
 });
 
-describe('runImport — US1 bounded analysis wiring', () => {
-  it('writes {repo}.analysis.json and prints the progress lines', async () => {
-    const errs: string[] = [];
-    const spy = vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => {
-      errs.push(a.join(' '));
-    });
-
-    await runImport(makeConfig(), {
-      forceRefresh: false,
-      analyzeOnly: false,
-      aggregateOnly: false,
-      verbose: false,
-    });
-    spy.mockRestore();
-
-    const written = JSON.parse(
-      await readFile(join(outputDir, 'service-a.analysis.json'), 'utf8')
-    ) as { repository: { name: string } };
-    expect(written.repository.name).toBe('service-a');
-    expect(errs.join('\n')).toMatch(/\[done\] service-a: Express ·/);
-  });
-
-  it('adds a repo to failures and writes no artifact when analyzeRepo fails', async () => {
-    analyzeRepoMock.mockResolvedValue({
-      status: 'failed',
-      error: 'model output failed schema validation after retry',
-      retryCount: 1,
-    });
-
-    await runImport(makeConfig(), {
-      forceRefresh: false,
-      analyzeOnly: true,
-      aggregateOnly: false,
-      verbose: false,
-    });
-
-    await expect(readFile(join(outputDir, 'service-a.analysis.json'), 'utf8')).rejects.toThrow();
-  });
-});
-
-describe('runImport — US3 incremental re-import', () => {
-  it('skips analysis for a repo with a valid cached artifact (FR-012)', async () => {
+describe('runImport — model-free core (010)', () => {
+  it('builds review + diagram from existing {repo}.analysis.json artifacts, no network', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
     await writeAnalysis(outputDir, makeAnalysis('service-a'));
-    await runImport(makeConfig(), {
-      forceRefresh: false,
-      analyzeOnly: true,
-      aggregateOnly: false,
-      verbose: false,
-    });
-    expect(analyzeRepoMock).not.toHaveBeenCalled();
-  });
 
-  it('re-analyzes despite a cached artifact when --force-refresh is passed', async () => {
-    await writeAnalysis(outputDir, makeAnalysis('service-a'));
-    await runImport(makeConfig(), {
-      forceRefresh: true,
-      analyzeOnly: true,
-      aggregateOnly: false,
-      verbose: false,
-    });
-    expect(analyzeRepoMock).toHaveBeenCalledTimes(1);
-  });
+    await runImport(makeConfig(), OPTS);
 
-  it('runs zero analysis calls with --aggregate-only, using only existing artifacts (FR-012)', async () => {
-    await writeAnalysis(outputDir, makeAnalysis('service-a'));
-    await runImport(makeConfig(), {
-      forceRefresh: false,
-      analyzeOnly: false,
-      aggregateOnly: true,
-      verbose: false,
-    });
-    expect(analyzeRepoMock).not.toHaveBeenCalled();
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { source_repos: string[] };
+    expect(review.source_repos).toEqual(['service-a']);
     const diagram = JSON.parse(
       await readFile(join(outputDir, 'architecture.arch.json'), 'utf8')
     ) as Record<string, unknown>;
     expect(diagram).toHaveProperty('schemaVersion');
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
-  it('analyzes a repo with no cached artifact even without --force-refresh', async () => {
-    await runImport(makeConfig(), {
-      forceRefresh: false,
-      analyzeOnly: true,
-      aggregateOnly: false,
-      verbose: false,
-    });
-    expect(analyzeRepoMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('filters to only the repos named in --repos', async () => {
+  it('names and skips a missing artifact, continues with the rest (FR-003)', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
     const config = makeConfig({
       repositories: [
         { path: '/service-a', name: 'service-a' },
         { path: '/service-b', name: 'service-b' },
       ],
     });
-    await runImport(config, {
-      forceRefresh: false,
-      repoNamesFilter: ['service-a'],
-      analyzeOnly: true,
-      aggregateOnly: false,
-      verbose: false,
-    });
-    expect(analyzeRepoMock).toHaveBeenCalledTimes(1);
-  });
-});
 
-describe('runImport — US2 partial-failure handling (FR-014)', () => {
-  it('continues and still writes a diagram when one repo fails and another succeeds', async () => {
-    const config = makeConfig({
-      repositories: [
-        { path: '/service-a', name: 'service-a' },
-        { path: '/service-b', name: 'service-b' },
-      ],
-    });
-    analyzeRepoMock.mockImplementation(({ repoName }: { repoName: string }) =>
-      repoName === 'service-b'
-        ? Promise.resolve({ status: 'failed', error: 'simulated failure', retryCount: 1 })
-        : Promise.resolve({ status: 'complete', analysis: makeAnalysis(repoName), retryCount: 0 })
-    );
+    await runImport(config, OPTS);
 
-    await runImport(config, {
-      forceRefresh: false,
-      analyzeOnly: false,
-      aggregateOnly: false,
-      verbose: false,
-    });
-
+    expect(errs.join('\n')).toMatch(/\[skip\] service-b: no analysis artifact/);
     const diagram = JSON.parse(
       await readFile(join(outputDir, 'architecture.arch.json'), 'utf8')
-    ) as Record<string, unknown>;
-    expect(diagram).toHaveProperty('elements');
+    ) as { elements: Array<{ name: string }> };
+    expect(diagram.elements.some((e) => e.name === 'service-a')).toBe(true);
   });
 
-  it('carries description + technology onto container elements (US3)', async () => {
-    analyzeRepoMock.mockImplementation(({ repoName }: { repoName: string }) => {
-      const a = makeAnalysis(repoName);
-      a.description = 'the accounts service';
-      a.frameworks = ['NestJS'];
-      return Promise.resolve({ status: 'complete', analysis: a, retryCount: 0 });
+  it('names and skips a malformed artifact (FR-003)', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
+    await writeFile(
+      join(outputDir, 'service-b.analysis.json'),
+      '{ "schemaVersion": "1.0" }',
+      'utf8'
+    );
+    const config = makeConfig({
+      repositories: [
+        { path: '/service-a', name: 'service-a' },
+        { path: '/service-b', name: 'service-b' },
+      ],
     });
 
-    await runImport(makeConfig(), {
-      forceRefresh: false,
-      analyzeOnly: false,
-      aggregateOnly: false,
-      verbose: false,
+    await runImport(config, OPTS);
+    expect(errs.join('\n')).toMatch(/\[skip\] service-b: invalid analysis artifact/);
+  });
+
+  it('prints a message and writes no diagram when there are zero valid artifacts', async () => {
+    await runImport(makeConfig(), OPTS);
+    expect(errs.join('\n')).toMatch(/No valid analysis artifacts found/);
+    await expect(readFile(join(outputDir, 'architecture.arch.json'), 'utf8')).rejects.toThrow();
+  });
+
+  it('respects the --repos filter (FR-016)', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
+    await writeAnalysis(outputDir, makeAnalysis('service-b'));
+    const config = makeConfig({
+      repositories: [
+        { path: '/service-a', name: 'service-a' },
+        { path: '/service-b', name: 'service-b' },
+      ],
     });
 
+    await runImport(config, { verbose: false, repoNamesFilter: ['service-a'] });
+
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { source_repos: string[] };
+    expect(review.source_repos).toEqual(['service-a']);
+  });
+
+  it('is unaffected by a localModel block in the config (FR-001 AS-4)', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
+    const withModel = makeConfig({
+      localModel: { provider: 'ollama', endpoint: 'http://localhost:11434', modelId: 'x' },
+    });
+    await runImport(withModel, OPTS);
+    const a = await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8');
+
+    await rm(join(outputDir, 'architecture.review.yaml'));
+    await runImport(makeConfig(), OPTS);
+    const b = await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8');
+
+    const strip = (s: string): string => s.replace(/"generated_at":\s*"[^"]+"/, '');
+    expect(strip(a)).toBe(strip(b));
+  });
+
+  it('merges architecture.extra-connections.json as a low-confidence candidate (FR-013)', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
+    await writeAnalysis(outputDir, makeAnalysis('service-b'));
+    await writeFile(
+      join(outputDir, EXTRA_CONNECTIONS_FILE),
+      JSON.stringify({
+        schemaVersion: EXTRA_CONNECTIONS_VERSION,
+        generatedAt: '2026-08-31T00:00:00.000Z',
+        connections: [
+          {
+            sourceRepo: 'service-a',
+            sourceNodeId: 'module:service-a',
+            targetRepo: 'service-b',
+            targetNodeId: 'module:service-b',
+            type: 'calls',
+            foundBy: 'agentic-fallback',
+            evidence: ['inferred: both handle billing'],
+            weight: 0.85,
+          },
+        ],
+      }),
+      'utf8'
+    );
+    const config = makeConfig({
+      repositories: [
+        { path: '/service-a', name: 'service-a' },
+        { path: '/service-b', name: 'service-b' },
+      ],
+    });
+
+    await runImport(config, OPTS);
+    expect(errs.join('\n')).toMatch(/extra-connections: 1 loaded/);
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { candidates: Array<{ source: string; target: string; confidence: string }> };
+    const cand = review.candidates.find(
+      (c) => c.source === 'service-a' && c.target === 'service-b'
+    );
+    expect(cand?.confidence).toBe('low');
+  });
+
+  it('errors on a malformed architecture.extra-connections.json', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
+    await writeFile(join(outputDir, EXTRA_CONNECTIONS_FILE), '{ not json', 'utf8');
+    await expect(runImport(makeConfig(), OPTS)).rejects.toThrow();
+  });
+
+  it('carries description + technology onto container elements (008 US3)', async () => {
+    await writeAnalysis(
+      outputDir,
+      makeAnalysis('service-a', { description: 'the accounts service', frameworks: ['NestJS'] })
+    );
+    await runImport(makeConfig(), OPTS);
     const diagram = JSON.parse(
       await readFile(join(outputDir, 'architecture.arch.json'), 'utf8')
     ) as { elements: Array<{ name: string; description?: string; technology?: string }> };
     const el = diagram.elements.find((e) => e.name === 'service-a');
     expect(el?.description).toBe('the accounts service');
     expect(el?.technology).toBe('NestJS');
+  });
+
+  it('is deterministic — two runs produce an identical review modulo generated_at', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
+    await writeAnalysis(outputDir, makeAnalysis('service-b'));
+    const config = makeConfig({
+      repositories: [
+        { path: '/service-a', name: 'service-a' },
+        { path: '/service-b', name: 'service-b' },
+      ],
+    });
+    await runImport(config, OPTS);
+    const first = await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8');
+    await runImport(config, OPTS);
+    const second = await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8');
+    const strip = (s: string): string => s.replace(/"generated_at":\s*"[^"]+"/, '');
+    expect(strip(first)).toBe(strip(second));
   });
 });

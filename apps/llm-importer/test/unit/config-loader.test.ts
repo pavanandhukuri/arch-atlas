@@ -30,9 +30,27 @@ describe('loadConfig', () => {
     const path = await writeConfigFile('valid.json', VALID_JSON);
     const config = await loadConfig(path);
     expect(config.version).toBe('2.0');
-    expect(config.localModel.provider).toBe('ollama');
+    expect(config.localModel?.provider).toBe('ollama');
     expect(config.repositories).toHaveLength(1);
     expect(config.analysis.maxConcurrency).toBe(1); // default (serial — safest for one local model)
+  });
+
+  it('accepts a config with NO localModel block (010 — the core is model-free)', async () => {
+    const noModel = JSON.stringify({
+      version: '2.0',
+      output: { directory: './out' },
+      repositories: [{ path: './repo-a' }],
+    });
+    const path = await writeConfigFile('no-model.json', noModel);
+    const config = await loadConfig(path);
+    expect(config.localModel).toBeUndefined();
+    expect(config.repositories).toHaveLength(1);
+  });
+
+  it('still accepts a config that DOES carry a localModel block (runner reads it)', async () => {
+    const path = await writeConfigFile('with-model.json', VALID_JSON);
+    const config = await loadConfig(path);
+    expect(config.localModel?.endpoint).toBe('http://localhost:11434');
   });
 
   it('parses a valid YAML v2.0 config', async () => {
@@ -50,7 +68,7 @@ describe('loadConfig', () => {
     ].join('\n');
     const path = await writeConfigFile('valid.yaml', yamlContents);
     const config = await loadConfig(path);
-    expect(config.localModel.provider).toBe('mlx');
+    expect(config.localModel?.provider).toBe('mlx');
     expect(config.repositories[0]?.name).toBe('Repo A');
   });
 

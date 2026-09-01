@@ -14,8 +14,19 @@ Include:
 - steps to reproduce (proof-of-concept if possible)
 - affected versions/areas (if known)
 
+## LLM / external-service surface
+
+- The shipped `@arch-atlas/llm-importer` package makes **no** model call and **no** network request
+  under any configuration — it operates entirely on local files.
+- `@arch-atlas/analysis-runner-local` contacts **only** the user-configured local model endpoint
+  (no hosted/cloud service); every request is time-bounded, and prompts, responses, and API keys are
+  never logged in full.
+- The `.claude/skills/repo-analysis` skill is an **opt-in** producer that sends a repository's
+  context bundle to a hosted model API. The bundle never contains files excluded by the secret-path
+  rules (`.env`, `*.key`, `*.pem`, `*secret*`, `*credential*`, `*password*`, `node_modules/`, …).
+  Use `@arch-atlas/analysis-runner-local` to stay offline.
+
 ## Supported versions
 
 This project aims to track supported runtimes and keep dependencies current. Security fixes will target
 supported versions only.
-
