@@ -129,4 +129,13 @@ describe('analyzeRepoLocal', () => {
     expect(r.status).toBe('partial');
     expect(r.analysis.analysisStatus).toBe('partial');
   });
+
+  it('reports progress through the onProgress callback, including the retry line', async () => {
+    chatCompleteMock.mockResolvedValueOnce('not json at all').mockResolvedValueOnce(VALID_JSON);
+    const lines: string[] = [];
+    await analyzeRepoLocal(opts({ onProgress: (l: string) => lines.push(l) }));
+    expect(lines.some((l) => l.startsWith('context:'))).toBe(true);
+    expect(lines).toContain('calling model...');
+    expect(lines).toContain('retrying model call...');
+  });
 });

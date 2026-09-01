@@ -147,16 +147,15 @@ export async function analyzeRepoLocal(
       `${Math.round(ctx.totalBytes / 1024)} KB, ${ctx.detected.httpRoutes.length} route hint(s)`
   );
 
+  let lastError = 'model call did not complete';
   for (const attempt of [0, 1] as const) {
     try {
       options.onProgress?.(attempt === 0 ? 'calling model...' : 'retrying model call...');
       const { analysis, partial } = await runOnce(options, ctx, attempt);
       return { status: partial ? 'partial' : 'complete', analysis };
     } catch (error) {
-      if (attempt === 1) {
-        return { status: 'failed', error: error instanceof Error ? error.message : String(error) };
-      }
+      lastError = error instanceof Error ? error.message : String(error);
     }
   }
-  return { status: 'failed', error: 'unreachable' };
+  return { status: 'failed', error: lastError };
 }

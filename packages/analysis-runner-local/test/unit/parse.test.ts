@@ -28,6 +28,10 @@ describe('extractJsonObject', () => {
   it('parseLenient strips trailing commas and // comments', () => {
     expect(parseLenient('{"a":1, /* c */ "b":2,}')).toEqual({ a: 1, b: 2 });
   });
+
+  it('parseLenient returns undefined when even the repaired text is not JSON', () => {
+    expect(parseLenient('{definitely not json')).toBeUndefined();
+  });
 });
 
 describe('coerceModelAnalysis', () => {

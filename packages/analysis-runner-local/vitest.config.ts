@@ -19,7 +19,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      exclude: ['test/**', 'dist/**', '**/*.config.ts', 'src/index.ts', 'src/cli.ts'],
+      // Coverage is measured over the shipped package source only. `eval/` is a
+      // dev-only harness (its one piece of real logic, `score.ts`, has its own
+      // test); `src/index.ts` is a re-export barrel and `src/cli.ts` is thin
+      // arg wiring exercised by `cli.test.ts` but not counted.
+      include: ['src/**'],
+      exclude: ['src/index.ts', 'src/cli.ts'],
       thresholds: {
         lines: 80,
         statements: 80,

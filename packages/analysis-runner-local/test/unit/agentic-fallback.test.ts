@@ -98,4 +98,65 @@ describe('resolveUnresolvedPairs', () => {
     expect(conns).toEqual([]);
     expect(chatCompleteMock).not.toHaveBeenCalled();
   });
+
+  it('condenses served nodes, outbound edges and a description into the prompt, and accepts B_TO_A', async () => {
+    chatCompleteMock.mockResolvedValue(
+      JSON.stringify([
+        {
+          direction: 'B_TO_A',
+          type: 'reads_from',
+          confidence: 0.88,
+          reasoning: 'B reads table "orders" that A owns',
+        },
+      ])
+    );
+    const rich = graph('a', {
+      repository: { name: 'a', path: '/a', description: 'owns the orders table' },
+      nodes: [
+        { id: 'table:orders', type: 'table', name: 'orders', summary: '' },
+        { id: 'endpoint:a', type: 'endpoint', name: 'GET /v1/orders', summary: '' },
+      ],
+      edges: [
+        {
+          source: 'module:a',
+          target: 'ext',
+          type: 'calls',
+          weight: 0.5,
+          description: 'calls billing /charge',
+        },
+      ],
+    });
+    const conns = await resolveUnresolvedPairs({
+      pairs: [{ repoA: 'a', repoB: 'b' }],
+      graphsByName: new Map([
+        ['a', rich],
+        ['b', graph('b')],
+      ]),
+      endpoint: 'http://x/v1',
+      modelId: 'm',
+    });
+    const calls = chatCompleteMock.mock.calls as unknown as unknown[][];
+    const sentPrompt = (calls[0]?.[0] as { messages: Array<{ content: string }> }).messages[0]
+      ?.content;
+    expect(sentPrompt).toContain('Summary: owns the orders table');
+    expect(sentPrompt).toContain('table: orders');
+    expect(sentPrompt).toContain('Outbound intents:');
+    // B_TO_A → the connection points from b to a
+    expect(conns).toHaveLength(1);
+    expect(conns[0]).toMatchObject({ sourceRepo: 'b', targetRepo: 'a', type: 'reads_from' });
+  });
+
+  it('returns [] when the model reply is a malformed JSON array', async () => {
+    chatCompleteMock.mockResolvedValue('here: [ {direction: A_TO_B, oops} ] done');
+    const conns = await resolveUnresolvedPairs({
+      pairs: [{ repoA: 'a', repoB: 'b' }],
+      graphsByName: new Map([
+        ['a', graph('a')],
+        ['b', graph('b')],
+      ]),
+      endpoint: 'http://x/v1',
+      modelId: 'm',
+    });
+    expect(conns).toEqual([]);
+  });
 });

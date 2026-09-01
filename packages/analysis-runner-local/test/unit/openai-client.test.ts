@@ -100,6 +100,50 @@ describe('chatComplete', () => {
     expect(joined).not.toContain('VERY-LONG-SENSITIVE-PROMPT VERY-LONG-SENSITIVE-PROMPT');
   });
 
+  it('tolerates keep-alive / non-JSON data lines and reads delta OR message content', async () => {
+    const enc = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(enc.encode(': keep-alive comment\n\n'));
+        controller.enqueue(enc.encode('data: not-json-at-all\n\n'));
+        controller.enqueue(enc.encode(`data: ${JSON.stringify({ choices: [{}] })}\n\n`)); // no delta
+        controller.enqueue(
+          enc.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: 'A' } }] })}\n\n`)
+        );
+        controller.enqueue(
+          enc.encode(`data: ${JSON.stringify({ choices: [{ message: { content: 'B' } }] })}\n\n`)
+        );
+        controller.enqueue(enc.encode('data: [DONE]\n\n'));
+        controller.close();
+      },
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(okResponse(stream));
+    const out = await chatComplete({
+      endpoint: 'http://x/v1',
+      modelId: 'm',
+      messages: [{ role: 'user', content: 'x' }],
+    });
+    expect(out).toBe('AB');
+  });
+
+  it('emits a length-bounded preview to stderr only when ARCH_ATLAS_DEBUG is set', async () => {
+    const logs: string[] = [];
+    vi.spyOn(console, 'error').mockImplementation((...a) => logs.push(a.map(String).join(' ')));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(okResponse(sseStream(['X'.repeat(500)])));
+    vi.stubEnv('ARCH_ATLAS_DEBUG', '1');
+    const out = await chatComplete({
+      endpoint: 'http://x/v1',
+      modelId: 'm',
+      messages: [{ role: 'user', content: 'x' }],
+    });
+    vi.unstubAllEnvs();
+    expect(out).toBe('X'.repeat(500));
+    const line = logs.find((l) => l.includes('[runner] model reply'));
+    expect(line).toBeDefined();
+    expect(line).toContain('(500 chars)');
+    expect((line ?? '').length).toBeLessThan(300); // preview truncated to ~200
+  });
+
   it('falls back to a non-streaming JSON body when there is no readable stream', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ choices: [{ message: { content: 'plain' } }] }), {
