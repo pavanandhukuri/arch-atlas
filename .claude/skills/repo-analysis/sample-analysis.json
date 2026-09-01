@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-08-31T12:00:00.000Z",
+  "repository": {
+    "name": "notification-service",
+    "path": "/path/to/repos/notification-service",
+    "description": "Sends user notifications"
+  },
+  "description": "A TypeScript service that consumes the user-created Kafka topic and serves POST /v1/send (fronted by the API gateway at /api/notifications) to dispatch a notification.",
+  "languages": ["TypeScript"],
+  "frameworks": ["KafkaJS"],
+  "served": {
+    "httpRoutes": [{ "method": "POST", "path": "/v1/send", "filePath": "src/routes.ts" }],
+    "grpcServices": [],
+    "topics": [{ "name": "user-created", "direction": "consume", "filePath": "src/consumer.ts" }],
+    "datastores": []
+  },
+  "outbound": [
+    {
+      "target": "email-provider",
+      "verb": "calls",
+      "detail": "posts to the transactional email provider's REST API to deliver the message",
+      "confidence": 0.7
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

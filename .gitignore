@@ -1,5 +1,11 @@
 .cursor
-.claude
+
+# Local Claude Code config is ignored, but the shipped repo-analysis skill
+# (a first-class producer for the importer — spec 010) is tracked.
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/repo-analysis/
 
 # Node/TypeScript
 node_modules/
