@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-08-30T12:00:00.000Z",
+  "repository": {
+    "name": "catalog-service",
+    "path": "/fixtures/repos/catalog-service",
+    "description": "Product catalog gRPC service"
+  },
+  "description": "A Go gRPC service that serves the product catalog. Defines and serves shop.CatalogService (catalog.proto), registered via pb.RegisterCatalogServiceServer. No HTTP surface, no datastore.",
+  "languages": ["Go"],
+  "frameworks": ["gRPC"],
+  "served": {
+    "httpRoutes": [],
+    "grpcServices": ["shop.CatalogService"],
+    "topics": [],
+    "datastores": []
+  },
+  "outbound": [],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

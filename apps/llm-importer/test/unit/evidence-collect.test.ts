@@ -66,4 +66,53 @@ describe('collectRepoEvidence', () => {
     const evidence = collectRepoEvidence(graph);
     expect(evidence.endpointNodes).toHaveLength(1);
   });
+
+  // 009-grpc-cross-repo-correlation
+  it('collects served gRPC services as the union of grpc endpoint nodes and .proto service ids', () => {
+    const graph = graphFor('catalog-service', path.join(FIXTURE_REPOS, 'catalog-service'));
+    graph.nodes.push({
+      id: 'endpoint:grpc:shop.CatalogService',
+      type: 'endpoint',
+      name: 'shop.CatalogService',
+      summary: 'gRPC service',
+    });
+    const evidence = collectRepoEvidence(graph);
+    // 'shop.CatalogService' from the graph node; 'CatalogService' from catalog.proto
+    expect(evidence.grpcServices).toEqual(['CatalogService', 'shop.CatalogService']);
+    expect(evidence.grpcClientRefs).toEqual([]);
+  });
+
+  it('collects gRPC client construction sites from repo source', () => {
+    const evidence = collectRepoEvidence(
+      graphFor('storefront', path.join(FIXTURE_REPOS, 'storefront'))
+    );
+    expect(evidence.grpcClientRefs).toHaveLength(1);
+    expect(evidence.grpcClientRefs[0]).toMatchObject({
+      relPath: 'internal/catalog/client.go',
+      service: 'CatalogService',
+      form: 'go',
+    });
+    expect(evidence.grpcServices).toEqual([]);
+  });
+
+  it('leaves both gRPC fields as empty arrays for a repo with no gRPC', () => {
+    const evidence = collectRepoEvidence(
+      graphFor('user-service', path.join(FIXTURE_REPOS, 'user-service'))
+    );
+    expect(evidence.grpcServices).toEqual([]);
+    expect(evidence.grpcClientRefs).toEqual([]);
+  });
+
+  it('keeps the graph grpc-service contribution when the repo path is gone', () => {
+    const graph = graphFor('ghost', '/nonexistent/ghost-repo');
+    graph.nodes.push({
+      id: 'endpoint:grpc:pkg.GhostService',
+      type: 'endpoint',
+      name: 'pkg.GhostService',
+      summary: 'gRPC service',
+    });
+    const evidence = collectRepoEvidence(graph);
+    expect(evidence.grpcClientRefs).toEqual([]);
+    expect(evidence.grpcServices).toEqual(['pkg.GhostService']);
+  });
 });

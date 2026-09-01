@@ -11,6 +11,7 @@ import {
   type EndpointRoute,
 } from './evidence/parsers/routes.js';
 import { isNoiseTopic } from './evidence/parsers/topics.js';
+import { normalizeServiceName } from './evidence/parsers/grpc.js';
 
 /**
  * Evidence-grounded correlation passes, ported and adapted from
@@ -283,6 +284,133 @@ export const endpointPass: EvidencePass = ({ repos, graphsByName }) => {
   }
 
   return { pass: 'endpoint', connections: dedupeConnections(connections), notes };
+};
+
+// --- grpc pass ----------------------------------------------------------
+
+/** Resolve the `endpoint:grpc:<service>` node id in a callee's graph, if present. */
+function grpcEndpointNodeId(
+  graphsByName: Map<string, RepositoryKnowledgeGraph>,
+  repoName: string,
+  serviceName: string
+): string | null {
+  const graph = graphsByName.get(repoName);
+  const node = graph?.nodes.find(
+    (n) => n.type === 'endpoint' && n.id === `endpoint:grpc:${serviceName}`
+  );
+  return node?.id ?? null;
+}
+
+function stripServiceWord(s: string): string {
+  return s.length > 'service'.length && s.endsWith('service') ? s.slice(0, -'service'.length) : s;
+}
+
+/**
+ * The set of gRPC services a repo credibly *serves* — normalized-name → a
+ * human-readable raw name. Three sources, each a strong signal on its own:
+ *
+ *  1. **Implicit from the repo name** (D11): a repo named `<x>-service` is
+ *     presumed to serve `<X>Service`. This is what lets a real callee be
+ *     matched even when the analysis step failed to report its served gRPC
+ *     service (008 eval `grpcServicesF1 ≈ 0.72`, and it is often 0 for the
+ *     orchestrator services).
+ *  2. **A sole-service `.proto`** in the repo's tree — a dedicated contract.
+ *     A vendored multi-service `demo.proto` is deliberately ignored: holding
+ *     the shared contract is not evidence of serving every service in it.
+ *  3. **`analysis.served.grpcServices`**, but only entries whose name relates
+ *     to the repo name (exact, or containment ≥ 3 chars). Without this filter a
+ *     single over-broad analysis result turns one repo into a false callee for
+ *     the whole workspace.
+ */
+function servedGrpcServices(repo: RepoEvidence): Map<string, string> {
+  const repoNorm = stripServiceWord(repo.name.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const soleProtoNorms = new Set<string>();
+  for (const digest of repo.schemaDigests) {
+    const svcIds = digest.identifiers.filter((id) => id.startsWith('service:'));
+    if (svcIds.length === 1 && svcIds[0]) {
+      soleProtoNorms.add(normalizeServiceName(svcIds[0].slice('service:'.length)));
+    }
+  }
+
+  const byNorm = new Map<string, string>();
+  const add = (norm: string, raw: string): void => {
+    if (norm.length >= 2 && !byNorm.has(norm)) byNorm.set(norm, raw);
+  };
+
+  // Analysis-reported names first, so a real (possibly package-qualified) name
+  // wins the raw-label slot over the implicit repo-name fallback. Accept an
+  // analysis entry only when it *exactly* matches the repo name or a
+  // sole-service proto — a looser containment test lets a chatty run's stray
+  // near-name ("CatalogService" in productcatalogservice) through.
+  for (const raw of repo.grpcServices) {
+    const norm = normalizeServiceName(raw);
+    if (norm.length < 2) continue;
+    if (norm === repoNorm || soleProtoNorms.has(norm)) add(norm, raw);
+  }
+  for (const norm of soleProtoNorms) add(norm, `${repo.name} .proto`);
+  if (repoNorm.length >= 2) {
+    const guessed = `${repoNorm[0]?.toUpperCase() ?? ''}${repoNorm.slice(1)}Service`;
+    add(repoNorm, `${guessed} (inferred from repo name)`);
+  }
+  return byNorm;
+}
+
+/**
+ * gRPC client-stub construction sites in one repo matched against the gRPC
+ * services another repo serves (from `analysis.served.grpcServices` and/or
+ * `.proto` `service` declarations). Directed caller→callee `calls`, with the
+ * same multi-target ambiguity demotion `endpointPass` applies. Every
+ * connection is tagged `transport: 'grpc'`.
+ */
+export const grpcPass: EvidencePass = ({ repos, graphsByName }) => {
+  const notes: string[] = [];
+  const connections: CrossRepositoryConnection[] = [];
+
+  const served = repos.map((repo) => ({ repo, byNorm: servedGrpcServices(repo) }));
+
+  for (const caller of repos) {
+    for (const ref of caller.grpcClientRefs) {
+      const norm = normalizeServiceName(ref.service);
+      if (norm.length < 2) continue;
+
+      const hits = served.filter((s) => s.repo !== caller && s.byNorm.has(norm));
+      if (hits.length === 0) continue;
+
+      const baseWeight = ref.form === 'generic' ? 0.7 : 0.8;
+      const ambiguous = hits.length > 1;
+      const weight = ambiguous ? Math.min(baseWeight, 0.45) : baseWeight;
+      if (ambiguous) {
+        notes.push(
+          `${caller.name}/${ref.relPath}:${ref.line} constructs a "${ref.service}" gRPC client matching services in ${hits.length} repos (${hits
+            .map((h) => h.repo.name)
+            .join(', ')}) — demoted`
+        );
+      }
+
+      for (const hit of hits) {
+        const rawServed = hit.byNorm.get(norm) ?? ref.service;
+        const targetNodeId =
+          grpcEndpointNodeId(graphsByName, hit.repo.name, rawServed) ??
+          moduleNodeId(graphsByName, hit.repo.name);
+        connections.push(
+          connection({
+            sourceRepo: caller.name,
+            sourceNodeId: fileNodeId(graphsByName, caller.name, ref.relPath),
+            targetRepo: hit.repo.name,
+            targetNodeId,
+            type: 'calls',
+            transport: 'grpc',
+            evidence: [
+              `${caller.name}/${ref.relPath}:${ref.line} constructs a ${ref.form} gRPC client for "${ref.service}", matching ${hit.repo.name}'s served gRPC service "${rawServed}"`,
+            ],
+            weight,
+          })
+        );
+      }
+    }
+  }
+
+  return { pass: 'grpc', connections: dedupeConnections(connections), notes };
 };
 
 // --- schema pass ----------------------------------------------------------
@@ -637,6 +765,7 @@ export const topicPass: EvidencePass = ({ repos, graphsByName }) => {
 export const EVIDENCE_PASSES: EvidencePass[] = [
   manifestPass,
   endpointPass,
+  grpcPass,
   schemaPass,
   composePass,
   topicPass,

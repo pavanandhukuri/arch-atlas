@@ -36,9 +36,22 @@ repo → gather-context (bounded, deterministic, secret-paths excluded)
 `src/correlate/evidence/` and `src/correlate/evidence-passes.ts` are a **port** — owned
 and maintained here — of the deterministic cross-repository linker core from the author's
 `understand-everything` project (MIT), adapted to this package's graph schema and
-`CrossRepositoryConnection` contract, with two additions developed here: gateway-prefix
-route matching with a concrete-segment requirement, and well-known external-system
-detection from compose files.
+`CrossRepositoryConnection` contract, with additions developed here: gateway-prefix
+route matching with a concrete-segment requirement, well-known external-system
+detection from compose files, and (009) a **gRPC pass**.
+
+### Deterministic evidence passes
+
+| Pass       | Signal                                                                                                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manifest` | a repo depends on a package another repo publishes (or a local path into its tree)                                                                                                           |
+| `endpoint` | an HTTP URL literal in one repo matches an HTTP route another repo serves (exact, then gateway-prefixed)                                                                                     |
+| `grpc`     | a gRPC client/stub construction site (`New…Client(`, `…Stub(`, `…Grpc.newBlockingStub(`, …) in one repo names a gRPC service another repo serves — directed `calls`, transport-tagged `grpc` |
+| `schema`   | identical schema copies, proto-package drift, OpenAPI client coverage                                                                                                                        |
+| `compose`  | compose files wiring services to repos / to well-known external systems (databases, brokers, auth)                                                                                           |
+| `topic`    | cross-repo pub/sub on the same literal topic string                                                                                                                                          |
+
+Pairs no pass resolves fall through to the bounded agentic fallback.
 
 ## Development
 

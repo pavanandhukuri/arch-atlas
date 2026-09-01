@@ -46,6 +46,39 @@ describe('assembleReviewFile', () => {
     });
   });
 
+  it('maps a transport:"grpc" calls connection to a grpc candidate, others to http (009)', () => {
+    const grpcConn: CrossRepositoryConnection = {
+      sourceRepo: 'storefront',
+      sourceNodeId: 'x',
+      targetRepo: 'catalog-service',
+      targetNodeId: 'y',
+      type: 'calls',
+      foundBy: 'evidence',
+      transport: 'grpc',
+      evidence: ['storefront/client.go:21 constructs a go gRPC client for "CatalogService"'],
+      weight: 0.8,
+    };
+    const httpConn: CrossRepositoryConnection = {
+      sourceRepo: 'gateway',
+      sourceNodeId: 'x',
+      targetRepo: 'catalog-service',
+      targetNodeId: 'y',
+      type: 'calls',
+      foundBy: 'evidence',
+      evidence: ['gateway calls /v1/items'],
+      weight: 0.8,
+    };
+    const review = assembleReviewFile(
+      [makeGraph('storefront'), makeGraph('catalog-service'), makeGraph('gateway')],
+      [grpcConn, httpConn]
+    );
+    expect(review.candidates[0]).toMatchObject({ source: 'storefront', type: 'grpc' });
+    expect(review.candidates[1]).toMatchObject({ source: 'gateway', type: 'http' });
+    // Reasoning + confidence bucket unaffected by the transport tag.
+    expect(review.candidates[0]?.reasoning).toContain('CatalogService');
+    expect(review.candidates[0]?.confidence).toBe(review.candidates[1]?.confidence);
+  });
+
   it('maps agentic-fallback connections to low confidence (research.md D14.4)', () => {
     const connection: CrossRepositoryConnection = {
       sourceRepo: 'a',

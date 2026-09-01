@@ -4,6 +4,12 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Added (009-grpc-cross-repo-correlation)
+
+- **gRPC service-to-service calls are now detected** and drawn as connections. The deterministic evidence-grounded correlator gains a sixth pass (`grpc`) that matches gRPC client/stub construction sites in one repository's source (Go, C#, Node/JS, Python, Java, plus a generic fallback) against the gRPC services another repository serves (from the per-repo analysis and/or `.proto` `service` declarations), producing directed `calls` connections with file/line evidence. Previously a workspace whose services talked only over gRPC produced containers with no connections between them.
+- gRPC connections surface in the review artifact as candidate `type: "grpc"` (Studio already understands it) and export as `calls` relationships.
+- Purely additive: no change to the per-repo analysis call or its schema, the other five correlation passes, the agentic fallback, `.arch.json` / review-artifact schemas, or Studio. No new dependencies, no model call in the correlation path.
+
 ### Changed (008-bounded-repo-analysis)
 
 - **`apps/llm-importer` per-repository analysis** replaced: instead of running a vendored Understand-Anything multi-phase agentic skill per repo, each repository is now analyzed by a single bounded, structured-output local-model call over a deterministically-gathered context (README(s), manifest file(s), a bounded directory listing, relevance-ranked source excerpts). Cross-repository correlation, review-artifact assembly, and `.arch.json` export are unchanged.

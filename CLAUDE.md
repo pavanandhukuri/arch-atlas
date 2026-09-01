@@ -4,6 +4,8 @@ Auto-generated from all feature plans. Last updated: 2026-08-30
 
 ## Active Technologies
 
+- TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022), Node.js ≥ 22 (`apps/llm-importer`). **No new dependency**: adds one deterministic `grpcPass` to `src/correlate/` (a literal-level `.proto`/stub-construction matcher) plus additive `RepoEvidence` fields; existing `zod`/`js-yaml`/`vitest` only. No persisted-artifact or Studio change. (009-grpc-cross-repo-correlation)
+
 - TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target — monorepo convention), Node.js ≥ 22 (retained; the `pi` SDK is still used for the bounded call and the agentic correlator) + `@earendil-works/pi-coding-agent` (`createAgentSession` with `tools: []`, single `session.prompt` — same pattern `src/correlate/agentic-correlator.ts` already uses), `@earendil-works/pi-ai` (`getModel` via the existing `model-runtime`), `zod` (new `RepoAnalysis` schema + existing config/graph schemas), `commander` (CLI — unchanged). **No package.json dependency is added or removed**; the removals in this feature are two vendored source trees and a runtime Python prerequisite, not npm packages. (008-bounded-repo-analysis)
 - Local filesystem — per-repository `{repo-name}.analysis.json` artifacts (replace 007's `{repo-name}.knowledge-graph.json`); review artifact (`architecture.review.yaml`) and final `.arch.json` unchanged in location and (except two additive optional fields) in schema. (008-bounded-repo-analysis)
 
@@ -39,11 +41,11 @@ TypeScript 5.3.0: Follow standard conventions
 
 ## Recent Changes
 
+- 009-grpc-cross-repo-correlation: new deterministic `grpcPass` in the evidence-grounded correlator — matches gRPC client/stub construction sites against served gRPC services to draw directed cross-repo `calls` edges (fixes `connectionsRecall = 0` on all-gRPC workspaces). Purely additive; no new deps, no persisted-schema change.
+
 - 008-bounded-repo-analysis: Added TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target — monorepo convention), Node.js ≥ 22 (retained; the `pi` SDK is still used for the bounded call and the agentic correlator) + `@earendil-works/pi-coding-agent` (`createAgentSession` with `tools: []`, single `session.prompt` — same pattern `src/correlate/agentic-correlator.ts` already uses), `@earendil-works/pi-ai` (`getModel` via the existing `model-runtime`), `zod` (new `RepoAnalysis` schema + existing config/graph schemas), `commander` (CLI — unchanged). **No package.json dependency is added or removed**; the removals in this feature are two vendored source trees and a runtime Python prerequisite, not npm packages.
 
 - 007-llm-repo-importer: Added TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target — matches monorepo convention), Node.js ≥ 22 (matches `pi`'s own stated minimum) + `@earendil-works/pi-coding-agent` (SDK — `ModelRuntime`, `createAgentSession`, `DefaultResourceLoader`/custom `ResourceLoader`, `SessionManager`, `SettingsManager`), `@earendil-works/pi-ai` (`getModel`), `zod` (knowledge-graph + config schema validation), `commander` (CLI, replaces Python `click`)
-
-- 007-llm-repo-importer: Revised approach — graph extraction pipeline (tree-sitter + semgrep + networkx) with single LLM enrichment call; replaced LLM-first analysis with static analysis first; added confidence scoring per connection signal
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
