@@ -289,6 +289,169 @@ describe('schemaPass', () => {
       weight: 0.7,
     });
   });
+
+  // --- 011: shared multi-service contract is not a dependency ---
+
+  const AGG_PROTO = {
+    sha256: 'a'.repeat(64),
+    identifiers: [
+      'package:hipstershop',
+      'service:CurrencyService',
+      'service:PaymentService',
+      'service:AdService',
+    ],
+    openapiPaths: [] as string[],
+  };
+
+  it('011 C1: identical multi-service proto vendored by 3 repos ⇒ no cross-repo edge', () => {
+    const repos = ['currencyservice', 'paymentservice', 'adservice'].map((n) => {
+      const r = emptyEvidence(n);
+      r.schemaDigests.push({ relPath: 'proto/demo.proto', ...AGG_PROTO });
+      return r;
+    });
+    const { connections, notes } = schemaPass(input(repos));
+    expect(connections).toHaveLength(0);
+    // FR-009: an explanatory note is allowed, but never a connection.
+    expect(notes.join(' ')).toMatch(/shared contract/i);
+  });
+
+  it('011 C1: multi-service copy — a full owner still gets directed edges, non-owners do not link', () => {
+    const currency = emptyEvidence('currencyservice');
+    const payment = emptyEvidence('paymentservice');
+    const hub = emptyEvidence('checkoutservice');
+    hub.grpcServices = [
+      'hipstershop.CurrencyService',
+      'hipstershop.PaymentService',
+      'hipstershop.AdService',
+    ];
+    for (const r of [currency, payment, hub]) {
+      r.schemaDigests.push({ relPath: 'proto/demo.proto', ...AGG_PROTO });
+    }
+    const { connections } = schemaPass(input([currency, payment, hub]));
+    const pairs = connections.map((c) => `${c.sourceRepo}->${c.targetRepo}`).sort();
+    expect(pairs).toEqual(['currencyservice->checkoutservice', 'paymentservice->checkoutservice']);
+    expect(connections.every((c) => c.type === 'depends_on' && c.weight === 0.9)).toBe(true);
+  });
+
+  it('011 C2: identical single-service proto ⇒ edge points to the serving owner', () => {
+    const owner = emptyEvidence('orders-service');
+    owner.grpcServices = ['orders.v1.OrderService'];
+    const client = emptyEvidence('gateway');
+    const digest = {
+      sha256: 'b'.repeat(64),
+      identifiers: ['package:orders.v1', 'service:OrderService'],
+      openapiPaths: [] as string[],
+    };
+    owner.schemaDigests.push({ relPath: 'proto/orders.proto', ...digest });
+    client.schemaDigests.push({ relPath: 'vendor/orders.proto', ...digest });
+    const { connections } = schemaPass(input([client, owner]));
+    expect(connections).toHaveLength(1);
+    expect(connections[0]).toMatchObject({
+      sourceRepo: 'gateway',
+      targetRepo: 'orders-service',
+      type: 'depends_on',
+      weight: 0.9,
+    });
+  });
+
+  it('011 C2/FR-003: identical single-service proto nobody serves ⇒ no edge', () => {
+    const a = emptyEvidence('repo-a');
+    const b = emptyEvidence('repo-b');
+    const digest = {
+      sha256: 'd'.repeat(64),
+      identifiers: ['package:orders.v1', 'service:OrderService'],
+      openapiPaths: [] as string[],
+    };
+    a.schemaDigests.push({ relPath: 'proto/orders.proto', ...digest });
+    b.schemaDigests.push({ relPath: 'proto/orders.proto', ...digest });
+    const { connections } = schemaPass(input([a, b]));
+    expect(connections).toHaveLength(0);
+  });
+
+  it('011 C3: identical service-less schema copy ⇒ unchanged pairwise depends_on', () => {
+    const a = emptyEvidence('producer');
+    const b = emptyEvidence('consumer');
+    const digest = { sha256: 'e'.repeat(64), identifiers: ['package:acme'], openapiPaths: [] };
+    a.schemaDigests.push({ relPath: 'events.proto', ...digest });
+    b.schemaDigests.push({ relPath: 'proto/events.proto', ...digest });
+    const { connections } = schemaPass(input([a, b]));
+    expect(connections).toHaveLength(1);
+    expect(connections[0]).toMatchObject({
+      sourceRepo: 'producer',
+      targetRepo: 'consumer',
+      type: 'depends_on',
+      weight: 0.9,
+    });
+  });
+
+  it('011 C4: proto-package drift is suppressed when the package is held by ≥3 repos', () => {
+    const mk = (name: string, sha: string, extra: string[] = []) => {
+      const r = emptyEvidence(name);
+      r.schemaDigests.push({
+        relPath: `${name}.proto`,
+        sha256: sha,
+        identifiers: ['package:hipstershop', 'message:Money', ...extra],
+        openapiPaths: [],
+      });
+      return r;
+    };
+    const a = mk('cartservice', '1'.repeat(64));
+    const b = mk('currencyservice', '2'.repeat(64), ['message:Extra']);
+    const c = mk('adservice', '3'.repeat(64), ['message:Other']);
+    const { connections } = schemaPass(input([a, b, c]));
+    expect(connections).toHaveLength(0);
+  });
+
+  it('011 C5: proto-package drift between exactly 2 repos still fires', () => {
+    const a = emptyEvidence('svc-a');
+    const b = emptyEvidence('svc-b');
+    a.schemaDigests.push({
+      relPath: 'events.proto',
+      sha256: '4'.repeat(64),
+      identifiers: ['package:acme.events', 'message:PaymentCompleted'],
+      openapiPaths: [],
+    });
+    b.schemaDigests.push({
+      relPath: 'events.proto',
+      sha256: '5'.repeat(64),
+      identifiers: ['package:acme.events', 'message:PaymentCompleted', 'message:Extra'],
+      openapiPaths: [],
+    });
+    const { connections } = schemaPass(input([a, b]));
+    expect(connections).toHaveLength(1);
+    expect(connections[0]?.weight).toBe(0.4);
+    expect(connections[0]?.evidence[0]).toContain('drift');
+  });
+
+  it('011: drift with a shared package but no shared message ⇒ still no edge', () => {
+    const a = emptyEvidence('svc-a');
+    const b = emptyEvidence('svc-b');
+    a.schemaDigests.push({
+      relPath: 'a.proto',
+      sha256: '6'.repeat(64),
+      identifiers: ['package:acme.events', 'message:Alpha'],
+      openapiPaths: [],
+    });
+    b.schemaDigests.push({
+      relPath: 'b.proto',
+      sha256: '7'.repeat(64),
+      identifiers: ['package:acme.events', 'message:Beta'],
+      openapiPaths: [],
+    });
+    const { connections } = schemaPass(input([a, b]));
+    expect(connections).toHaveLength(0);
+  });
+
+  it('011 C7: schemaPass output is byte-identical across repeated runs', () => {
+    const repos = ['currencyservice', 'paymentservice', 'adservice', 'cartservice'].map((n) => {
+      const r = emptyEvidence(n);
+      r.schemaDigests.push({ relPath: 'proto/demo.proto', ...AGG_PROTO });
+      return r;
+    });
+    const a = schemaPass(input(repos));
+    const b = schemaPass(input(repos));
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
 });
 
 describe('composePass', () => {

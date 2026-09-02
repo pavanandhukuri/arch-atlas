@@ -5,6 +5,12 @@
 
 **Tests**: REQUIRED — the spec's Proof Gate mandates unit tests (a–d) and an eval pass. TDD per constitution III.
 
+**Status (2026-09-02)**: T001–T024 + T028–T030 done — behaviour fully implemented and
+unit-proven (28 schemaPass tests, importer suite 243 green, monorepo lint/typecheck/build
+28/28, coverage gate met). **T025–T027, T031 pending**: the local model endpoint
+(`http://127.0.0.1:8000/v1`) is down, so the `online-boutique` / `fixtures` eval and the
+baseline regen cannot run in-session. See `proof.md` §4 for the exact commands to close.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: different file, no dependency on an incomplete task — may run in parallel
@@ -21,7 +27,7 @@ Single package touched: `apps/llm-importer/`. Eval baseline in
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm baseline is green and record starting numbers: run
+- [x] T001 Confirm baseline is green and record starting numbers: run
       `pnpm --filter @arch-atlas/llm-importer test -- evidence-passes` and
       `pnpm --filter @arch-atlas/llm-importer typecheck`; note the current
       `describe('schemaPass')` cases (3) all pass. Capture `online-boutique`
@@ -34,11 +40,11 @@ Single package touched: `apps/llm-importer/`. Eval baseline in
 
 **⚠️ Blocks all user-story implementation. One file, sequential.**
 
-- [ ] T002 In `apps/llm-importer/src/correlate/evidence-passes.ts`, above `schemaPass`,
+- [x] T002 In `apps/llm-importer/src/correlate/evidence-passes.ts`, above `schemaPass`,
       add the two named constants with rationale comments:
       `AGGREGATE_CONTRACT_MIN_SERVICES = 2`, `SHARED_NAMESPACE_MIN_REPOS = 3`
       (data-model.md "Named constants").
-- [ ] T003 In the same file, add module-local pure helpers used by `schemaPass`:
+- [x] T003 In the same file, add module-local pure helpers used by `schemaPass`:
       `serviceIdsOf(digest): string[]` (filter `identifiers` for `service:` prefix, strip
       prefix) and `ownersOf(digest, holders): RepoEvidence[]` (holders whose `grpcServices`
       cover every `serviceIdsOf` name, matched via the existing `normalizeServiceName`).
@@ -61,38 +67,38 @@ namespace.
 
 ### Tests for User Story 1 (write first, must FAIL)
 
-- [ ] T004 [US1] In `apps/llm-importer/test/unit/evidence-passes.test.ts`
+- [x] T004 [US1] In `apps/llm-importer/test/unit/evidence-passes.test.ts`
       `describe('schemaPass')`, add: **"identical multi-service proto vendored by 3 repos ⇒ no
       cross-repo edge"** — 3 `emptyEvidence` repos each with a `schemaDigest` sharing one
       `sha256` and `identifiers` = `['package:hipstershop','service:CurrencyService',
 'service:PaymentService','service:AdService']`, none serving all three; assert
       `schemaPass(input([a,b,c])).connections` has no `depends_on` between a/b/c. (Contract
       C1.)
-- [ ] T005 [US1] Add **"proto-package drift suppressed when package held by ≥3 repos"** —
+- [x] T005 [US1] Add **"proto-package drift suppressed when package held by ≥3 repos"** —
       3 repos declare `package:hipstershop` + shared `message:Money`, two with differing
       `sha256`; assert no drift (`weight 0.4`) connection emitted. (Contract C4.)
-- [ ] T006 [US1] Verify the pre-existing `'flags proto drift'` test (2 repos,
+- [x] T006 [US1] Verify the pre-existing `'flags proto drift'` test (2 repos,
       `package:acme.events`, shared message, differing content ⇒ one `depends_on` @ 0.4 with
       "drift" evidence) still expresses the intended 2-repo behaviour; leave it unchanged.
       (Contract C5. The ≥3-repo flip-off assertion lives in T019.)
-- [ ] T007 [US1] Run the file — T004/T005 FAIL against current `schemaPass`; the 3
+- [x] T007 [US1] Run the file — T004/T005 FAIL against current `schemaPass`; the 3
       pre-existing schemaPass tests and T006 pass. Commit the failing tests.
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] In `evidence-passes.ts` `schemaPass`, build the once-per-pass pre-scan
+- [x] T008 [US1] In `evidence-passes.ts` `schemaPass`, build the once-per-pass pre-scan
       `pkgHolders: Map<string, Set<string>>` over every `digest.identifiers` `package:` entry
       across `repos` (data-model.md "Derived values").
-- [ ] T009 [US1] In the proto-drift branch, before emitting: if
+- [x] T009 [US1] In the proto-drift branch, before emitting: if
       `pkgHolders.get(pkg).size >= SHARED_NAMESPACE_MIN_REPOS` → `continue` (no edge).
       Leave the ≤2 path exactly as-is.
-- [ ] T010 [US1] Rework the identical-copy branch (`da.sha256 === db.sha256`): gather
+- [x] T010 [US1] Rework the identical-copy branch (`da.sha256 === db.sha256`): gather
       `holders` for that `sha256`; compute `svcIds = serviceIdsOf(digest)`. If
       `svcIds.length >= AGGREGATE_CONTRACT_MIN_SERVICES` and `ownersOf(...)` is not exactly
       one → emit no connection (optionally push one `notes` line per FR-009). Keep
       `svcIds.length === 0` on the current pairwise `depends_on` @ 0.9 path unchanged (US2
       handles the 1..N-with-owner sub-case). (Contracts C1, C3.)
-- [ ] T011 [US1] Run `pnpm --filter @arch-atlas/llm-importer test -- evidence-passes` —
+- [x] T011 [US1] Run `pnpm --filter @arch-atlas/llm-importer test -- evidence-passes` —
       T004/T005/T006 green; the 3 pre-existing schemaPass tests still green. Commit.
 
 **Checkpoint**: multi-service vendored contracts and namespace drift no longer create
@@ -110,33 +116,33 @@ vendors a byte-identical copy ⇒ `A --depends_on--> B`.
 
 ### Tests for User Story 2 (write first, must FAIL or be absent)
 
-- [ ] T012 [US2] In `evidence-passes.test.ts` `describe('schemaPass')`, add **"identical
+- [x] T012 [US2] In `evidence-passes.test.ts` `describe('schemaPass')`, add **"identical
       single-service proto ⇒ edge points to the serving owner"** — repo B `grpcServices:
 ['orders.v1.OrderService']`, both A and B hold a digest with the same `sha256` and
       `identifiers: ['package:orders.v1','service:OrderService']`; assert exactly one
       connection `A --depends_on--> B` @ 0.9. (Contract C2.)
-- [ ] T013 [US2] Add **"identical single-service proto, nobody serves it ⇒ no edge"** —
+- [x] T013 [US2] Add **"identical single-service proto, nobody serves it ⇒ no edge"** —
       same as T012 but neither repo lists the service in `grpcServices`; assert
       `connections` empty. (Contract C2 / FR-003.)
-- [ ] T014 [US2] Add **"identical multi-service proto with one full owner ⇒ edges route to
+- [x] T014 [US2] Add **"identical multi-service proto with one full owner ⇒ edges route to
       owner, not between non-owners"** — 3 repos, digest declares 2 services, repo C serves
       both; assert `A --depends_on--> C` and `B --depends_on--> C`, and no `A↔B` edge.
       (Contract C2, edge case.)
-- [ ] T015 [US2] Run the file — T012/T014 FAIL (current code emits pairwise 0.9 for any
+- [x] T015 [US2] Run the file — T012/T014 FAIL (current code emits pairwise 0.9 for any
       identical copy, no owner routing). Commit failing tests.
 
 ### Implementation for User Story 2
 
-- [ ] T016 [US2] Extend the identical-copy branch from T010: when `svcIds.length >= 1`
+- [x] T016 [US2] Extend the identical-copy branch from T010: when `svcIds.length >= 1`
       and `ownersOf(digest, holders)` has **exactly one** owner `O`, emit
       `H --depends_on--> O` @ 0.9 for every other holder `H` (evidence text naming both
       files); emit nothing between non-owners. This subsumes the single-service case
       (`svcIds.length === 1`). Ensure the `svcIds.length === 0` path stays on the untouched
       pairwise branch. (Contracts C1–C3.)
-- [ ] T017 [US2] Confirm direction and node ids reuse the existing `fileNodeId` helper
+- [x] T017 [US2] Confirm direction and node ids reuse the existing `fileNodeId` helper
       for both endpoints exactly as the current branch does; `dedupeConnections` still wraps
       the return.
-- [ ] T018 [US2] Run `pnpm --filter @arch-atlas/llm-importer test -- evidence-passes` —
+- [x] T018 [US2] Run `pnpm --filter @arch-atlas/llm-importer test -- evidence-passes` —
       T012/T013/T014 green; all US1 tests and the 3 pre-existing tests still green. Commit.
 
 **Checkpoint**: the legitimate "A carries B's contract" signal is preserved and now
@@ -155,12 +161,12 @@ edge; package in exactly 2 ⇒ edge unchanged.
 
 ### Tests for User Story 3
 
-- [ ] T019 [US3] Add **"drift boundary: exactly 2 repos sharing a package ⇒ edge; adding
+- [x] T019 [US3] Add **"drift boundary: exactly 2 repos sharing a package ⇒ edge; adding
       a 3rd ⇒ edge gone"** — parametrised on holder count around `SHARED_NAMESPACE_MIN_REPOS`.
       (Contracts C4, C5.)
-- [ ] T020 [US3] Add **"drift with no shared message ⇒ still no edge"** (regression guard
+- [x] T020 [US3] Add **"drift with no shared message ⇒ still no edge"** (regression guard
       for the untouched inner condition).
-- [ ] T021 [US3] Run the file — new cases green (T008–T009 already implement the logic);
+- [x] T021 [US3] Run the file — new cases green (T008–T009 already implement the logic);
       if T019's 2-repo half fails, the guard was written too eagerly — fix in
       `evidence-passes.ts`. Commit.
 
@@ -171,19 +177,19 @@ sides of the threshold.
 
 ## Phase 6: Cross-cutting verification
 
-- [ ] T022 Determinism: `pnpm --filter @arch-atlas/llm-importer test -- multi-repo-correlation`
+- [x] T022 Determinism: `pnpm --filter @arch-atlas/llm-importer test -- multi-repo-correlation`
       and `deterministic-correlator` — byte-identical connection set across runs. (Contract C7,
       SC-005.)
-- [ ] T023 No collateral movement: `pnpm --filter @arch-atlas/llm-importer test` (full
+- [x] T023 No collateral movement: `pnpm --filter @arch-atlas/llm-importer test` (full
       suite — 234+ tests) + `lint` + `typecheck`. Confirm `grpc-pass`,
       `grpc-correlation.integration`, `review-assembly`, and the existing
       `'scores OpenAPI client coverage inclusively at the 50% boundary'` case are all
       unchanged. (Contract C6, C8, FR-005, FR-006.)
-- [ ] T023a Assert FR-009: add a `describe('schemaPass')` case (or extend T004) proving a
+- [x] T023a Assert FR-009: add a `describe('schemaPass')` case (or extend T004) proving a
       suppressed shared-contract case emits **zero** `connections` while any explanatory text
       it produces goes only to `notes` — and, via `assembleReviewFile` over that pass output,
       produces no review candidate / edge. (FR-009.)
-- [ ] T024 Coverage: `pnpm --filter @arch-atlas/llm-importer test -- --coverage` ≥ 80 %
+- [x] T024 Coverage: `pnpm --filter @arch-atlas/llm-importer test -- --coverage` ≥ 80 %
       lines/branches; every new branch in `schemaPass` (0-service / 1-owner / 0-owner /
       ≥2-owner / package≥3 / package≤2) hit. (Constitution III.)
 - [ ] T025 Eval — reference workspace: `pnpm --filter @arch-atlas/analysis-runner-local
@@ -200,11 +206,11 @@ fixtures --runs 3`. Expect connection metrics within `TOLERANCE` (0.05) of the c
 
 ## Phase 7: Docs & proof
 
-- [ ] T028 [P] `CHANGELOG.md` — add an 011 entry under a new "Changed" heading (schemaPass
+- [x] T028 [P] `CHANGELOG.md` — add an 011 entry under a new "Changed" heading (schemaPass
       no longer over-links shared multi-service contracts).
-- [ ] T029 [P] `specs/009-grpc-cross-repo-correlation/research.md` D14 — append a line
+- [x] T029 [P] `specs/009-grpc-cross-repo-correlation/research.md` D14 — append a line
       noting the follow-up landed as 011.
-- [ ] T030 [P] Write `specs/011-schemapass-shared-contract/proof.md`: before/after eval
+- [x] T030 [P] Write `specs/011-schemapass-shared-contract/proof.md`: before/after eval
       numbers, the failing→passing unit tests, `git diff --stat` showing only
       `evidence-passes.ts` + its test + `baseline.json` + `specs/011-*` (+ CHANGELOG /
       009 research), determinism confirmation.

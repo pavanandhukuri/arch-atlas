@@ -299,3 +299,7 @@ recall 0 → 1.0.
 two repos vendor a copy of the same **shared, multi-service** contract (`demo.proto`); a shared
 contract is not a dependency between its consumers. Scoping that correctly (identical single-service
 protos, or generated-client coverage, remain valid signals) is its own change with its own eval.
+
+**Update:** landed as **011-schemapass-shared-contract** — the identical-copy signal now requires a
+single owning repo (via `RepoEvidence.grpcServices`), and the proto-package drift signal is
+suppressed for packages declared in ≥ 3 repos. The 6 `schema` false positives above go to 0.

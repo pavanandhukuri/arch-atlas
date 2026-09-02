@@ -37,10 +37,10 @@ schema FPs ⇒ 14 / 15 = **0.933**.
 
 ## D3 — The ownership signal already exists; no new evidence field
 
-`RepoEvidence.grpcServices: string[]` (added in 009) is _"gRPC services this repo serves —
-union of graph `endpoint:grpc:_`node names and`.proto` `service:<Name>`schema
-identifiers, de-duplicated, sorted"*. And every`SchemaDigest.identifiers`array already
-carries`service:<Name>`entries for`.proto` files (`parsers/schemas.ts:29`).
+`RepoEvidence.grpcServices: string[]` (added in 009) is documented as: gRPC services this
+repo serves — the union of graph `endpoint:grpc:*` node names and `.proto` `service:<Name>`
+schema identifiers, de-duplicated and sorted. And every `SchemaDigest.identifiers` array
+already carries `service:<Name>` entries for `.proto` files (`parsers/schemas.ts:29`).
 
 So "how many services does this contract declare" = `digest.identifiers.filter(id =>
 id.startsWith('service:')).length`, and "does repo R own service S" = normalized-name
