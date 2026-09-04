@@ -14,6 +14,7 @@ import {
   normalizeRoutePath,
   parseEndpointRoute,
   pathsEqual,
+  staticSegmentCount,
 } from '../../src/correlate/evidence/parsers/routes.js';
 import { extractSchemaDigest, isSchemaish } from '../../src/correlate/evidence/parsers/schemas.js';
 import { parseComposeFile, isComposeFile } from '../../src/correlate/evidence/parsers/compose.js';
@@ -143,6 +144,16 @@ describe('route normalization and matching', () => {
     );
     expect(literals).toHaveLength(1);
     expect(literals[0]).toMatchObject({ path: '/v1/users/*/orders', template: true });
+  });
+
+  // --- 012: static-segment specificity ---
+
+  it('staticSegmentCount counts only non-wildcard segments', () => {
+    expect(staticSegmentCount('/product/*')).toBe(1);
+    expect(staticSegmentCount('/product/*/*')).toBe(1);
+    expect(staticSegmentCount('/api/v1/*')).toBe(2);
+    expect(staticSegmentCount('/*/*')).toBe(0);
+    expect(staticSegmentCount('/v1/charge')).toBe(2);
   });
 });
 

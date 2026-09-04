@@ -3,7 +3,7 @@
     "set": "fixtures",
     "runs": 3,
     "model": "Qwen3-Coder-30B-A3B-Instruct-MLX-4bit",
-    "generatedAt": "2026-09-04T19:23:33.333Z",
+    "generatedAt": "2026-09-04T20:06:19.891Z",
     "perRepo": {
       "user-service": {
         "languages": {
@@ -289,7 +289,7 @@
     "set": "online-boutique",
     "runs": 3,
     "model": "Qwen3-Coder-30B-A3B-Instruct-MLX-4bit",
-    "generatedAt": "2026-09-04T19:28:04.435Z",
+    "generatedAt": "2026-09-04T20:05:22.509Z",
     "perRepo": {
       "frontend": {
         "languages": {
@@ -342,18 +342,18 @@
         },
         "outbound": {
           "tp": 7,
-          "fp": 2.3333333333333335,
+          "fp": 2,
           "fn": 0,
-          "precision": 0.7518518518518519,
+          "precision": 0.7777777777777778,
           "recall": 1,
-          "f1": 0.857843137254902
+          "f1": 0.8750000000000001
         },
         "consistency": {
           "httpRoutes": 1,
           "grpcServices": 1,
           "topics": 1,
           "datastores": 1,
-          "frameworks": 0.5555555555555555
+          "frameworks": 1
         },
         "descriptionScore": 5
       },
@@ -419,9 +419,9 @@
           "grpcServices": 0.3333333333333333,
           "topics": 1,
           "datastores": 0.6666666666666666,
-          "frameworks": 1
+          "frameworks": 0.5555555555555555
         },
-        "descriptionScore": 4.333333333333333
+        "descriptionScore": 3.6666666666666665
       },
       "productcatalogservice": {
         "languages": {
@@ -474,7 +474,7 @@
         },
         "outbound": {
           "tp": 0,
-          "fp": 3.3333333333333335,
+          "fp": 2.6666666666666665,
           "fn": 0,
           "precision": 0,
           "recall": 1,
@@ -487,7 +487,7 @@
           "datastores": 1,
           "frameworks": 1
         },
-        "descriptionScore": 4.333333333333333
+        "descriptionScore": 5
       },
       "currencyservice": {
         "languages": {
@@ -553,7 +553,7 @@
           "datastores": 1,
           "frameworks": 1
         },
-        "descriptionScore": 3
+        "descriptionScore": 5
       },
       "paymentservice": {
         "languages": {
@@ -751,7 +751,7 @@
           "datastores": 1,
           "frameworks": 1
         },
-        "descriptionScore": 5
+        "descriptionScore": 4.333333333333333
       },
       "checkoutservice": {
         "languages": {
@@ -883,7 +883,7 @@
           "datastores": 1,
           "frameworks": 1
         },
-        "descriptionScore": 3.6666666666666665
+        "descriptionScore": 3
       },
       "adservice": {
         "languages": {
@@ -896,11 +896,11 @@
         },
         "frameworks": {
           "tp": 1,
-          "fp": 0.3333333333333333,
+          "fp": 0.6666666666666666,
           "fn": 0,
-          "precision": 0.8333333333333334,
+          "precision": 0.6666666666666666,
           "recall": 1,
-          "f1": 0.8888888888888888
+          "f1": 0.7777777777777777
         },
         "httpRoutes": {
           "tp": 0,
@@ -954,17 +954,17 @@
     },
     "aggregate": {
       "languagesF1": 1,
-      "frameworksF1": 0.889,
+      "frameworksF1": 0.878,
       "httpRoutesF1": 0.9,
       "grpcServicesF1": 0.822,
       "topicsF1": 1,
       "datastoresF1": 0.85,
       "outboundRecall": 0.9,
-      "connectionsPrecision": 0.933,
+      "connectionsPrecision": 1,
       "connectionsRecall": 1,
       "connectionsRecallStddev": 0,
       "meanConsistency": 0.951,
-      "meanDescriptionScore": 4.133
+      "meanDescriptionScore": 4.2
     }
   }
 }

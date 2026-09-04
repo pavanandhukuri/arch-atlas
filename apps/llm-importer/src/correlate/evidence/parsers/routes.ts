@@ -40,6 +40,21 @@ export function segmentCount(path: string): number {
   return path.split('/').filter(Boolean).length;
 }
 
+/**
+ * Count of non-wildcard ('*') segments in an already-normalized path — how
+ * much distinguishing static structure a route pattern carries. `/product/*`
+ * has 1; `/api/v1/*` has 2; a fully-wildcard path has 0. Used to gate
+ * low-signal matches (012): a route with almost no static structure needs a
+ * stronger caller-side signal than bare path overlap before it's trusted as
+ * a real call target.
+ */
+export function staticSegmentCount(path: string): number {
+  return path
+    .split('/')
+    .filter(Boolean)
+    .filter((seg) => seg !== '*').length;
+}
+
 /** Aligned segment comparison: null when incompatible, else the number of
  * positions where both sides are concrete (non-wildcard) and equal. Wildcards
  * match anything, but contribute no concreteness. */

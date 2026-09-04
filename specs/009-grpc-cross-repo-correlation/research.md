@@ -303,3 +303,8 @@ protos, or generated-client coverage, remain valid signals) is its own change wi
 **Update:** landed as **011-schemapass-shared-contract** — the identical-copy signal now requires a
 single owning repo (via `RepoEvidence.grpcServices`), and the proto-package drift signal is
 suppressed for packages declared in ≥ 3 repos. The 6 `schema` false positives above go to 0.
+
+**Update:** the remaining `endpoint` false positive (row above) landed as
+**012-endpointpass-wildcard-fp** — a route-shaped literal with no HTTP-method signal no longer
+matches a served route with at most one static segment. `connectionsPrecision` on this workspace
+reaches a clean 1.0 (all 7 false positives from this table are now gone).
