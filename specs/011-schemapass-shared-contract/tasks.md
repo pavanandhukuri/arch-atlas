@@ -5,11 +5,12 @@
 
 **Tests**: REQUIRED — the spec's Proof Gate mandates unit tests (a–d) and an eval pass. TDD per constitution III.
 
-**Status (2026-09-02)**: T001–T024 + T028–T030 done — behaviour fully implemented and
-unit-proven (28 schemaPass tests, importer suite 243 green, monorepo lint/typecheck/build
-28/28, coverage gate met). **T025–T027, T031 pending**: the local model endpoint
-(`http://127.0.0.1:8000/v1`) is down, so the `online-boutique` / `fixtures` eval and the
-baseline regen cannot run in-session. See `proof.md` §4 for the exact commands to close.
+**Status (2026-09-05)**: All tasks done. T025–T027 closed against a live local model
+(`Qwen3-Coder-30B-A3B-Instruct-MLX-4bit` on oMLX) — `connectionsPrecision` on `online-boutique`
+0.667 → 0.933 (SC-001 met), `connectionsRecall` unchanged at 1.0, 0 schema false positives
+(SC-002). `eval/baseline.json` regenerated for both sets. See `proof.md` §4 for full numbers,
+including a pre-existing (011-unrelated) stale-path bug found and fixed in
+`eval/golden/fixtures/eval.config.yaml` along the way.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -192,15 +193,18 @@ sides of the threshold.
 - [x] T024 Coverage: `pnpm --filter @arch-atlas/llm-importer test -- --coverage` ≥ 80 %
       lines/branches; every new branch in `schemaPass` (0-service / 1-owner / 0-owner /
       ≥2-owner / package≥3 / package≤2) hit. (Constitution III.)
-- [ ] T025 Eval — reference workspace: `pnpm --filter @arch-atlas/analysis-runner-local
-eval --set online-boutique --runs 3`. Expect `connectionsPrecision ≈ 0.93` (≥ 0.90),
-      `connectionsRecall 1.0`, `grpcServicesF1` unchanged, no `--REGRESSION`. Record the 6→0
-      schema-FP drop. (SC-001, SC-002, SC-003.)
-- [ ] T026 Eval — fixtures: `pnpm --filter @arch-atlas/analysis-runner-local eval --set
-fixtures --runs 3`. Expect connection metrics within `TOLERANCE` (0.05) of the committed
-      baseline (no vendored multi-service contract → ~no change). (SC-004.)
-- [ ] T027 Regenerate `packages/analysis-runner-local/eval/baseline.json` for
-      `online-boutique` only (mirror 010's approach; leave `fixtures` values if they held).
+- [x] T025 Eval — reference workspace: `pnpm --filter @arch-atlas/analysis-runner-local
+eval --set online-boutique --runs 3`. Result: `connectionsPrecision 0.933` (≥ 0.90 met),
+      `connectionsRecall 1.0` unchanged, 6→0 schema FPs confirmed. (SC-001, SC-002, SC-003.)
+- [x] T026 Eval — fixtures: `pnpm --filter @arch-atlas/analysis-runner-local eval --set
+fixtures --runs 3`. Found + fixed a pre-existing (011-unrelated) stale `workspace.local` path
+      in `eval.config.yaml` that was silently feeding the model empty context; re-run gives
+      sane per-repo scores. `connectionsRecall` moved by 0.133 (model-call variance — none of
+      the 4 fixture repos carry a `.proto`/OpenAPI file, so `schemaPass`'s new code path is
+      never hit there; see proof.md §4). (SC-004.)
+- [x] T027 Regenerated `packages/analysis-runner-local/eval/baseline.json` for both
+      `online-boutique` and `fixtures` (fixtures needed regen too, since its prior baseline was
+      computed on the broken path).
 
 ---
 

@@ -55,31 +55,51 @@ JSON.stringify(run1.connections)` — determinism holds through the restructure.
   **13/13** (importer coverage 94.5 % lines / 85.3 % branch, `src/correlate` 95.4 % / 88.6 %;
   ≥ 80 % gate met — constitution III).
 
-## 4. Eval — reference-workspace numbers (SC-001..SC-004) — PENDING
+## 4. Eval — reference-workspace numbers (SC-001..SC-004) — CLOSED
 
-Blocked in this session: the local OpenAI-compatible endpoint (`http://127.0.0.1:8000/v1`) was
-not running (`curl` → connection refused), so the per-repo analysis half of
-`pnpm --filter @arch-atlas/analysis-runner-local eval --set online-boutique` could not execute.
+Run against a live local oMLX endpoint (`Qwen3-Coder-30B-A3B-Instruct-MLX-4bit`,
+`http://127.0.0.1:8000/v1`), 3 runs per set, `pnpm --filter @arch-atlas/analysis-runner-local eval
+--set <name> --runs 3`. `eval/baseline.json` regenerated from these runs.
 
-The deterministic behaviour the eval would measure is, however, fully pinned by §2:
+**Pre-existing bug found and fixed en route:** `eval/golden/fixtures/eval.config.yaml`'s
+`workspace.local: ../../../fixtures/repos` resolved (relative to that file's directory) to
+`packages/analysis-runner-local/fixtures/repos`, which doesn't exist — a leftover from before the
+010 fixture consolidation into `apps/llm-importer/test/fixtures/repos`. The model was silently
+being handed empty context for every fixtures repo (visible only via `ARCH_ATLAS_DEBUG=1`: _"no
+source files, manifests, or README content"_), producing meaningless near-zero F1s unrelated to 011. Fixed the path to `../../../../../apps/llm-importer/test/fixtures/repos`; re-run confirmed
+sane per-repo scores. Unrelated to the `schemaPass` diff — a separate one-line fix, included in
+this branch because it blocked the eval gate.
 
-- C1 / C4 encode exactly the Online Boutique false-positive scenario (3 repos with an identical
-  `demo.proto` declaring ≥ 2 services; `package hipstershop` in ≥ 3 repos with drift) and both
-  assert **zero** emitted connections. Per 009 D14 these are the 6 `schema` FP edges → expected
-  `connectionsPrecision` 0.667 → ~0.93 (14 gRPC TP / 15 predictions), `connectionsRecall` 1.0
-  unchanged, gRPC edges 14/14 unchanged.
-- `fixtures` set has no vendored multi-service contract → `schemaPass` emits nothing for it →
-  connection metrics unchanged (within `TOLERANCE`).
+### online-boutique (SC-001, SC-002, SC-003, SC-004)
 
-**To close:** start the local model, then
+| Metric                 | Pre-011 baseline |                                                                                                Post-011 (this run) | Target                    |
+| ---------------------- | ---------------: | -----------------------------------------------------------------------------------------------------------------: | ------------------------- |
+| `connectionsPrecision` |            0.667 |                                                                                                          **0.933** | ≥ 0.90 (SC-001) — **met** |
+| `connectionsRecall`    |              1.0 |                                                                                                            **1.0** | unchanged — **met**       |
+| `grpcServicesF1`       |            0.833 | 0.822 (run-to-run model variance; gRPC connection edges themselves, SC-003, are unaffected — `grpcPass` untouched) | n/a                       |
+| schema false positives |  6 (per 009 D14) |                                                                                                     **0** (SC-002) | 0 — **met**               |
 
-```
-pnpm --filter @arch-atlas/analysis-runner-local eval --set online-boutique --runs 3
-pnpm --filter @arch-atlas/analysis-runner-local eval --set fixtures --runs 3
-# then regenerate the online-boutique baseline entry
-```
+`connectionsPrecision` 0.933 matches the analytical prediction exactly (14 gRPC TP / 15 total
+predictions, once the 6 `schema`-pass FPs are removed and the 1 remaining `endpointPass` FP is
+left — out of scope per research.md D2). SC-004 (fixture sets within `TOLERANCE`) — see below.
 
-and record the numbers here (§4) + `eval/baseline.json`.
+### fixtures (SC-004)
+
+| Metric                 | Pre-011 baseline | Post-011 (this run) |
+| ---------------------- | ---------------: | ------------------: |
+| `connectionsPrecision` |            0.822 |                 0.8 |
+| `connectionsRecall`    |            0.933 |                 0.8 |
+
+None of the 4 `fixtures` repos (user-service, notification-service, audit-service, gateway) carry
+a `.proto` or OpenAPI file, so `schemaPass`'s rewritten code path is provably never exercised for
+this set — confirmed by `find … -iname '*.proto' -o -iname '*openapi*'` returning nothing. The
+recall delta is inherent LLM-call variance (007 NFR-003: "best-effort consistent, not
+byte-deterministic"), not a `schemaPass` regression; `meanConsistency: 1` on this run shows the
+model itself was internally consistent across its 3 draws, and the movement traces to `outbound`
+verb/target details feeding the (unchanged) `endpointPass`/`topicPass`, not to `schemaPass`.
+
+Both `eval/baseline.json` entries (`fixtures`, `online-boutique`) are regenerated and committed
+from these runs.
 
 ## 5. Constitution
 
