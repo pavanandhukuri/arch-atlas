@@ -4,6 +4,12 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Changed (011-schemapass-shared-contract)
+
+- **The cross-repo correlator no longer reports a dependency between two services just because they both vendor a copy of the same shared multi-service contract.** `schemaPass`'s "identical schema copy" signal now fires only when exactly one repository actually serves every service the contract declares — that repo is the owner, and the other copy-holders get a directed `depends_on` toward it. An aggregate `.proto` (many services, copied into every service repo, e.g. Online Boutique's `demo.proto`) links nothing. The low-confidence "proto-package drift" signal is likewise suppressed when the package name is declared in 3+ repositories (a workspace namespace, not a bilateral contract).
+- Effect: on a workspace built around one shared aggregate contract, cross-repo connection precision rises sharply (Online Boutique ~0.67 → ~0.93) with no loss of real connections. Single-owner contracts, OpenAPI client-coverage, and every other correlation pass are unchanged.
+- Internal only: no new dependency, no change to `{repo}.analysis.json` / review-artifact / `.arch.json` schemas, the CLI, or Studio. Resolves the follow-up deferred in `specs/009-grpc-cross-repo-correlation/research.md` (D14).
+
 ### Changed (010-harness-neutral-importer)
 
 - **`apps/llm-importer` is now deterministic and model-free.** It reads one `{repo}.analysis.json` per repository, correlates, and writes the review artifact + diagram — no model call, no network request, no agent-framework dependency. The `@earendil-works/pi-coding-agent`, `@earendil-works/pi-ai`, and `typebox` dependencies are removed.

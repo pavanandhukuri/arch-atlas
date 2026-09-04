@@ -1,8 +1,10 @@
 # arch-atlas Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-08-31
+Auto-generated from all feature plans. Last updated: 2026-09-02
 
 ## Active Technologies
+
+- TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022), Node ≥ 22. **011**: `schemaPass` in `src/correlate/evidence-passes.ts` stops emitting cross-repo `depends_on` when repos merely vendor a copy of the same multi-service `.proto` — identical-copy edges now require a single owning repo (via existing `RepoEvidence.grpcServices`), and the proto-package drift signal is suppressed for packages held by ≥3 repos. No new dep, no evidence/parser/schema/CLI change; only `evidence-passes.ts` + its unit test + the `online-boutique` eval baseline. (011-schemapass-shared-contract)
 
 - TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022), Node.js ≥ 22 (`apps/llm-importer`). **No new dependency**: adds one deterministic `grpcPass` to `src/correlate/` (a literal-level `.proto`/stub-construction matcher) plus additive `RepoEvidence` fields; existing `zod`/`js-yaml`/`vitest` only. No persisted-artifact or Studio change. (009-grpc-cross-repo-correlation)
 - TypeScript 5.3.0 strict, Node.js ≥ 22. **010**: `apps/llm-importer` core goes deterministic + model-free (drops `@earendil-works/pi-*` + `typebox`); the per-repo `RepoAnalysis` is produced by swappable in-repo producers — `packages/analysis-runner-local` (reference local-model runner, offline) and `.claude/skills/repo-analysis` (Claude Code, hosted, opt-in). New artifacts: `{repo}.context.json`, optional `architecture.extra-connections.json`. (010-harness-neutral-importer)
@@ -42,12 +44,10 @@ TypeScript 5.3.0: Follow standard conventions
 
 ## Recent Changes
 
+- 011-schemapass-shared-contract: `schemaPass` no longer treats a shared vendored multi-service `.proto` (or a proto package held by ≥3 repos) as a cross-repo dependency; identical-copy edges now route to the single owning repo or are dropped. Fixes the ~0.667 `connectionsPrecision` ceiling on Online Boutique (009 D14 follow-up). Scoped to `evidence-passes.ts`; no deps, no schema/CLI change.
+
 - 009-grpc-cross-repo-correlation: new deterministic `grpcPass` in the evidence-grounded correlator — matches gRPC client/stub construction sites against served gRPC services to draw directed cross-repo `calls` edges (fixes `connectionsRecall = 0` on all-gRPC workspaces). Purely additive; no new deps, no persisted-schema change.
 - 010-harness-neutral-importer: importer core made deterministic + model-free; `@earendil-works/pi-*` + `typebox` removed; per-repo analysis externalised to `packages/analysis-runner-local` (offline) + `.claude/skills/repo-analysis` (Claude Code, opt-in) + a documented producer contract
-
-- 008-bounded-repo-analysis: Added TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target — monorepo convention), Node.js ≥ 22 (retained; the `pi` SDK is still used for the bounded call and the agentic correlator) + `@earendil-works/pi-coding-agent` (`createAgentSession` with `tools: []`, single `session.prompt` — same pattern `src/correlate/agentic-correlator.ts` already uses), `@earendil-works/pi-ai` (`getModel` via the existing `model-runtime`), `zod` (new `RepoAnalysis` schema + existing config/graph schemas), `commander` (CLI — unchanged). **No package.json dependency is added or removed**; the removals in this feature are two vendored source trees and a runtime Python prerequisite, not npm packages.
-
-- 007-llm-repo-importer: Added TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target — matches monorepo convention), Node.js ≥ 22 (matches `pi`'s own stated minimum) + `@earendil-works/pi-coding-agent` (SDK — `ModelRuntime`, `createAgentSession`, `DefaultResourceLoader`/custom `ResourceLoader`, `SessionManager`, `SettingsManager`), `@earendil-works/pi-ai` (`getModel`), `zod` (knowledge-graph + config schema validation), `commander` (CLI, replaces Python `click`)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

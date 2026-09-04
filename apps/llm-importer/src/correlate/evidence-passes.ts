@@ -1,7 +1,7 @@
 import path from 'node:path';
 import type { RepositoryKnowledgeGraph } from '../graph/schema.js';
 import type { CrossRepositoryConnection } from './deterministic-correlator.js';
-import type { RepoEvidence } from './evidence/types.js';
+import type { RepoEvidence, SchemaDigest } from './evidence/types.js';
 import {
   isGatewayPrefixedVariant,
   parseEndpointRoute,
@@ -11,7 +11,7 @@ import {
   type EndpointRoute,
 } from './evidence/parsers/routes.js';
 import { isNoiseTopic } from './evidence/parsers/topics.js';
-import { normalizeServiceName } from './evidence/parsers/grpc.js';
+import { normalizeServiceName, serviceNamesMatch } from './evidence/parsers/grpc.js';
 
 /**
  * Evidence-grounded correlation passes, ported and adapted from
@@ -415,11 +415,124 @@ export const grpcPass: EvidencePass = ({ repos, graphsByName }) => {
 
 // --- schema pass ----------------------------------------------------------
 
+/**
+ * A `.proto` that declares ≥ this many services is an aggregate / shared
+ * contract: holding a copy of it is not evidence of depending on the other
+ * holders. `demo.proto` in Online Boutique declares ~10. (011)
+ */
+const AGGREGATE_CONTRACT_MIN_SERVICES = 2;
+/**
+ * A proto `package` name declared in ≥ this many repos is a workspace-wide
+ * namespace, not a bilateral contract — its drift signal is suppressed. A
+ * genuine bilateral contract lives in ≤ 2 repos (producer + a consumer, or two
+ * peers). (011)
+ */
+const SHARED_NAMESPACE_MIN_REPOS = 3;
+
+/** Service names declared inside a schema digest (`.proto` `service:<Name>`). */
+function serviceIdsOf(digest: SchemaDigest): string[] {
+  return digest.identifiers
+    .filter((id) => id.startsWith('service:'))
+    .map((id) => id.slice('service:'.length));
+}
+
 /** Identical schema copies, proto-package drift, and OpenAPI client coverage. */
 export const schemaPass: EvidencePass = ({ repos, graphsByName }) => {
   const notes: string[] = [];
   const connections: CrossRepositoryConnection[] = [];
 
+  // Workspace pre-scan: which repos declare each proto `package:` identifier.
+  const pkgHolders = new Map<string, Set<string>>();
+  for (const repo of repos) {
+    for (const digest of repo.schemaDigests) {
+      for (const id of digest.identifiers) {
+        if (!id.startsWith('package:')) continue;
+        const set = pkgHolders.get(id) ?? new Set<string>();
+        set.add(repo.name);
+        pkgHolders.set(id, set);
+      }
+    }
+  }
+
+  // --- Signal 1: identical schema copy (content hash shared across repos) ---
+  // Grouped workspace-wide so an aggregate contract vendored by N repos is seen
+  // as one shared artifact rather than N·(N-1)/2 pairwise "dependencies".
+  const digestHolders = new Map<string, Array<{ repo: RepoEvidence; digest: SchemaDigest }>>();
+  for (const repo of repos) {
+    for (const digest of repo.schemaDigests) {
+      const list = digestHolders.get(digest.sha256) ?? [];
+      list.push({ repo, digest });
+      digestHolders.set(digest.sha256, list);
+    }
+  }
+  for (const group of digestHolders.values()) {
+    // One entry per repo (first digest wins the slot), in `repos` order.
+    const byRepo = new Map<string, { repo: RepoEvidence; digest: SchemaDigest }>();
+    for (const entry of group) if (!byRepo.has(entry.repo.name)) byRepo.set(entry.repo.name, entry);
+    if (byRepo.size < 2) continue;
+    const holders = [...byRepo.values()];
+    const first = holders[0];
+    if (!first) continue;
+    const svcIds = serviceIdsOf(first.digest);
+
+    if (svcIds.length === 0) {
+      // Service-less schema (message library, GraphQL SDL, JSON Schema): a
+      // shared copy is still a usable bilateral signal. Unchanged behaviour —
+      // pairwise depends_on @ 0.9, earlier repo → later repo.
+      for (const [i, a] of holders.entries()) {
+        for (const b of holders.slice(i + 1)) {
+          connections.push(
+            connection({
+              sourceRepo: a.repo.name,
+              sourceNodeId: fileNodeId(graphsByName, a.repo.name, a.digest.relPath),
+              targetRepo: b.repo.name,
+              targetNodeId: fileNodeId(graphsByName, b.repo.name, b.digest.relPath),
+              type: 'depends_on',
+              evidence: [
+                `identical schema content in ${a.repo.name}/${a.digest.relPath} and ${b.repo.name}/${b.digest.relPath} (sha256 ${a.digest.sha256.slice(0, 12)}…)`,
+              ],
+              weight: 0.9,
+            })
+          );
+        }
+      }
+      continue;
+    }
+
+    // The copy declares ≥ 1 service. It is a dependency signal only if exactly
+    // one holder actually serves every service it names — that repo owns the
+    // contract and the others vendor it. Otherwise (no owner, or several) it is
+    // a shared contract and links nothing.
+    const owners = holders.filter(({ repo }) =>
+      svcIds.every((svc) => repo.grpcServices.some((served) => serviceNamesMatch(served, svc)))
+    );
+    const owner = owners.length === 1 ? owners[0] : undefined;
+    if (owner) {
+      for (const h of holders) {
+        if (h.repo.name === owner.repo.name) continue;
+        connections.push(
+          connection({
+            sourceRepo: h.repo.name,
+            sourceNodeId: fileNodeId(graphsByName, h.repo.name, h.digest.relPath),
+            targetRepo: owner.repo.name,
+            targetNodeId: fileNodeId(graphsByName, owner.repo.name, owner.digest.relPath),
+            type: 'depends_on',
+            evidence: [
+              `${h.repo.name}/${h.digest.relPath} is an identical copy of the contract ${owner.repo.name} serves (${svcIds.join(', ')}, sha256 ${h.digest.sha256.slice(0, 12)}…)`,
+            ],
+            weight: 0.9,
+          })
+        );
+      }
+    } else if (svcIds.length >= AGGREGATE_CONTRACT_MIN_SERVICES) {
+      notes.push(
+        `${holders.map((h) => h.repo.name).join(', ')} vendor an identical copy of ${first.digest.relPath} ` +
+          `(declares ${svcIds.length} services, no single owner) — treated as a shared contract, not a dependency`
+      );
+    }
+  }
+
+  // --- Signal 2: proto-package drift (same package + shared message, differing content) ---
   for (let i = 0; i < repos.length; i++) {
     for (let j = i + 1; j < repos.length; j++) {
       const a = repos[i];
@@ -427,46 +540,31 @@ export const schemaPass: EvidencePass = ({ repos, graphsByName }) => {
       if (!a || !b) continue;
       for (const da of a.schemaDigests) {
         for (const db of b.schemaDigests) {
-          if (da.sha256 === db.sha256) {
-            connections.push(
-              connection({
-                sourceRepo: a.name,
-                sourceNodeId: fileNodeId(graphsByName, a.name, da.relPath),
-                targetRepo: b.name,
-                targetNodeId: fileNodeId(graphsByName, b.name, db.relPath),
-                type: 'depends_on',
-                evidence: [
-                  `identical schema content in ${a.name}/${da.relPath} and ${b.name}/${db.relPath} (sha256 ${da.sha256.slice(0, 12)}…)`,
-                ],
-                weight: 0.9,
-              })
-            );
-            continue;
-          }
-          // Proto drift: same package + a shared message, differing content.
+          if (da.sha256 === db.sha256) continue; // handled by signal 1
           const pkgA = da.identifiers.find((id) => id.startsWith('package:'));
           const pkgB = db.identifiers.find((id) => id.startsWith('package:'));
-          if (pkgA && pkgA === pkgB) {
-            const messagesA = new Set(da.identifiers.filter((id) => id.startsWith('message:')));
-            const shared = db.identifiers.some(
-              (id) => id.startsWith('message:') && messagesA.has(id)
-            );
-            if (shared) {
-              connections.push(
-                connection({
-                  sourceRepo: a.name,
-                  sourceNodeId: fileNodeId(graphsByName, a.name, da.relPath),
-                  targetRepo: b.name,
-                  targetNodeId: fileNodeId(graphsByName, b.name, db.relPath),
-                  type: 'depends_on',
-                  evidence: [
-                    `${a.name}/${da.relPath} and ${b.name}/${db.relPath} share proto ${pkgA} with differing content (possible contract drift)`,
-                  ],
-                  weight: 0.4,
-                })
-              );
-            }
-          }
+          if (!pkgA || pkgA !== pkgB) continue;
+          // A package name shared by ≥ 3 repos is a workspace namespace, not a
+          // bilateral contract — drift between two of its many users is noise.
+          if ((pkgHolders.get(pkgA)?.size ?? 0) >= SHARED_NAMESPACE_MIN_REPOS) continue;
+          const messagesA = new Set(da.identifiers.filter((id) => id.startsWith('message:')));
+          const shared = db.identifiers.some(
+            (id) => id.startsWith('message:') && messagesA.has(id)
+          );
+          if (!shared) continue;
+          connections.push(
+            connection({
+              sourceRepo: a.name,
+              sourceNodeId: fileNodeId(graphsByName, a.name, da.relPath),
+              targetRepo: b.name,
+              targetNodeId: fileNodeId(graphsByName, b.name, db.relPath),
+              type: 'depends_on',
+              evidence: [
+                `${a.name}/${da.relPath} and ${b.name}/${db.relPath} share proto ${pkgA} with differing content (possible contract drift)`,
+              ],
+              weight: 0.4,
+            })
+          );
         }
       }
     }
