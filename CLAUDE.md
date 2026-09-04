@@ -1,8 +1,10 @@
 # arch-atlas Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-09-02
+Auto-generated from all feature plans. Last updated: 2026-09-05
 
 ## Active Technologies
+
+- TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022), Node ≥ 22. **012**: `endpointPass` in `src/correlate/evidence-passes.ts` no longer treats a route-shaped literal with no HTTP-method signal as a real call when it only matches a served route's single static segment (e.g. `/product/*`) — a new `staticSegmentCount` helper in `evidence/parsers/routes.ts` plus one guard clause. No new dep, no evidence/parser-shape/schema/CLI change; only `routes.ts` + `evidence-passes.ts` + their unit tests + the `online-boutique` eval baseline. (012-endpointpass-wildcard-fp)
 
 - TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022), Node ≥ 22. **011**: `schemaPass` in `src/correlate/evidence-passes.ts` stops emitting cross-repo `depends_on` when repos merely vendor a copy of the same multi-service `.proto` — identical-copy edges now require a single owning repo (via existing `RepoEvidence.grpcServices`), and the proto-package drift signal is suppressed for packages held by ≥3 repos. No new dep, no evidence/parser/schema/CLI change; only `evidence-passes.ts` + its unit test + the `online-boutique` eval baseline. (011-schemapass-shared-contract)
 
@@ -44,10 +46,11 @@ TypeScript 5.3.0: Follow standard conventions
 
 ## Recent Changes
 
+- 012-endpointpass-wildcard-fp: `endpointPass` no longer accepts a route-shaped literal with no HTTP-method signal as a match against a served route that has at most one static segment (e.g. `/product/*`) — closes the last documented false positive on Online Boutique (011 D2 follow-up), taking `connectionsPrecision` from ~0.933 to 1.0. New `staticSegmentCount` helper in `evidence/parsers/routes.ts`; scoped guard in `endpointPass` only. No deps, no evidence-shape/schema/CLI change.
+
 - 011-schemapass-shared-contract: `schemaPass` no longer treats a shared vendored multi-service `.proto` (or a proto package held by ≥3 repos) as a cross-repo dependency; identical-copy edges now route to the single owning repo or are dropped. Fixes the ~0.667 `connectionsPrecision` ceiling on Online Boutique (009 D14 follow-up). Scoped to `evidence-passes.ts`; no deps, no schema/CLI change.
 
 - 009-grpc-cross-repo-correlation: new deterministic `grpcPass` in the evidence-grounded correlator — matches gRPC client/stub construction sites against served gRPC services to draw directed cross-repo `calls` edges (fixes `connectionsRecall = 0` on all-gRPC workspaces). Purely additive; no new deps, no persisted-schema change.
-- 010-harness-neutral-importer: importer core made deterministic + model-free; `@earendil-works/pi-*` + `typebox` removed; per-repo analysis externalised to `packages/analysis-runner-local` (offline) + `.claude/skills/repo-analysis` (Claude Code, opt-in) + a documented producer contract
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

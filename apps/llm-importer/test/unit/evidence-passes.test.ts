@@ -234,6 +234,67 @@ describe('endpointPass', () => {
     for (const c of connections) expect(c.weight).toBeLessThanOrEqual(0.45);
     expect(notes.some((n) => n.includes('demoted'))).toBe(true);
   });
+
+  // --- 012: a bare data string is not a call ---
+
+  function calleeWithWildcardRoute(name: string, routeName: string): RepoEvidence {
+    const callee = emptyEvidence(name);
+    callee.endpointNodes.push({
+      id: `endpoint:main.go:${routeName}`,
+      type: 'endpoint',
+      name: routeName,
+      summary: '',
+    });
+    return callee;
+  }
+
+  it('012 C1: does not match a method-less literal against a low-specificity served route', () => {
+    // adservice/frontend shape: a plain data string that happens to share a
+    // served route's one static segment, with no HTTP-call context nearby.
+    const caller = emptyEvidence('adservice');
+    caller.urlLiterals.push({
+      relPath: 'src/main/java/hipstershop/AdService.java',
+      line: 152,
+      path: '/product/2ZYFJ3GM2N',
+      template: false,
+    });
+    const callee = calleeWithWildcardRoute('frontend', 'GET /product/{id}');
+    const { connections } = endpointPass(input([caller, callee]));
+    expect(connections).toHaveLength(0);
+  });
+
+  it('012 C2: still matches when the literal carries a method hint, even on a low-specificity route', () => {
+    const caller = emptyEvidence('sdk');
+    caller.urlLiterals.push({
+      relPath: 'src/client.ts',
+      line: 4,
+      path: '/product/42',
+      method: 'GET',
+      template: false,
+    });
+    const callee = calleeWithWildcardRoute('frontend', 'GET /product/{id}');
+    const { connections } = endpointPass(input([caller, callee]));
+    expect(connections).toHaveLength(1);
+    expect(connections[0]).toMatchObject({ type: 'calls', weight: 0.85, targetRepo: 'frontend' });
+  });
+
+  it('012 C3: still matches a method-less literal against a route with two or more static segments', () => {
+    const caller = emptyEvidence('sdk');
+    caller.urlLiterals.push({
+      relPath: 'src/client.ts',
+      line: 9,
+      path: '/api/v1/999',
+      template: false,
+    });
+    const callee = calleeWithWildcardRoute('orders-api', 'GET /api/v1/{id}');
+    const { connections } = endpointPass(input([caller, callee]));
+    expect(connections).toHaveLength(1);
+    expect(connections[0]).toMatchObject({
+      type: 'calls',
+      weight: 0.7,
+      targetRepo: 'orders-api',
+    });
+  });
 });
 
 describe('schemaPass', () => {

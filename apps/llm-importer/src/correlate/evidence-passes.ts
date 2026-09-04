@@ -7,6 +7,7 @@ import {
   parseEndpointRoute,
   pathsEqual,
   segmentCount,
+  staticSegmentCount,
   THIRD_PARTY_PATH_RE,
   type EndpointRoute,
 } from './evidence/parsers/routes.js';
@@ -176,6 +177,12 @@ export const manifestPass: EvidencePass = ({ repos, graphsByName }) => {
 
 // --- endpoint pass --------------------------------------------------------
 
+/** A served route with this many static segments or fewer carries almost no
+ * distinguishing structure (e.g. '/product/*') — accepting a match against it
+ * requires the caller literal to carry an actual HTTP-method signal, not just
+ * bare path overlap (012). */
+const MIN_STATIC_SEGMENTS_FOR_METHODLESS_MATCH = 1;
+
 interface CalleeRoute {
   route: EndpointRoute;
   nodeId: string;
@@ -212,6 +219,15 @@ export const endpointPass: EvidencePass = ({ repos, graphsByName }) => {
             literal.method !== route.method;
           if (methodsContradict) continue;
           if (pathsEqual(literal.path, route.path)) {
+            // A route with almost no static structure (e.g. '/product/*') is
+            // matched by any literal sharing its one concrete word — too weak
+            // to trust without a call-site signal on the literal (012).
+            if (
+              literal.method === undefined &&
+              staticSegmentCount(route.path) <= MIN_STATIC_SEGMENTS_FOR_METHODLESS_MATCH
+            ) {
+              continue;
+            }
             const exactMethod = literal.method !== undefined && literal.method === route.method;
             let weight = exactMethod ? 0.85 : 0.7;
             if (literal.template) weight = Math.min(weight, 0.55);

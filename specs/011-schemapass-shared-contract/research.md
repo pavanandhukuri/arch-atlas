@@ -35,6 +35,10 @@ schema FPs ⇒ 14 / 15 = **0.933**.
 **Decision**: target `connectionsPrecision ≥ 0.90` (SC-001), `= 0` schema-attributable FP
 (SC-002). Full 1.0 is unreachable here without touching `endpointPass`.
 
+**Update:** the `endpointPass` false positive landed as **012-endpointpass-wildcard-fp** —
+a route-shaped literal with no HTTP-method signal no longer matches a served route with at
+most one static segment. `connectionsPrecision` on this workspace reaches a clean 1.0.
+
 ## D3 — The ownership signal already exists; no new evidence field
 
 `RepoEvidence.grpcServices: string[]` (added in 009) is documented as: gRPC services this

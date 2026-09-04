@@ -4,6 +4,12 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Changed (012-endpointpass-wildcard-fp)
+
+- **The cross-repo correlator no longer reports a call from a plain data string that merely happens to path-match a low-specificity served route.** `endpointPass`'s endpoint-node matching now requires either a served route with at least two static path segments, or an HTTP-method signal on the calling literal, before accepting a match — a route like `/product/{id}` (one static segment) is no longer matched by _any_ literal sharing the word "product" (e.g. an ad-content redirect URL embedding a product id as plain data), unless that literal actually carries call-site evidence (a `.get(`/`.post(`-style hint, or an options-object `method:`).
+- Effect: on the Online Boutique reference workspace, this was the single remaining documented false positive after 011 — connection precision reaches a clean 1.0 (up from ~0.93), with connection recall unchanged at 1.0. No other correlation pass or match branch (gateway-prefixed variant, literal-vs-literal fallback, exact-method matches, higher-specificity routes) is affected.
+- Internal only: no new dependency, no change to `{repo}.analysis.json` / review-artifact / `.arch.json` schemas, the CLI, or Studio. Resolves the last false positive documented in `specs/011-schemapass-shared-contract/research.md` (D2) / `specs/009-grpc-cross-repo-correlation/research.md` (D14).
+
 ### Changed (011-schemapass-shared-contract)
 
 - **The cross-repo correlator no longer reports a dependency between two services just because they both vendor a copy of the same shared multi-service contract.** `schemaPass`'s "identical schema copy" signal now fires only when exactly one repository actually serves every service the contract declares — that repo is the owner, and the other copy-holders get a directed `depends_on` toward it. An aggregate `.proto` (many services, copied into every service repo, e.g. Online Boutique's `demo.proto`) links nothing. The low-confidence "proto-package drift" signal is likewise suppressed when the package name is declared in 3+ repositories (a workspace namespace, not a bilateral contract).
