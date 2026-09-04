@@ -4,6 +4,15 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Security
+
+- Patched 62 of 90 known vulnerabilities across the dependency tree (`pnpm audit`: 2 critical / 45 high / 36 moderate / 7 low → 0 critical-among-fixed / 28 remaining, all isolated to 4 packages below) via scoped `pnpm.overrides` in the root `package.json` — `minimatch`, `brace-expansion`, `picomatch`, `js-yaml`, `undici`, `nanoid`, `postcss`, `qs`, `ajv`, `flatted`, `browserslist`, `esbuild`, `rollup`, `@babel/core`. Every override target is caret-bounded (`^X.Y.Z`) to the same major line the vulnerable range was already on — verified against the lockfile that no override accidentally forces a cross-major jump (a first, careless pass using open `>=X` targets did exactly that for `minimatch`, `vite`, and `turbo` before being caught and corrected; see the session notes / PR description for the specific near-misses).
+- **Not fixed here, deliberately** — each needs an isolated, tested major-version migration, not a blind override: `vitest` (1.6.1 → ≥3.2.6, 1 critical CVE — a Vitest UI arbitrary-file-read; UI server isn't run in this repo, so no live exposure, but the fix is a real major bump touching every package's test config), `next` (`apps/studio`, 14.2.35 → ≥15.5.21, several high — App Router DoS/SSRF/cache-poisoning; a real production-facing app, needs a tested App Router migration), `vite` (`apps/viewer`, stuck on 5.4.21 — `@vitejs/plugin-react@4.7.0`'s own peer range already wants `vite@^6.4.3`, a pre-existing mismatch this pass left alone since bumping requires coordinating both packages), `turbo` (1.13.4 → ≥2.9.14, low/moderate, dev-tooling only — `turbo.json` still uses the v1 `"pipeline"` key, which v2 replaces with `"tasks"`; needs a config migration, not just a version bump).
+
+### Fixed
+
+- `turbo.json`'s `typecheck` task depended only on upstream packages' builds (`^build`), never its own — on a fully cold cache (e.g. after any dependency change invalidates every task simultaneously), `apps/studio`'s `typecheck` could race ahead of its own `next build` and fail on missing `.next/types/**/*.ts` codegen. Added `build` (own-package) to `typecheck`'s `dependsOn`. Verified deterministic across repeated `--force` (fully-cold) runs.
+
 ### Changed (012-endpointpass-wildcard-fp)
 
 - **The cross-repo correlator no longer reports a call from a plain data string that merely happens to path-match a low-specificity served route.** `endpointPass`'s endpoint-node matching now requires either a served route with at least two static path segments, or an HTTP-method signal on the calling literal, before accepting a match — a route like `/product/{id}` (one static segment) is no longer matched by _any_ literal sharing the word "product" (e.g. an ad-content redirect URL embedding a product id as plain data), unless that literal actually carries call-site evidence (a `.get(`/`.post(`-style hint, or an options-object `method:`).
