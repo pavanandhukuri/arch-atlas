@@ -44,8 +44,22 @@ and judge setting** the baseline was written with (metrics like `meanConsistency
 and `meanDescriptionScore` are sensitive to both). Re-run `pnpm eval --set <name>`
 and commit `baseline.json` when a change is a genuine improvement.
 
-## Current baseline reading (Qwen3-Coder-30B on oMLX)
+## Current baseline reading (Qwen3-Coder-30B on oMLX, as of 011)
 
-- **Per-repo extraction is solid:** frameworks / routes / languages F1 ≈ 0.87–0.97 on the real polyglot workspace; `consistency` ≈ 0.97 (temperature 0.1 makes runs near-identical).
-- **Known gaps the eval surfaces:** `grpcServices` F1 ≈ 0.73 (frontend false-positive, `checkoutservice` misses its own service); Redis on the C# `cartservice` not detected; the model occasionally invents a route for a repo that serves none.
-- **Connection recall on Online Boutique is 0** — every edge there is a gRPC call and the deterministic correlator only reasons about HTTP literals / topics / compose / manifests. This is the clearest "next thing to build": proto/gRPC-aware cross-repo correlation.
+- **Connections are solid:** `connectionsPrecision` 0.933, `connectionsRecall` 1.0 on Online
+  Boutique — `grpcPass` (009) draws the gRPC call edges, `schemaPass` (011) no longer
+  over-links repos that merely vendor a copy of the same multi-service `.proto`. The one
+  remaining precision point is an `endpointPass` false positive (out of scope for 011 — see
+  research.md D2).
+- **Per-repo extraction is solid:** languages F1 = 1.0, frameworks F1 ≈ 0.89, http routes F1 =
+  0.9 on the real polyglot workspace; `consistency` ≈ 0.95 (temperature 0.1 makes runs
+  near-identical).
+- **Known gaps the eval still surfaces:** `grpcServices` F1 ≈ 0.82 (occasional own-service
+  miss / extra service on `frontend`); Redis on the C# `cartservice` not always detected. These
+  affect per-repo `served` extraction only, not `grpcPass`'s connection-drawing (it reads
+  literal `.proto`/stub-construction sites, not this field) — see 009's research for that
+  pass's own scope.
+
+Historical note: prior to 009, `connectionsRecall` on Online Boutique was 0 (every edge there
+is gRPC and the correlator had no gRPC-aware pass). Prior to 011, `connectionsPrecision` was
+capped at ~0.667 by the shared-`.proto`-vendoring false positives above.
