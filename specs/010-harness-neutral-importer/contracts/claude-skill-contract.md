@@ -1,15 +1,24 @@
-# Contract: `.claude/skills/repo-analysis`
+# Contract: `plugins/repo-analysis/skills/repo-analysis`
 
 A Claude Code skill that produces a `{repo}.analysis.json` for one repository. The **documented,
 opt-in, hosted-API** analysis producer.
 
 ## Layout
 
+**Update (post-010):** restructured from a flat `.claude/skills/repo-analysis/` directory into a
+proper, portable Claude Code plugin — see `plugins/repo-analysis/README.md` for why and
+`plugins/repo-analysis/.claude-plugin/plugin.json` for the manifest. `README.md` moved to the
+plugin root (a plugin can hold multiple skills; only `SKILL.md` and the sample stay with this one
+skill).
+
 ```
-.claude/skills/repo-analysis/
-├── SKILL.md            # the skill (front-matter: name, description; body: procedure + inline schema)
-├── README.md           # multi-repo walkthrough + the offline-alternative note
-└── sample-analysis.json # a committed, hand-authored example RepoAnalysis
+plugins/repo-analysis/
+├── .claude-plugin/
+│   └── plugin.json      # plugin manifest (name, description, version)
+├── README.md            # multi-repo walkthrough + the offline-alternative note
+└── skills/repo-analysis/
+    ├── SKILL.md            # the skill (front-matter: name, description; body: procedure + inline schema)
+    └── sample-analysis.json # a committed, hand-authored example RepoAnalysis
 ```
 
 ## Behaviour (SKILL.md procedure)
@@ -43,7 +52,7 @@ opt-in, hosted-API** analysis producer.
 
 ## Tests (`apps/llm-importer/test/unit/skill-sample.test.ts`)
 
-- `RepoAnalysisSchema.safeParse(require('.claude/skills/repo-analysis/sample-analysis.json')).success === true`.
+- `RepoAnalysisSchema.safeParse(require('plugins/repo-analysis/skills/repo-analysis/sample-analysis.json')).success === true`.
 - The sample, fed through `toCorrelationGraph`, yields a graph that `RepositoryKnowledgeGraphSchema`
   accepts (proves it is downstream-usable).
 - A lightweight lint of `SKILL.md`: contains the schema field names and the string "opt-in" /

@@ -41,7 +41,7 @@ node packages/analysis-runner-local/dist/cli.js resolve-pairs import.yaml
 
 ### Claude Code (hosted API — opt-in)
 
-Run the `.claude/skills/repo-analysis` skill once per repo (see its `README.md`). It reads a
+Run the `plugins/repo-analysis/skills/repo-analysis` skill once per repo (see its `README.md`). It reads a
 `{repo}.context.json` and writes `{repo}.analysis.json`. Sends the secret-scrubbed bundle to a hosted
 model — use the offline runner if that matters.
 

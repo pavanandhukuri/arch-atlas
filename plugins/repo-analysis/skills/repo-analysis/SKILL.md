@@ -11,16 +11,33 @@ file — using Claude Code (a hosted model API).
 
 **This is an opt-in hosted-API path.** It sends the repository's context bundle (READMEs, manifest
 excerpts, a directory listing, a handful of relevance-ranked source excerpts — secret files are
-already excluded) to a hosted model. To stay fully offline, use `packages/analysis-runner-local`
+already excluded) to a hosted model. To stay fully offline, use `@arch-atlas/analysis-runner-local`
 instead.
+
+## Locating the arch-atlas importer
+
+This skill runs the `arch-atlas-import` CLI (built from `@arch-atlas/llm-importer`) to gather
+context and, afterward, to correlate. That package isn't published to a registry yet, so you need
+a checkout of the [arch-atlas repo](https://github.com/pavanandhukuri/arch-atlas) somewhere on
+disk — it does **not** need to be the repository you're analyzing. If you don't already have one,
+clone it and build once:
+
+```bash
+git clone https://github.com/pavanandhukuri/arch-atlas.git
+pnpm --filter @arch-atlas/llm-importer install
+pnpm --filter @arch-atlas/llm-importer build
+```
+
+Below, `$ARCH_ATLAS_HOME` stands for that checkout's path — substitute the real path (ask the user
+if it isn't obvious from context; check a project-level `ARCH_ATLAS_HOME` env var or CLAUDE.md
+note first).
 
 ## Input
 
 One of:
 
-- **A repository path** — run `node apps/llm-importer/dist/cli.js gather-context <import.yaml> --repos <name>`
-  (or `pnpm --filter @arch-atlas/llm-importer run import -- gather-context …`) to produce
-  `{outDir}/{name}.context.json`, then proceed as below.
+- **A repository path** — run `node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js gather-context
+<import.yaml> --repos <name>` to produce `{outDir}/{name}.context.json`, then proceed as below.
 - **A `{repo}.context.json`** context bundle — read it directly. **Do not** open any other file in
   the repository when you were given a bundle; the bundle is the complete, already-secret-scrubbed
   view.
@@ -69,11 +86,13 @@ One of:
 Use `"analysisStatus": "partial"` if the bundle was empty or you could not characterise the repo
 with confidence.
 
-4. Repeat per repository, then the user runs `node apps/llm-importer/dist/cli.js import <import.yaml>`.
+4. Repeat per repository, then the user runs
+   `node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js import <import.yaml>`.
 
 ## Validate
 
-The file must satisfy `RepoAnalysisSchema` (`apps/llm-importer/src/analysis/repo-analysis.schema.ts`).
-A quick check: `node -e "import('@arch-atlas/llm-importer').then(m => console.log(m.RepoAnalysisSchema.safeParse(require('./out/<name>.analysis.json')).success))"`.
+The file must satisfy `RepoAnalysisSchema`
+(`$ARCH_ATLAS_HOME/apps/llm-importer/src/analysis/repo-analysis.schema.ts`). A quick check:
+`node -e "import('$ARCH_ATLAS_HOME/apps/llm-importer/dist/index.js').then(m => console.log(m.RepoAnalysisSchema.safeParse(require('./out/<name>.analysis.json')).success))"`.
 
 A worked example is in `sample-analysis.json` beside this file.

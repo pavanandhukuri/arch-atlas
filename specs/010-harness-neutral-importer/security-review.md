@@ -34,7 +34,7 @@ secret-path exclusion set (`.env`, `*.key`, `*.pem`, `*secret*`, `*credential*`,
 `node_modules/`, `.git/`, `dist/`, `build/`, `__pycache__/`, `.venv/`) still gates every file before
 it can enter a prompt.
 
-## Claude Code skill (`.claude/skills/repo-analysis`) — the opt-in hosted path
+## Claude Code skill (`plugins/repo-analysis/skills/repo-analysis`) — the opt-in hosted path
 
 This is the one component that talks to a hosted model API, and only when a maintainer chooses to
 run it.

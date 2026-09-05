@@ -12,7 +12,7 @@ The one LLM step — turning a repository into its `{repo}.analysis.json` — is
 | Producer                            | Where                            | Model                                                                       |
 | ----------------------------------- | -------------------------------- | --------------------------------------------------------------------------- |
 | `@arch-atlas/analysis-runner-local` | `packages/analysis-runner-local` | **local** OpenAI-compatible endpoint, offline                               |
-| `repo-analysis` skill               | `.claude/skills/repo-analysis`   | Claude Code — **hosted API, opt-in**                                        |
+| `repo-analysis` skill               | `plugins/repo-analysis`          | Claude Code — **hosted API, opt-in**                                        |
 | your own                            | anything                         | anything — the contract is `RepoAnalysisSchema` + the context-bundle format |
 
 See `specs/010-harness-neutral-importer/` for the producer contract. `specs/008-…` / `specs/007-…`

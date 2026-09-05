@@ -4,6 +4,19 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Changed — repo-analysis packaging
+
+- **The `repo-analysis` producer moved from `.claude/skills/repo-analysis/` to `plugins/repo-analysis/`,
+  restructured as a proper, portable Claude Code plugin** (`.claude-plugin/plugin.json` manifest +
+  `skills/repo-analysis/`). `.claude/` is personal, gitignored configuration for whoever is
+  developing this repo — not the right place to ship a deliverable other people install into their
+  own, unrelated projects. Install with `claude --plugin-dir /path/to/plugins/repo-analysis`; see
+  `plugins/repo-analysis/README.md`.
+- `SKILL.md`'s instructions no longer hardcode monorepo-relative paths
+  (`apps/llm-importer/dist/cli.js`) — they now reference an `$ARCH_ATLAS_HOME` checkout location,
+  since `@arch-atlas/llm-importer` isn't published to a package registry yet and the plugin itself
+  needs to be usable against any target repositories, not just from inside an arch-atlas checkout.
+
 ### Security
 
 - Patched 62 of 90 known vulnerabilities across the dependency tree (`pnpm audit`: 2 critical / 45 high / 36 moderate / 7 low → 0 critical-among-fixed / 28 remaining, all isolated to 4 packages below) via scoped `pnpm.overrides` in the root `package.json` — `minimatch`, `brace-expansion`, `picomatch`, `js-yaml`, `undici`, `nanoid`, `postcss`, `qs`, `ajv`, `flatted`, `browserslist`, `esbuild`, `rollup`, `@babel/core`. Every override target is caret-bounded (`^X.Y.Z`) to the same major line the vulnerable range was already on — verified against the lockfile that no override accidentally forces a cross-major jump (a first, careless pass using open `>=X` targets did exactly that for `minimatch`, `vite`, and `turbo` before being caught and corrected; see the session notes / PR description for the specific near-misses).
