@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 
-import { ZoomControls } from '../../src/components/zoom-controls/ZoomControls';
+import { ZoomControls } from '@arch-atlas/viewer-components';
 
 describe('ZoomControls', () => {
   const onZoomIn = vi.fn();

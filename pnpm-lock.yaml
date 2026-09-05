@@ -132,9 +132,6 @@ importers:
       '@react-oauth/google':
         specifier: ^0.13.4
         version: 0.13.4(react-dom@18.3.1)(react@18.3.1)
-      browser-fs-access:
-        specifier: ^0.35.0
-        version: 0.35.0
       idb:
         specifier: ^8.0.0
         version: 8.0.3
@@ -340,9 +337,6 @@ importers:
       '@arch-atlas/core-model':
         specifier: workspace:*
         version: link:../core-model
-      '@arch-atlas/layout':
-        specifier: workspace:*
-        version: link:../layout
       '@pixi/unsafe-eval':
         specifier: ^7.4.3
         version: 7.4.3(@pixi/core@7.4.3)
@@ -422,15 +416,6 @@ packages:
 
   /@asamuzakjp/nwsapi@2.3.9:
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
-    dev: true
-
-  /@babel/code-frame@7.29.0:
-    resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
-    engines: {node: '>=6.9.0'}
-    dependencies:
-      '@babel/helper-validator-identifier': 7.28.5
-      js-tokens: 4.0.0
-      picocolors: 1.1.1
     dev: true
 
   /@babel/code-frame@7.29.7:
@@ -2139,7 +2124,7 @@ packages:
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
     engines: {node: '>=18'}
     dependencies:
-      '@babel/code-frame': 7.29.0
+      '@babel/code-frame': 7.29.7
       '@babel/runtime': 7.29.2
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
@@ -2603,10 +2588,6 @@ packages:
     dependencies:
       fill-range: 7.1.1
     dev: true
-
-  /browser-fs-access@0.35.0:
-    resolution: {integrity: sha512-sLoadumpRfsjprP8XzVjpQc0jK8yqHBx0PtUTGYj2fftT+P/t+uyDAQdMgGAPKD011in/O+YYGh7fIs0oG/viw==}
-    dev: false
 
   /browserslist@4.28.9:
     resolution: {integrity: sha512-EWazOblFYUvlGZcfGhPUPmYh3nikUxBVb+y9MJun5f3hBi812X+8MSQTujLBtgK3cf51fJWbWfOjyeO954d+Eg==}
