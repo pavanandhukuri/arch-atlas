@@ -19,7 +19,6 @@
     "@arch-atlas/renderer": "workspace:*",
     "@arch-atlas/viewer-components": "workspace:*",
     "@react-oauth/google": "^0.13.4",
-    "browser-fs-access": "^0.35.0",
     "idb": "^8.0.0",
     "js-yaml": "^5.2.0",
     "next": "^14.1.0",
