@@ -32,12 +32,12 @@ function parseRaw(contents: string, filePath: string): unknown {
 function checkNotV1Shape(raw: unknown, filePath: string): void {
   if (typeof raw !== 'object' || raw === null) return;
   const obj = raw as Record<string, unknown>;
-  if ('provider' in obj && !('localModel' in obj)) {
+  if ('provider' in obj) {
     throw new ConfigValidationError(
-      `${filePath}: found a v1.0-style "provider" field. This importer no longer supports ` +
-        'hosted/cloud providers (FR-017) — replace "provider" with a "localModel" block ' +
-        '({ provider: "ollama" | "mlx" | "openai-compatible", endpoint, modelId }) and set ' +
-        `"version" to "${CONFIG_VERSION}". See contracts/config-schema-contract.md.`
+      `${filePath}: found a v1.0-style "provider" field. The importer core is model-free ` +
+        'and does not read a provider/model configuration at all — drop the "provider" ' +
+        `block entirely and set "version" to "${CONFIG_VERSION}". See ` +
+        'contracts/config-schema-contract.md.'
     );
   }
 }

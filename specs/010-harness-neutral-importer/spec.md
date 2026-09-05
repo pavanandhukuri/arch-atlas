@@ -3,6 +3,16 @@
 **Feature Branch**: `010-harness-neutral-importer`
 **Created**: 2026-08-31
 **Status**: Draft
+**Update (2026-09-05)**: This spec designed two swappable analysis producers — a local-model
+reference runner (`packages/analysis-runner-local`) and a Claude Code skill
+(`.claude/skills/repo-analysis`, later moved to `plugins/repo-analysis`). The local-model runner
+has since been **deleted**: shipping code that calls a model directly (local or hosted) turned
+out to be the wrong shape — the choice of model belongs entirely to whichever coding agent a
+developer runs, not to arch-atlas. The remaining producer is now a tool-neutral `AGENTS.md`
+procedure (https://agents.md) that works with any AGENTS.md-aware coding agent, with a thin
+Claude Code skill wrapper for discoverability. The importer core's model-free architecture
+described below is unchanged; only the producer side changed. See `chore/drop-local-model-producer`
+and `CHANGELOG.md`.
 **Input**: User description: "Externalize the per-repository analysis step and remove the pi (@earendil-works) agent SDK from the importer core. The shipped importer package becomes deterministic and model-free; the per-repository analysis artifact is produced by swappable, in-repo producers (a reference local-model runner and a Claude Code skill)."
 
 ## User Scenarios & Testing _(mandatory)_

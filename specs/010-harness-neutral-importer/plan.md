@@ -2,6 +2,9 @@
 
 **Branch**: `010-harness-neutral-importer` | **Date**: 2026-08-31 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/010-harness-neutral-importer/spec.md`
+**Update (2026-09-05)**: See spec.md's update note — `packages/analysis-runner-local` (the local-model
+reference producer this plan designed) is deleted. The plan below is retained as the historical
+record of the model-free-core design, which is unchanged.
 
 ## Summary
 

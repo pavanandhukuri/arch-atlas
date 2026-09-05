@@ -10,9 +10,13 @@ An open source monorepo with three apps and a set of static-analysis producers t
 - **Viewer** — a standalone, read-only diagram viewer deployable to any static web server (no auth, no server).
 - **LLM Importer** — a deterministic CLI that turns a multi-repository workspace into a diagram Studio can import, from per-repository analysis artifacts produced by a swappable set of **skills/plugins**.
 
-The importer itself makes no model call. Turning a repository into an analysis artifact is a
-separate, swappable step — two producers ship in this repo (a local-model plugin and a Claude Code
-skill); anyone can write their own against the same contract.
+The importer itself makes no model call and never talks to a model — local or hosted — under
+any configuration. Turning a repository into an analysis artifact is a separate, swappable step
+performed by a producer such as `plugins/repo-analysis`, which runs from an `AGENTS.md`
+(https://agents.md) so it works with any coding agent — Claude Code, Cursor, Copilot, Codex,
+Windsurf, and 20+ others. Which model does the actual analysis (a local endpoint or a hosted
+API) is entirely up to whichever agent you point at it; anyone can also write their own producer
+against the same contract.
 
 ## Status
 
@@ -34,14 +38,13 @@ packages/
   viewer-components/  — React components shared by Studio and Viewer (MapCanvas, DiagramViewer, ZoomControls, useZoom)
   dsl/                — Plain-text DSL library for authoring/serializing models (parser + serializer;
                         not currently wired into a Studio UI — usable standalone or by other tooling)
-  analysis-runner-local — Reference repo-analysis producer: scans repositories via a local,
-                        OpenAI-compatible model endpoint and writes {repo}.analysis.json (offline,
-                        no hosted API)
 
 plugins/
-  repo-analysis/      — Alternative repo-analysis producer, packaged as a Claude Code plugin
-                        (portable — install it into any project). The same {repo}.analysis.json
-                        contract, run as a Claude Code skill (hosted API, opt-in)
+  repo-analysis/      — The repo-analysis producer: reads one repository (or its context bundle)
+                        and writes {repo}.analysis.json. Canonical procedure is AGENTS.md (works
+                        with any AGENTS.md-aware coding agent); also packaged as a Claude Code
+                        plugin for discoverability. Run it against a local or hosted model — your
+                        choice, the importer has no opinion.
 ```
 
 ### How a multi-repo workspace becomes a diagram
@@ -49,8 +52,8 @@ plugins/
 ```
 for each repository:
   llm-importer gather-context   → {repo}.context.json      (bounded, deterministic, secrets excluded)
-  a producer analyzes it        → {repo}.analysis.json      (analysis-runner-local, the repo-analysis
-                                                              skill, or your own — same contract)
+  a producer analyzes it        → {repo}.analysis.json      (plugins/repo-analysis, or your own
+                                                              producer — same contract)
 
 llm-importer import:
   correlate the analyses        → deterministic evidence passes over the raw source
@@ -111,7 +114,7 @@ Opens at `http://localhost:3000`. Requires a Google account to save diagrams to 
 ```bash
 pnpm --filter @arch-atlas/llm-importer build
 arch-atlas-import gather-context <config>   # per-repo context bundles
-# run a producer (analysis-runner-local, the repo-analysis skill, or your own)
+# run a producer (plugins/repo-analysis, or your own — any coding agent, any model)
 arch-atlas-import import <config>           # correlate + write the review artifact
 ```
 

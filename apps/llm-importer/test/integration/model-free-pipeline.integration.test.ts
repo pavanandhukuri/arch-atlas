@@ -39,15 +39,6 @@ function config(over: Partial<ImportConfig> = {}): ImportConfig {
   return {
     version: '2.0',
     output: { directory: outputDir, diagramFileName: 'architecture.arch.json' },
-    analysis: {
-      maxFilesPerRepo: 200,
-      excludePatterns: [],
-      forceRefresh: false,
-      maxConcurrency: 1,
-      temperature: 0.1,
-      verifyGrounding: false,
-      structuredOutput: 'prompt',
-    },
     repositories: REPOS.map((name) => ({ name, path: join(FIXTURES, 'repos', name) })),
     ...over,
   };
@@ -130,22 +121,5 @@ describe('model-free import pipeline', () => {
       await readFile(join(outputDir, 'architecture.arch.json'), 'utf8')
     ) as { elements: Array<{ name: string }> };
     expect(diagram.elements.map((e) => e.name).sort()).toContain('user-service');
-  });
-
-  it('produces identical output whether or not the config carries a localModel block (FR-001 AS-4)', async () => {
-    await seedAnalyses();
-    await runImport(
-      config({
-        localModel: { provider: 'ollama', endpoint: 'http://localhost:11434', modelId: 'x' },
-      }),
-      { verbose: false }
-    );
-    const withModel = await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8');
-    await rm(join(outputDir, 'architecture.review.yaml'));
-    await runImport(config(), { verbose: false });
-    const without = await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8');
-
-    const strip = (s: string): string => s.replace(/"generated_at":\s*"[^"]+"/, '');
-    expect(strip(withModel)).toBe(strip(without));
   });
 });

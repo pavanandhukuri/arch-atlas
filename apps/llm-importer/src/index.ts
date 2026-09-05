@@ -2,11 +2,11 @@
  * Public entrypoint for `@arch-atlas/llm-importer` (010-harness-neutral-importer).
  *
  * The importer is a deterministic, model-free library + CLI. This module is the
- * contract surface an analysis *producer* (e.g. `@arch-atlas/analysis-runner-local`,
- * the `repo-analysis` Claude Code skill, or a third-party script) depends on:
- * bounded context gathering, the artifact schemas, the correlation graph shape,
- * and the analysis/extra-connections stores. Nothing here makes a model call or a
- * network request.
+ * contract surface an analysis *producer* (e.g. the `plugins/repo-analysis`
+ * skill/plugin — usable from any AGENTS.md-aware coding agent — or a third-party
+ * script) depends on: bounded context gathering, the artifact schemas, the
+ * correlation graph shape, and the analysis/extra-connections stores. Nothing
+ * here makes a model call or a network request.
  */
 
 export {
@@ -84,10 +84,4 @@ export type {
 
 export { loadConfig, ConfigValidationError } from './config/loader.js';
 export { ImportConfigSchema, CONFIG_VERSION } from './config/config.schema.js';
-export type {
-  ImportConfig,
-  LocalModelConfig,
-  AnalysisConfig,
-  OutputConfig,
-  RepositoryEntry,
-} from './config/config.schema.js';
+export type { ImportConfig, OutputConfig, RepositoryEntry } from './config/config.schema.js';

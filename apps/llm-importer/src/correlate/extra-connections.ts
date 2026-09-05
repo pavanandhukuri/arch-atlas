@@ -6,9 +6,9 @@ import type { CrossRepositoryConnection } from './deterministic-correlator.js';
 
 /**
  * 010-harness-neutral-importer (research D5): the model-assisted cross-repo
- * fallback no longer runs inside the importer core. A producer (e.g.
- * `@arch-atlas/analysis-runner-local resolve-pairs`) may instead write an
- * optional `architecture.extra-connections.json`; `run-import.ts` merges it into
+ * fallback no longer runs inside the importer core. Any producer may instead
+ * write an optional `architecture.extra-connections.json` for pairs the
+ * deterministic evidence passes couldn't resolve; `run-import.ts` merges it into
  * the connection list before review assembly, exactly where the in-process
  * agentic pass used to sit. `assemble-review.ts` already maps
  * `foundBy: 'agentic-fallback'` to `low` confidence — no change there.

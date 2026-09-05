@@ -1,26 +1,37 @@
-# arch-atlas-repo-analysis (Claude Code plugin)
+# repo-analysis
 
 Produces `{repo}.analysis.json` artifacts for the [arch-atlas](https://github.com/pavanandhukuri/arch-atlas)
-repo importer using Claude Code, as an alternative to the offline
-`@arch-atlas/analysis-runner-local` runner. This is one of the two producers arch-atlas ships —
-the other is a local-model plugin (`packages/analysis-runner-local` in the arch-atlas repo); both
-implement the same contract, so you can mix and match per repository.
+repo importer. This is the (currently only) analysis producer arch-atlas ships — but it's not
+tied to one product or one model.
 
-## Trade-off
+## Works with any coding agent
 
-**This path sends the (secret-scrubbed) context bundle of each repository you analyze to a
-hosted model API** (Claude, via your own Claude Code session). To stay fully offline, use
-`@arch-atlas/analysis-runner-local` instead — it does the same job against a local
-OpenAI-compatible endpoint.
+The procedure lives in [`AGENTS.md`](./AGENTS.md), following the open
+[agents.md](https://agents.md) convention adopted by 20+ coding agents — Claude Code, Cursor,
+GitHub Copilot, OpenAI Codex, Windsurf, Gemini CLI, Aider, Jules, Zed, Devin, and more. Point
+any AGENTS.md-aware agent at a repository (or hand it a `{repo}.context.json` bundle) and it
+will follow the same steps.
 
-## What this plugin does — and doesn't — require
+Claude Code users additionally get a packaged skill (`skills/repo-analysis/SKILL.md`) that
+wraps the same procedure so it's discoverable and auto-invocable inside a Claude Code session
+— see [Install](#install) below. Every other agent just reads `AGENTS.md` directly; nothing
+to install.
 
-This plugin (the skill under `skills/repo-analysis/`) is portable: install it once and it works
-against any collection of repositories you point it at, anywhere on disk. What it does **not**
-provide is the arch-atlas importer CLI itself — `@arch-atlas/llm-importer` isn't published to a
-package registry yet, so you need a checkout of the arch-atlas repo somewhere to get it. That
-checkout does not need to contain (or be anywhere near) the repositories you're actually
-analyzing; it's only the source of the `arch-atlas-import` CLI the skill drives.
+**Local model or hosted model — your choice.** The arch-atlas importer core
+(`@arch-atlas/llm-importer`) is deterministic and makes no model call itself; it only ever
+reads the `{repo}.analysis.json` files this procedure produces. Whichever model does the
+actual analysis is entirely a property of how you've configured your coding agent (a local
+Ollama/vLLM/MLX endpoint, or a hosted API) — arch-atlas has no opinion on it and no code path
+that talks to a model directly.
+
+## What this needs (and doesn't)
+
+This procedure is portable: run it against any collection of repositories, anywhere on disk.
+What it does **not** provide is the arch-atlas importer CLI itself — `@arch-atlas/llm-importer`
+isn't published to a package registry yet, so you need a checkout of the arch-atlas repo
+somewhere to get it. That checkout does not need to contain (or be anywhere near) the
+repositories you're actually analyzing; it's only the source of the `arch-atlas-import` CLI the
+procedure drives.
 
 ```bash
 git clone https://github.com/pavanandhukuri/arch-atlas.git
@@ -28,7 +39,7 @@ pnpm --filter @arch-atlas/llm-importer install
 pnpm --filter @arch-atlas/llm-importer build
 ```
 
-## Install
+## Install (Claude Code)
 
 Test locally without any marketplace setup:
 
@@ -36,13 +47,16 @@ Test locally without any marketplace setup:
 claude --plugin-dir /path/to/arch-atlas/plugins/repo-analysis
 ```
 
-(or clone/copy just this `plugins/repo-analysis/` directory anywhere and point `--plugin-dir` at
-that copy — the plugin itself doesn't need to live inside an arch-atlas checkout, only the CLI
-does, per above).
+(or clone/copy just this `plugins/repo-analysis/` directory anywhere and point `--plugin-dir`
+at that copy — the plugin itself doesn't need to live inside an arch-atlas checkout, only the
+CLI does, per above).
 
 Once loaded, invoke the skill explicitly with `/arch-atlas-repo-analysis:repo-analysis`, or let
-Claude pick it up automatically when you ask it to analyze a repository for arch-atlas import —
-its `SKILL.md` description is written for model-invocation.
+Claude pick it up automatically when you ask it to analyze a repository for arch-atlas import.
+
+For any other AGENTS.md-aware agent, no install step is needed — just point it at this
+directory (or copy `AGENTS.md` alongside the repositories you're analyzing) and ask it to
+follow the procedure.
 
 ## Walkthrough (multi-repo workspace)
 
@@ -53,8 +67,8 @@ its `SKILL.md` description is written for model-invocation.
    # writes ./architecture-output/{repo}.context.json for every repo in import.yaml
    ```
 
-2. **Run this skill once per repo** — point it at each `{repo}.context.json` (or at a repo path,
-   in which case it runs `gather-context` for you). It writes
+2. **Run the procedure once per repo** — point your agent at each `{repo}.context.json` (or at
+   a repo path, in which case it runs `gather-context` for you). It writes
    `./architecture-output/{repo}.analysis.json`.
 
 3. **Import** (deterministic, offline)
@@ -72,6 +86,6 @@ its `SKILL.md` description is written for model-invocation.
 
 The contract is just two files and two schemas — see
 [`specs/010-harness-neutral-importer/contracts/analysis-producer-contract.md`](https://github.com/pavanandhukuri/arch-atlas/blob/main/specs/010-harness-neutral-importer/contracts/analysis-producer-contract.md)
-in the arch-atlas repo. Anything that emits a schema-valid `{repo}.analysis.json` (a script, a CI
-job, a different agent, a person filling in the template above) works with the importer
+in the arch-atlas repo. Anything that emits a schema-valid `{repo}.analysis.json` (a script, a
+CI job, a different agent, a person filling in the template above) works with the importer
 unchanged.

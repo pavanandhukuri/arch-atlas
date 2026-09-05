@@ -64,15 +64,6 @@ function config(): ImportConfig {
   return {
     version: '2.0',
     output: { directory: outputDir, diagramFileName: 'architecture.arch.json' },
-    analysis: {
-      maxFilesPerRepo: 200,
-      excludePatterns: [],
-      forceRefresh: false,
-      maxConcurrency: 1,
-      temperature: 0.1,
-      verifyGrounding: false,
-      structuredOutput: 'prompt',
-    },
     repositories: [
       { path: '/repos/gateway', name: 'gateway' },
       { path: '/repos/orders-service', name: 'orders-service' },

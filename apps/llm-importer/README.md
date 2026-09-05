@@ -7,20 +7,20 @@ raw source, and writes the review artifact the Studio import wizard consumes. **
 no model call and no network request under any configuration.**
 
 The one LLM step — turning a repository into its `{repo}.analysis.json` — is external and swappable
-(010):
+(010). This package never performs it itself:
 
-| Producer                            | Where                            | Model                                                                       |
-| ----------------------------------- | -------------------------------- | --------------------------------------------------------------------------- |
-| `@arch-atlas/analysis-runner-local` | `packages/analysis-runner-local` | **local** OpenAI-compatible endpoint, offline                               |
-| `repo-analysis` skill               | `plugins/repo-analysis`          | Claude Code — **hosted API, opt-in**                                        |
-| your own                            | anything                         | anything — the contract is `RepoAnalysisSchema` + the context-bundle format |
+| Producer        | Where                   | Model                                                                                                                                                                           |
+| --------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `repo-analysis` | `plugins/repo-analysis` | Whatever you run it with — an `AGENTS.md` procedure any coding agent (Claude Code, Cursor, Copilot, Codex, Windsurf, …) can follow against a local or hosted model, your choice |
+| your own        | anything                | anything — the contract is `RepoAnalysisSchema` + the context-bundle format                                                                                                     |
 
 See `specs/010-harness-neutral-importer/` for the producer contract. `specs/008-…` / `specs/007-…`
 are the historical record of the earlier in-process agentic approaches.
 
 ## Prerequisites
 
-- Node.js ≥ 22. **No Python. No local model server** for the importer itself (a producer may need one).
+- Node.js ≥ 22. **No Python. No model server of any kind** for the importer itself (a producer
+  may need one, but that's between you and your coding agent).
 
 ## Pipeline
 
@@ -58,8 +58,7 @@ detection from compose files, and (009) a **gRPC pass**.
 | `topic`    | cross-repo pub/sub on the same literal topic string                                                                                                                                          |
 
 Pairs no pass resolves can optionally be linked by a producer's model-assisted fallback, written to
-`architecture.extra-connections.json` and merged by `import` (e.g.
-`analysis-runner-local resolve-pairs`).
+`architecture.extra-connections.json` and merged by `import`.
 
 ## Development
 
@@ -69,5 +68,4 @@ pnpm --filter @arch-atlas/llm-importer test
 pnpm --filter @arch-atlas/llm-importer lint
 ```
 
-See `specs/010-harness-neutral-importer/quickstart.md` for end-to-end usage (the three producer
-paths + the model-free run).
+See `specs/010-harness-neutral-importer/quickstart.md` for end-to-end usage.

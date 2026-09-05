@@ -1,9 +1,0 @@
-name: fixtures
-# The in-repo synthetic golden set — tiny, offline, exact ground truth.
-workspace:
-  local: ../../../../../apps/llm-importer/test/fixtures/repos
-repos:
-  - { name: user-service, path: user-service }
-  - { name: notification-service, path: notification-service }
-  - { name: audit-service, path: audit-service }
-  - { name: gateway, path: gateway }

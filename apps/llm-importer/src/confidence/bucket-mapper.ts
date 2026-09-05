@@ -3,7 +3,7 @@ import type { CandidateConfidence } from '../review/review-file.js';
 /**
  * research.md D11: monotonic weight→bucket mapping, then adjusted by *how*
  * the connection was found — a deterministic, literal-evidence match is more
- * trustworthy than a local model's best guess, mirroring the retired static
+ * trustworthy than a model's best guess, mirroring the retired static
  * pipeline's confidence philosophy (manifest declarations outranked
  * LLM-only inferences).
  */

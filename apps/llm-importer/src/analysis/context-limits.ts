@@ -54,7 +54,6 @@ export const MAX_TOTAL_CONTEXT_BYTES = 131_072;
 
 /**
  * Ceiling on files the walk will *examine* before giving up (independent of how
- * many it keeps). Mirrors `config.analysis.maxFilesPerRepo`; the constant here
- * is the fallback when no config value is threaded through.
+ * many it keeps).
  */
 export const MAX_FILES_EXAMINED = 2_000;
