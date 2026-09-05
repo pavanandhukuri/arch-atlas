@@ -853,22 +853,13 @@ export const topicPass: EvidencePass = ({ repos, graphsByName }) => {
           })
         );
       }
-      for (const sub of subs) {
-        if (sub.repo === unknown.repo) continue;
-        connections.push(
-          connection({
-            sourceRepo: unknown.repo.name,
-            sourceNodeId: fileNodeId(graphsByName, unknown.repo.name, unknown.ref.relPath),
-            targetRepo: sub.repo.name,
-            targetNodeId: fileNodeId(graphsByName, sub.repo.name, sub.ref.relPath),
-            type: 'publishes',
-            evidence: [
-              `topic "${topic}" referenced in ${unknown.repo.name}/${unknown.ref.relPath}:${unknown.ref.line} (direction unconfirmed), consumed in ${sub.repo.name}/${sub.ref.relPath}:${sub.ref.line}`,
-            ],
-            weight: 0.4,
-          })
-        );
-      }
+      // Deliberately no unknown-as-source pairing against `subs`: a bare config-style
+      // reference (role 'unknown') is at least as likely to be that repo's OWN consumer
+      // side as a publisher, so treating it as a source toward another repo's confirmed
+      // subscriber manufactures sibling-consumer edges (two repos both reading the same
+      // topic) that don't exist. Only pair unknown as the plausible consumer of a
+      // confirmed publisher (above), never as the plausible publisher toward a confirmed
+      // consumer.
     }
   }
 

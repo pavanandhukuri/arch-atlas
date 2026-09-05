@@ -605,6 +605,32 @@ describe('topicPass', () => {
       weight: 0.4,
     });
   });
+
+  it("does not treat an unknown-role ref as a publisher toward another repo's confirmed subscriber", () => {
+    // Two sibling consumers of the same producer's topic (a bare config-style `Topic: "..."`
+    // field can't tell direction, so it's role 'unknown' — but that must not make the pass
+    // infer it publishes to a repo that definitely subscribes to the same topic).
+    const producer = emptyEvidence('user-service');
+    producer.topicRefs.push({ relPath: 'src/p.ts', line: 1, topic: 'user-created', role: 'pub' });
+    const consumerA = emptyEvidence('audit-service');
+    consumerA.topicRefs.push({
+      relPath: 'reader.go',
+      line: 1,
+      topic: 'user-created',
+      role: 'unknown',
+    });
+    const consumerB = emptyEvidence('notification-service');
+    consumerB.topicRefs.push({
+      relPath: 'src/consumer.ts',
+      line: 1,
+      topic: 'user-created',
+      role: 'sub',
+    });
+    const { connections } = topicPass(input([producer, consumerA, consumerB]));
+    const pairs = connections.map((c) => `${c.sourceRepo}->${c.targetRepo}`).sort();
+    // Both consumers correctly linked from the confirmed publisher; no consumer-to-consumer edge.
+    expect(pairs).toEqual(['user-service->audit-service', 'user-service->notification-service']);
+  });
 });
 
 describe('grpcPass registration & additivity (009)', () => {
