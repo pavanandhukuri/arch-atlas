@@ -1,6 +1,6 @@
 ---
 name: repo-analysis
-description: Produce a {repo}.analysis.json for the arch-atlas importer from one repository (or its context bundle). Use when the user wants to run the arch-atlas repo importer with Claude Code.
+description: Run the arch-atlas repo importer end-to-end for a workspace's import.yaml — gathers context, analyzes every listed repository, and correlates them into architecture.review.yaml / architecture.arch.json, ready for Studio's import wizard. Also handles a single repository or a context bundle. Use when the user wants to run the arch-atlas repo importer with Claude Code.
 ---
 
 # repo-analysis (Claude Code)

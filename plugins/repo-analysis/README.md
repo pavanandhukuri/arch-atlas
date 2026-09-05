@@ -8,9 +8,13 @@ tied to one product or one model.
 
 The procedure lives in [`AGENTS.md`](./AGENTS.md), following the open
 [agents.md](https://agents.md) convention adopted by 20+ coding agents — Claude Code, Cursor,
-GitHub Copilot, OpenAI Codex, Windsurf, Gemini CLI, Aider, Jules, Zed, Devin, and more. Point
-any AGENTS.md-aware agent at a repository (or hand it a `{repo}.context.json` bundle) and it
-will follow the same steps.
+GitHub Copilot, OpenAI Codex, Windsurf, Gemini CLI, Aider, Jules, Zed, Devin, and more. Point any
+AGENTS.md-aware agent at your workspace's `import.yaml` and it runs the whole pipeline itself —
+`gather-context`, analyze every listed repository, then `import` — ending with
+`architecture.review.yaml` / `architecture.arch.json` ready to upload into Studio's import
+wizard. No separate deterministic steps for you to run by hand. (It'll follow the same analysis
+steps for a single repo path or a `{repo}.context.json` bundle too, if that's all you hand it —
+`import` needs the whole workspace, so that step only runs when you point it at `import.yaml`.)
 
 Claude Code users additionally get a packaged skill (`skills/repo-analysis/SKILL.md`) that
 wraps the same procedure so it's discoverable and auto-invocable inside a Claude Code session
@@ -60,27 +64,23 @@ follow the procedure.
 
 ## Walkthrough (multi-repo workspace)
 
-1. **Gather context bundles** (deterministic, offline)
+1. **Write `import.yaml`** listing the repositories and an output directory.
 
-   ```bash
-   node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js gather-context import.yaml
-   # writes ./architecture-output/{repo}.context.json for every repo in import.yaml
-   ```
+2. **Run the procedure against it** — point your agent at `import.yaml` and ask it to import the
+   workspace. It runs the whole pipeline itself, in order:
+   - `gather-context import.yaml` (deterministic, offline) — writes `{repo}.context.json` for
+     every repo in one pass.
+   - Analyzes each bundle, producing `./architecture-output/{repo}.analysis.json`.
+   - `import import.yaml` (deterministic, offline) — correlates the analyses and writes
+     `./architecture-output/architecture.review.yaml` + `architecture.arch.json`.
 
-2. **Run the procedure once per repo** — point your agent at each `{repo}.context.json` (or at
-   a repo path, in which case it runs `gather-context` for you). It writes
-   `./architecture-output/{repo}.analysis.json`.
+   One request, and the workspace ends up with a review file ready to upload into Studio's
+   import wizard. A repo whose `{repo}.analysis.json` turned out missing or malformed is named
+   and skipped by the `import` step — the rest still produce a diagram.
 
-3. **Import** (deterministic, offline)
-
-   ```bash
-   node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js import import.yaml
-   # → architecture.review.yaml + architecture.arch.json
-   ```
-
-   A repo whose `{repo}.analysis.json` is missing or malformed is named and skipped; the rest
-   still produce a diagram. Import the resulting `architecture.review.yaml` into arch-atlas
-   Studio's import wizard to finish.
+   (You can still hand it a single repo path or one `{repo}.context.json` bundle directly if
+   you only want to (re-)analyze one repository — `import` only runs for a whole-workspace
+   request, since it needs every repo's analysis to correlate across them.)
 
 ## Writing your own producer
 

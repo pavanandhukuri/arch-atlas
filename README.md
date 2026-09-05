@@ -50,20 +50,23 @@ plugins/
 ### How a multi-repo workspace becomes a diagram
 
 ```
-for each repository:
-  llm-importer gather-context   → {repo}.context.json      (bounded, deterministic, secrets excluded)
-  a producer analyzes it        → {repo}.analysis.json      (plugins/repo-analysis, or your own
-                                                              producer — same contract)
-
-llm-importer import:
-  correlate the analyses        → deterministic evidence passes over the raw source
+point a coding agent at import.yaml, running plugins/repo-analysis — one request runs the
+whole pipeline itself:
+  gather-context (per repo)     → {repo}.context.json      (bounded, deterministic, secrets excluded)
+  analyze each bundle           → {repo}.analysis.json      (the one step touching a model — your
+                                                              agent, your model, local or hosted)
+  import (correlate)            → deterministic evidence passes over the raw source
                                    (manifests, HTTP routes, gRPC, schemas, compose files, pub/sub topics)
-  assemble-review                → architecture.review.yaml
-  build-diagram                  → architecture.arch.json
+                                 → architecture.review.yaml
+                                 → architecture.arch.json
 
 Studio's import wizard reads architecture.review.yaml and lets a human confirm/classify
 elements before finalizing the diagram.
 ```
+
+One developer action — point an agent at `import.yaml` — produces a ready
+`architecture.review.yaml`. `gather-context` and `import` are still directly callable on their
+own if a producer wants to invoke them itself instead.
 
 See `apps/llm-importer/README.md` for the full pipeline and CLI reference, and
 `specs/010-harness-neutral-importer/` for the producer contract new producers implement against.
@@ -113,9 +116,9 @@ Opens at `http://localhost:3000`. Requires a Google account to save diagrams to 
 
 ```bash
 pnpm --filter @arch-atlas/llm-importer build
-arch-atlas-import gather-context <config>   # per-repo context bundles
-# run a producer (plugins/repo-analysis, or your own — any coding agent, any model)
-arch-atlas-import import <config>           # correlate + write the review artifact
+# point a coding agent at <config> running plugins/repo-analysis (any agent, any model) —
+# it gathers context, analyzes every listed repository, and imports, writing
+# architecture.review.yaml + architecture.arch.json
 ```
 
 See `apps/llm-importer/README.md` for the full CLI reference and the producer contract.

@@ -15,7 +15,10 @@ already sitting on disk and correlates them into a cross-repository diagram. It 
 to a model. Producing those `{repo}.analysis.json` files — reading a repository and
 characterizing what it is, what it exposes, and what it depends on — is the one step in the
 pipeline that benefits from a model, and this file is the procedure for doing that step with
-whatever agent you're running.
+whatever agent you're running. For a whole workspace, this procedure also runs the
+surrounding deterministic steps (`gather-context` before, `import` after) itself, so a
+developer's only manual steps are writing `import.yaml` and, at the end, reviewing the result
+in Studio — everything in between is one request to your agent.
 
 ## Locating the arch-atlas importer
 
@@ -38,9 +41,17 @@ AGENTS.md/README note first).
 
 One of:
 
-- **A repository path** — run `node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js
-gather-context <import.yaml> --repos <name>` to produce `{outDir}/{name}.context.json`, then
-  proceed as below.
+- **An `import.yaml` (the common case — a whole workspace)** — run
+  `node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js gather-context <import.yaml>` once. This
+  is deterministic and makes no model call; it writes `{outDir}/{name}.context.json` for
+  **every** repository listed in the config in one pass. Then work through the Procedure below
+  once per bundle it produced, writing every `{repoName}.analysis.json`, and finish by running
+  `import <import.yaml>` yourself (Procedure step 4) — a single request to run this procedure
+  against a workspace should end with `architecture.review.yaml` and `architecture.arch.json`
+  sitting in `output.directory`, ready to upload into Studio's import wizard. No separate
+  developer step in between.
+- **A single repository path** — run the same command with `--repos <name>` to produce just
+  `{outDir}/{name}.context.json`, then proceed as below for that one bundle.
 - **A `{repo}.context.json`** context bundle — read it directly. **Do not** open any other
   file in the repository when you were given a bundle; the bundle is the complete,
   already-secret-scrubbed view.
@@ -91,8 +102,15 @@ gather-context <import.yaml> --repos <name>` to produce `{outDir}/{name}.context
 Use `"analysisStatus": "partial"` if the bundle was empty or you could not characterise the
 repo with confidence.
 
-4. Repeat per repository, then the user runs
-   `node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js import <import.yaml>`.
+4. If you were handed a whole workspace (`import.yaml`), repeat steps 1-3 for every context
+   bundle `gather-context` wrote — don't stop after the first repository. Once every repository
+   has a `{repoName}.analysis.json`, run
+   `node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js import <import.yaml>` **yourself** (still
+   deterministic, no model call — six evidence passes over the raw source plus a name-mention
+   fallback). It's safe to always run this last: a repository with no or a malformed analysis
+   artifact is named and skipped, the rest still produce a diagram. Report back the
+   `architecture.review.yaml` / `architecture.arch.json` paths it wrote — that's the deliverable
+   for a workspace request, not just the analysis artifacts.
 
 ## Validate
 
