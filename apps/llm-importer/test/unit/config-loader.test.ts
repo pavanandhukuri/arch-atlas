@@ -20,7 +20,6 @@ afterEach(async () => {
 
 const VALID_JSON = JSON.stringify({
   version: '2.0',
-  localModel: { provider: 'ollama', endpoint: 'http://localhost:11434', modelId: 'llama3' },
   output: { directory: './out' },
   repositories: [{ path: './repo-a' }],
 });
@@ -30,36 +29,12 @@ describe('loadConfig', () => {
     const path = await writeConfigFile('valid.json', VALID_JSON);
     const config = await loadConfig(path);
     expect(config.version).toBe('2.0');
-    expect(config.localModel?.provider).toBe('ollama');
     expect(config.repositories).toHaveLength(1);
-    expect(config.analysis.maxConcurrency).toBe(1); // default (serial — safest for one local model)
-  });
-
-  it('accepts a config with NO localModel block (010 — the core is model-free)', async () => {
-    const noModel = JSON.stringify({
-      version: '2.0',
-      output: { directory: './out' },
-      repositories: [{ path: './repo-a' }],
-    });
-    const path = await writeConfigFile('no-model.json', noModel);
-    const config = await loadConfig(path);
-    expect(config.localModel).toBeUndefined();
-    expect(config.repositories).toHaveLength(1);
-  });
-
-  it('still accepts a config that DOES carry a localModel block (runner reads it)', async () => {
-    const path = await writeConfigFile('with-model.json', VALID_JSON);
-    const config = await loadConfig(path);
-    expect(config.localModel?.endpoint).toBe('http://localhost:11434');
   });
 
   it('parses a valid YAML v2.0 config', async () => {
     const yamlContents = [
       "version: '2.0'",
-      'localModel:',
-      '  provider: mlx',
-      '  endpoint: http://localhost:8080',
-      '  modelId: some-model',
       'output:',
       '  directory: ./out',
       'repositories:',
@@ -68,8 +43,20 @@ describe('loadConfig', () => {
     ].join('\n');
     const path = await writeConfigFile('valid.yaml', yamlContents);
     const config = await loadConfig(path);
-    expect(config.localModel?.provider).toBe('mlx');
     expect(config.repositories[0]?.name).toBe('Repo A');
+  });
+
+  it('ignores an unknown legacy "localModel" block rather than erroring (backward compatible)', async () => {
+    const legacy = JSON.stringify({
+      version: '2.0',
+      localModel: { provider: 'ollama', endpoint: 'http://localhost:11434', modelId: 'llama3' },
+      output: { directory: './out' },
+      repositories: [{ path: './repo-a' }],
+    });
+    const path = await writeConfigFile('legacy.json', legacy);
+    const config = await loadConfig(path);
+    expect(config).not.toHaveProperty('localModel');
+    expect(config.repositories).toHaveLength(1);
   });
 
   it('rejects a v1.0-shaped config with a specific, actionable error', async () => {
@@ -87,7 +74,6 @@ describe('loadConfig', () => {
   it('rejects a config with no repositories', async () => {
     const config = JSON.stringify({
       version: '2.0',
-      localModel: { provider: 'ollama', endpoint: 'http://localhost:11434', modelId: 'llama3' },
       output: { directory: './out' },
       repositories: [],
     });
@@ -98,23 +84,10 @@ describe('loadConfig', () => {
   it('rejects a config with more than 50 repositories', async () => {
     const config = JSON.stringify({
       version: '2.0',
-      localModel: { provider: 'ollama', endpoint: 'http://localhost:11434', modelId: 'llama3' },
       output: { directory: './out' },
       repositories: Array.from({ length: 51 }, (_, i) => ({ path: `./repo-${i}` })),
     });
     const path = await writeConfigFile('too-many-repos.json', config);
-    await expect(loadConfig(path)).rejects.toThrow(ConfigValidationError);
-  });
-
-  it('rejects maxConcurrency above the hard cap of 8', async () => {
-    const config = JSON.stringify({
-      version: '2.0',
-      localModel: { provider: 'ollama', endpoint: 'http://localhost:11434', modelId: 'llama3' },
-      output: { directory: './out' },
-      analysis: { maxConcurrency: 20 },
-      repositories: [{ path: './repo-a' }],
-    });
-    const path = await writeConfigFile('too-concurrent.json', config);
     await expect(loadConfig(path)).rejects.toThrow(ConfigValidationError);
   });
 

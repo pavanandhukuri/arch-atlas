@@ -33,15 +33,6 @@ function makeConfig(over: Partial<ImportConfig> = {}): ImportConfig {
   return {
     version: '2.0',
     output: { directory: outputDir, diagramFileName: 'architecture.arch.json' },
-    analysis: {
-      maxFilesPerRepo: 200,
-      excludePatterns: [],
-      forceRefresh: false,
-      maxConcurrency: 1,
-      temperature: 0.1,
-      verifyGrounding: false,
-      structuredOutput: 'prompt',
-    },
     repositories: [{ path: '/service-a', name: 'service-a' }],
     ...over,
   };
@@ -141,22 +132,6 @@ describe('runImport — model-free core (010)', () => {
       await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
     ) as { source_repos: string[] };
     expect(review.source_repos).toEqual(['service-a']);
-  });
-
-  it('is unaffected by a localModel block in the config (FR-001 AS-4)', async () => {
-    await writeAnalysis(outputDir, makeAnalysis('service-a'));
-    const withModel = makeConfig({
-      localModel: { provider: 'ollama', endpoint: 'http://localhost:11434', modelId: 'x' },
-    });
-    await runImport(withModel, OPTS);
-    const a = await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8');
-
-    await rm(join(outputDir, 'architecture.review.yaml'));
-    await runImport(makeConfig(), OPTS);
-    const b = await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8');
-
-    const strip = (s: string): string => s.replace(/"generated_at":\s*"[^"]+"/, '');
-    expect(strip(a)).toBe(strip(b));
   });
 
   it('merges architecture.extra-connections.json as a low-confidence candidate (FR-013)', async () => {

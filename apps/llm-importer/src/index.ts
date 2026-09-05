@@ -84,10 +84,4 @@ export type {
 
 export { loadConfig, ConfigValidationError } from './config/loader.js';
 export { ImportConfigSchema, CONFIG_VERSION } from './config/config.schema.js';
-export type {
-  ImportConfig,
-  LocalModelConfig,
-  AnalysisConfig,
-  OutputConfig,
-  RepositoryEntry,
-} from './config/config.schema.js';
+export type { ImportConfig, OutputConfig, RepositoryEntry } from './config/config.schema.js';
