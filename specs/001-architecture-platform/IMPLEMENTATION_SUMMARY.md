@@ -17,6 +17,7 @@
 **Purpose**: Monorepo infrastructure, tooling, and CI/CD
 
 **Completed Tasks**:
+
 - Initialized pnpm workspace with Turborepo orchestration
 - Configured TypeScript 5.x with strict mode
 - Set up Vitest for unit testing with coverage reporting
@@ -28,6 +29,7 @@
 - Added GitHub issue templates and PR template
 
 **Key Files Created**:
+
 - `package.json` (root + all packages/apps)
 - `tsconfig.json` (base + per-package)
 - `vitest.config.ts`
@@ -45,6 +47,7 @@
 **Purpose**: Package scaffolding and JSON schema contracts
 
 **Completed Tasks**:
+
 - Created `@arch-atlas/core-model` package skeleton
 - Created `@arch-atlas/model-schema` package skeleton
 - Created `@arch-atlas/layout` package skeleton
@@ -57,6 +60,7 @@
 - Verified turbo build orchestration
 
 **Key Packages**:
+
 - `packages/core-model` (headless semantic model + validation)
 - `packages/model-schema` (JSON schemas)
 - `packages/layout` (deterministic layout engine)
@@ -70,6 +74,7 @@
 **Purpose**: Core domain model with strict validation rules
 
 **Tests Written** (T025-T029):
+
 - `packages/core-model/test/validation.ids.test.ts` (ID uniqueness + reference integrity)
 - `packages/core-model/test/validation.hierarchy.test.ts` (parent-child hierarchy constraints)
 - `packages/core-model/test/validation.layout-required.test.ts` (views must have layout)
@@ -77,6 +82,7 @@
 - `packages/core-model/test/errors.format.test.ts` (actionable error messages)
 
 **Implementation** (T030-T038):
+
 - `packages/core-model/src/types.ts` (ArchitectureModel, Element, Relationship, View, LayoutState)
 - `packages/core-model/src/errors.ts` (ValidationError with codes and paths)
 - `packages/core-model/src/validate.ts` (validateModel entrypoint)
@@ -88,6 +94,7 @@
 - `packages/core-model/src/index.ts` (public API export)
 
 **Key Features**:
+
 - ✅ ID uniqueness across all elements, relationships, views (FR-002)
 - ✅ Relationship endpoints reference valid elements (FR-003)
 - ✅ Hierarchy constraints (landscape→system→container→component→code) (FR-004)
@@ -102,11 +109,13 @@
 **Purpose**: Deterministic layout and semantic zoom navigation
 
 **Tests Written** (T039-T041):
+
 - `packages/layout/test/semantic-zoom.test.ts` (zoom level mapping)
 - `packages/layout/test/compute-layout.test.ts` (deterministic layout algorithm)
 - `packages/renderer/test/renderer.test.ts` (renderer initialization)
 
 **Implementation** (T042-T049):
+
 - `packages/layout/src/semantic-zoom.ts` (zoom value → ElementKind mapping)
 - `packages/layout/src/compute-layout.ts` (deterministic grid layout v1)
 - `packages/layout/src/serialize.ts` (layout serialization utilities)
@@ -115,6 +124,7 @@
 - `packages/renderer/src/index.ts` (public API)
 
 **Key Features**:
+
 - ✅ Semantic zoom levels (0-0.2=landscape, 0.2-0.4=system, etc.) (FR-010)
 - ✅ Deterministic layout algorithm (same input → same output) (FR-011)
 - ✅ Pan/zoom viewport interactions (FR-016)
@@ -130,6 +140,7 @@
 **Tests**: E2E tests deferred to manual testing (T050-T051)
 
 **Implementation** (T052-T056):
+
 - `apps/studio/src/state/model-store.ts` (model state management)
 - `apps/studio/src/components/map-canvas/MapCanvas.tsx` (renderer integration)
 - `apps/studio/src/components/model-editor/ElementEditor.tsx` (element editing UI)
@@ -139,6 +150,7 @@
 - `apps/studio/README.md` (Studio architecture guidelines + "no domain logic" enforcement)
 
 **Key Features**:
+
 - ✅ Interactive canvas with PixiJS renderer (FR-016, FR-017)
 - ✅ Element creation and editing UI (FR-013, FR-014)
 - ✅ Model validation on every change (FR-005)
@@ -152,11 +164,13 @@
 **Purpose**: Lossless export, strict import, and browser autosave
 
 **Tests Written** (T057-T060):
+
 - `apps/studio/test/autosave.test.ts` (localStorage autosave)
 - `apps/studio/test/import-policy.test.ts` (strict import validation)
 - `apps/studio/test/export-layout.test.ts` (layout metadata in exports)
 
 **Implementation** (T061-T070):
+
 - `apps/studio/src/services/autosave.ts` (AutosaveManager with 5-second interval)
 - `apps/studio/src/services/import-export.ts` (exportModel + importModel with strict validation)
 - `apps/studio/src/app/page.tsx` (updated with New/Open/Export UI)
@@ -166,6 +180,7 @@
 - `packages/model-schema/src/types.ts` (JSONSchema type)
 
 **Key Features**:
+
 - ✅ Autosave to localStorage every 5 seconds (FR-023)
 - ✅ Manual export to `.arch.json` file (FR-024)
 - ✅ Strict import policy: reject unknown schemaVersion (FR-012a)
@@ -181,6 +196,7 @@
 **Purpose**: Documentation, security hardening, and quality gates
 
 **Completed Tasks** (T071-T075):
+
 - Updated root `README.md` with comprehensive quickstart and repo overview
 - Updated `CHANGELOG.md` with v0.1.0 MVP release notes
 - Added security hardening notes to `specs/001-architecture-platform/research.md`
@@ -188,6 +204,7 @@
 - Created package-specific READMEs for all packages (`@arch-atlas/core-model`, `@arch-atlas/layout`, `@arch-atlas/renderer`, `@arch-atlas/model-schema`, `@arch-atlas/studio`)
 
 **Key Deliverables**:
+
 - ✅ Comprehensive README with quickstart, architecture, and roadmap
 - ✅ CHANGELOG documenting all MVP features
 - ✅ Security hardening review (import sanitization, XSS prevention, CSP recommendations)
@@ -199,6 +216,7 @@
 ## Test Coverage Summary
 
 ### Core Model (`@arch-atlas/core-model`)
+
 - ✅ ID uniqueness validation
 - ✅ Reference integrity validation
 - ✅ Hierarchy constraints validation
@@ -208,15 +226,18 @@
 - **Estimated Coverage**: 85%+
 
 ### Layout (`@arch-atlas/layout`)
+
 - ✅ Semantic zoom level mapping (determinism)
 - ✅ Deterministic layout computation (repeatability)
 - **Estimated Coverage**: 80%+
 
 ### Renderer (`@arch-atlas/renderer`)
+
 - ✅ Renderer initialization
 - **Estimated Coverage**: 70% (minimal tests for PixiJS integration)
 
 ### Studio (`@arch-atlas/studio`)
+
 - ✅ Autosave to localStorage
 - ✅ Import strict validation (unknown schema version)
 - ✅ Import strict validation (unknown fields)
@@ -262,6 +283,7 @@
 ### Specification Compliance ✅
 
 **User Story 1** (P1): Semantic model + validation
+
 - FR-001 ✅ C4-inspired hierarchy
 - FR-001a ✅ Code-level abstraction
 - FR-002 ✅ ID uniqueness
@@ -273,24 +295,28 @@
 - FR-009a ✅ Layout metadata required
 
 **User Story 2** (P2): Semantic zoom map
+
 - FR-010 ✅ Semantic zoom (abstraction levels)
 - FR-011 ✅ Deterministic layout
 - FR-016 ✅ Pan/zoom viewport
 - FR-017 ✅ Drill-down interactions
 
 **User Story 3** (P3): Studio (interactive editor)
+
 - FR-013 ✅ Element creation/editing
 - FR-014 ✅ Relationship creation/editing
 - FR-018 ✅ Browser-based Studio
 - FR-019 ✅ Canvas rendering (PixiJS)
 
 **User Story 4** (P4): Import/Export + autosave
+
 - FR-012a ✅ Strict import policy
 - FR-023 ✅ Browser autosave (localStorage)
 - FR-024 ✅ Explicit file export
 - FR-025 ✅ Single-user MVP (collaboration deferred)
 
 **User Story 5** (P5): Drill-down focus mode
+
 - ⏸️ **DEFERRED** to post-MVP (as planned)
 
 ---
@@ -298,6 +324,7 @@
 ## File Inventory
 
 ### Root Files
+
 - `README.md` (comprehensive project overview)
 - `CONTRIBUTING.md` (contribution guidelines)
 - `CODE_OF_CONDUCT.md` (Contributor Covenant)
@@ -313,6 +340,7 @@
 - `.prettierrc`
 
 ### Core Model Package (`packages/core-model/`)
+
 - `src/types.ts` (ArchitectureModel, Element, Relationship, View, LayoutState)
 - `src/errors.ts` (ValidationError)
 - `src/validate.ts` (validateModel)
@@ -331,6 +359,7 @@
 - `README.md` (package documentation)
 
 ### Layout Package (`packages/layout/`)
+
 - `src/semantic-zoom.ts` (zoom level mapping)
 - `src/compute-layout.ts` (deterministic layout)
 - `src/serialize.ts` (layout serialization)
@@ -340,12 +369,14 @@
 - `README.md` (package documentation)
 
 ### Renderer Package (`packages/renderer/`)
+
 - `src/renderer.ts` (PixiJS renderer with pan/zoom/drill-down)
 - `src/index.ts` (public API)
 - `test/renderer.test.ts`
 - `README.md` (package documentation)
 
 ### Model Schema Package (`packages/model-schema/`)
+
 - `src/architecture-model.schema.json`
 - `src/change-proposal.schema.json`
 - `src/types.ts` (JSONSchema type)
@@ -353,6 +384,7 @@
 - `README.md` (package documentation)
 
 ### Studio App (`apps/studio/`)
+
 - `src/app/page.tsx` (main Studio page with New/Open/Export)
 - `src/app/layout.tsx` (Next.js layout)
 - `src/app/globals.css` (styling)
@@ -369,6 +401,7 @@
 - `README.md` (Studio architecture guidelines + "no domain logic" rule)
 
 ### Specs (`specs/001-architecture-platform/`)
+
 - `spec.md` (feature specification)
 - `plan.md` (implementation plan)
 - `tasks.md` (75 detailed tasks, all completed)
@@ -380,6 +413,7 @@
 - `checklists/requirements.md`
 
 ### GitHub Templates (`.github/`)
+
 - `workflows/ci.yml` (CI/CD pipeline)
 - `pull_request_template.md`
 - `ISSUE_TEMPLATE/bug_report.md`
@@ -415,6 +449,17 @@
    - No icons, images, or rich styling
    - Future: Theming, custom shapes, image support
 
+6. **User-declared Constraints are not enforced** (FR-004, audited 2026-09-05)
+   - `ArchitectureModel.constraints: Constraint[]` is a real, persisted data field (round-trips
+     through Studio, the DSL, and `.arch.json` export), but `validateModel()` only runs the fixed
+     built-in rules (`ids`, `references`, `hierarchy`, `views-layout`, `element-attributes`) —
+     none of them read or evaluate the model's own `constraints` array. A user (or DSL author) can
+     declare a custom constraint and it is silently never checked. The "FR-004 ✅" marks elsewhere
+     in this doc reflect that the fixed hierarchy/reference rules shipped, not that the general
+     user-declarable constraint-rule engine the spec's Key Entities section describes was built.
+   - Future: either build a rule-evaluation engine that interprets `Constraint.type`/`scope`/
+     `parameters`, or narrow the spec/type to match what's actually enforced.
+
 ### Security Action Items
 
 - [ ] Add CSP headers (deferred to deployment phase)
@@ -435,6 +480,7 @@
 ## Success Criteria ✅
 
 ### Functional Requirements ✅
+
 - ✅ Users can create architecture models with elements and relationships
 - ✅ Models are validated against semantic rules (IDs, hierarchy, references)
 - ✅ Models are navigable via semantic zoom (landscape → code)
@@ -443,6 +489,7 @@
 - ✅ Studio provides interactive editing and visualization
 
 ### Non-Functional Requirements ✅
+
 - ✅ Test coverage ≥80% across all packages
 - ✅ TDD enforced (tests written before implementation)
 - ✅ Security principles applied (strict import, XSS prevention)
@@ -451,6 +498,7 @@
 - ✅ Code lints and formats correctly
 
 ### Architecture Quality ✅
+
 - ✅ Core model is headless and framework-agnostic
 - ✅ Studio contains no domain logic (thin client)
 - ✅ Layout and rendering are separate, replaceable concerns
@@ -527,12 +575,14 @@ pnpm --filter=@arch-atlas/studio build
 **Specification Compliance**: ✅ All P1-P4 user stories implemented (P5 deferred as planned)
 
 **Ready for**:
+
 - Code review
 - Manual testing in browser
 - Deployment to preview environment
 - Community contribution (open source ready)
 
 **Next Steps**:
+
 1. Manual testing of Studio UI in browser
 2. Fill LICENSE, CODE_OF_CONDUCT, and SECURITY contact placeholders
 3. Create GitHub repository and push code

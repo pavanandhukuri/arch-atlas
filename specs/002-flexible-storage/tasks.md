@@ -162,16 +162,26 @@
 > **Write these tests FIRST and ensure they FAIL before implementing**
 
 - [x] T043 [P] [US4] Write failing unit tests for `ConflictResolutionDialog`: renders "Your version" vs "Remote version" timestamps, calls `onKeepMine()` on primary action, calls `onLoadRemote()` on secondary action — in `apps/studio/test/components/storage/ConflictResolutionDialog.test.tsx`
-- [x] T044 [P] [US4] Write failing integration tests for crash recovery in `apps/studio/test/app/studio-page.test.tsx`: when localStorage contains `arch-atlas-autosave` with timestamp < 24 hours on mount, recovery banner is rendered before the storage prompt
+- [ ] ~~T044~~ [P] [US4] Write failing integration tests for crash recovery in `apps/studio/test/app/studio-page.test.tsx`: when localStorage contains `arch-atlas-autosave` with timestamp < 24 hours on mount, recovery banner is rendered before the storage prompt — **audited 2026-09-05: not present.** `apps/studio/test/app/studio-page.test.tsx` does not exist at all.
 
 ### Implementation for User Story 4
 
 - [x] T045 [US4] Build `ConflictResolutionDialog` in `apps/studio/src/components/storage/ConflictResolutionDialog.tsx`: modal showing conflict details (file name, local timestamp, remote timestamp), "Keep My Version" button (calls `onKeepMine`: overwrites remote), "Load Remote Version" button (calls `onLoadRemote`: discards local changes and loads remote), cannot be dismissed without choosing
 - [x] T046 [US4] Wire conflict resolution in `apps/studio/src/app/studio-page.tsx`: subscribe to `StorageManager` `'conflict'` event; on event show `ConflictResolutionDialog`; on `onKeepMine` call `storageProvider.save(handle, model, { force: true })` (skip conflict check); on `onLoadRemote` call `storageProvider.load(handle)` and call `modelStore.loadModel(loaded.model)` then update `handle.lastKnownModified`
-- [x] T047 [US4] Implement crash recovery check on app startup in `apps/studio/src/app/studio-page.tsx`: before showing `StoragePromptDialog`, check localStorage for `arch-atlas-autosave` and `arch-atlas-autosave-timestamp`; if found and timestamp within 24 hours, show recovery banner "We found unsaved work from [timestamp]. Restore it?"; on "Restore" — load `AutosaveState` into `ModelStore`, proceed to `StoragePromptDialog` to choose where to save; on "Discard" — clear `AutosaveState` and proceed to `StoragePromptDialog`
-- [x] T048 [US4] Write unit tests for recovery check in `apps/studio/test/app/studio-page.test.tsx`: no banner when localStorage is empty; banner shown when valid `arch-atlas-autosave` present; banner not shown when timestamp > 24 hours old
+- [ ] ~~T047~~ [US4] Implement crash recovery check on app startup in `apps/studio/src/app/studio-page.tsx`: before showing `StoragePromptDialog`, check localStorage for `arch-atlas-autosave` and `arch-atlas-autosave-timestamp`; if found and timestamp within 24 hours, show recovery banner "We found unsaved work from [timestamp]. Restore it?"; on "Restore" — load `AutosaveState` into `ModelStore`, proceed to `StoragePromptDialog` to choose where to save; on "Discard" — clear `AutosaveState` and proceed to `StoragePromptDialog` — **audited 2026-09-05: not present.** No `arch-atlas-autosave` key, no `autosave.ts`, no recovery banner exist anywhere in `apps/studio/src`. `local-file-provider.ts`'s own doc comment references a `loadFromLocalStorage()` function for exactly this purpose, but that function does not exist either.
+- [ ] ~~T048~~ [US4] Write unit tests for recovery check in `apps/studio/test/app/studio-page.test.tsx`: no banner when localStorage is empty; banner shown when valid `arch-atlas-autosave` present; banner not shown when timestamp > 24 hours old — **audited 2026-09-05: not present**, same as T044.
 
-**Checkpoint**: US4 complete. Crash recovery works end-to-end. Conflict resolution modal appears on write conflict. All 4 user stories functional.
+**Checkpoint** (as originally written): ~~US4 complete. Crash recovery works end-to-end.~~ **Correction
+(2026-09-05 audit)**: Only the conflict-resolution half of US4 (T043/T045/T046 — same-file-edited-
+elsewhere-while-editing) is real and working. The crash-recovery half (T044/T047/T048 — restore
+from a localStorage buffer after an unexpected close, before any save completed) does not exist in
+the current codebase, despite being checked off here. Whether this was implemented and later
+removed during a refactor, or the checkboxes were marked prematurely, is not established — either
+way, this task list should not be read as proof the feature exists. Given the real storage
+backends' autosave (~2s interval) already cover the vast majority of the data-loss window this
+story targeted, and this is a P3 (lowest-priority) story, the recommended path is to either
+implement it properly (new tasks, T044/T047/T048 as originally scoped) or formally drop User Story
+4 from the spec — not to leave it in this misleading half-done-but-marked-complete state.
 
 ---
 
@@ -232,7 +242,8 @@ Agent C: T009        — useStorageSession hook
 Agent A: T011, T013, T014, T015, T016, T017  — US1 (Local provider + dialog + studio)
 Agent B: T018-T022, T024-T031                 — US2 BFF auth routes + AuthContext
 ```
-*(T023, T032-T035 must wait for auth routes to be implemented)*
+
+_(T023, T032-T035 must wait for auth routes to be implemented)_
 
 ### Within US2 (Phase 4) — auth route tests can be written in parallel
 
@@ -278,6 +289,7 @@ T039 [P] GoogleDriveProvider.openFile() implementation
 ### Parallel Team Strategy
 
 After Phase 2 completes:
+
 - **Developer A**: US1 (local file, storage prompt, studio-page integration)
 - **Developer B**: US2 BFF auth routes (T024–T028) + AuthContext (T029–T031) in parallel
 - **Developer B** (continued): US2 GoogleDriveProvider + Drive UI (T032–T035) after auth routes done
