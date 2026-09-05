@@ -4,7 +4,20 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
-### Changed — repo-analysis packaging
+### Removed — the local-model reference producer
+
+- **`packages/analysis-runner-local` is deleted.** It was a reference implementation of the
+  analysis-producer contract that called a local, OpenAI-compatible model endpoint directly —
+  the only code in this repo that ever made a model call. That call is now made exclusively by
+  whichever coding agent a developer chooses to run `plugins/repo-analysis`'s procedure with,
+  against whichever model (local or hosted) that agent is configured for. No code shipped from
+  this repo talks to a model, under any configuration.
+- `ImportConfigSchema` drops the now-unused `localModel` and `analysis` (temperature,
+  maxConcurrency, structuredOutput, …) config blocks that existed only to configure that
+  package — backward compatible for any existing `import.yaml` that still carries them (they're
+  now silently ignored rather than read, per zod's non-strict parsing).
+
+### Changed — repo-analysis packaging & multi-agent compatibility
 
 - **The `repo-analysis` producer moved from `.claude/skills/repo-analysis/` to `plugins/repo-analysis/`,
   restructured as a proper, portable Claude Code plugin** (`.claude-plugin/plugin.json` manifest +
@@ -12,6 +25,12 @@ All notable user-facing changes SHOULD be documented in this file.
   developing this repo — not the right place to ship a deliverable other people install into their
   own, unrelated projects. Install with `claude --plugin-dir /path/to/plugins/repo-analysis`; see
   `plugins/repo-analysis/README.md`.
+- **The canonical procedure is now `plugins/repo-analysis/AGENTS.md`**, following the open
+  [agents.md](https://agents.md) convention (adopted by 20+ coding agents — Claude Code, Cursor,
+  GitHub Copilot, OpenAI Codex, Windsurf, Gemini CLI, Aider, Jules, Zed, Devin, and more).
+  `SKILL.md` is now a thin Claude-Code-specific wrapper that points at it, kept only for
+  discoverability inside a Claude Code session. Which model the procedure runs against — local
+  or hosted — is entirely a property of the coding agent you use; arch-atlas has no opinion.
 - `SKILL.md`'s instructions no longer hardcode monorepo-relative paths
   (`apps/llm-importer/dist/cli.js`) — they now reference an `$ARCH_ATLAS_HOME` checkout location,
   since `@arch-atlas/llm-importer` isn't published to a package registry yet and the plugin itself
