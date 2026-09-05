@@ -38,9 +38,15 @@ AGENTS.md/README note first).
 
 One of:
 
-- **A repository path** — run `node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js
-gather-context <import.yaml> --repos <name>` to produce `{outDir}/{name}.context.json`, then
-  proceed as below.
+- **An `import.yaml` (the common case — a whole workspace)** — run
+  `node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js gather-context <import.yaml>` once. This
+  is deterministic and makes no model call; it writes `{outDir}/{name}.context.json` for
+  **every** repository listed in the config in one pass. Then work through the Procedure below
+  once per bundle it produced, writing every `{repoName}.analysis.json` before reporting back —
+  a single request to run this procedure against a workspace should leave every repository in
+  that config analyzed, ready for `import <import.yaml>`. No separate developer step in between.
+- **A single repository path** — run the same command with `--repos <name>` to produce just
+  `{outDir}/{name}.context.json`, then proceed as below for that one bundle.
 - **A `{repo}.context.json`** context bundle — read it directly. **Do not** open any other
   file in the repository when you were given a bundle; the bundle is the complete,
   already-secret-scrubbed view.
@@ -91,8 +97,11 @@ gather-context <import.yaml> --repos <name>` to produce `{outDir}/{name}.context
 Use `"analysisStatus": "partial"` if the bundle was empty or you could not characterise the
 repo with confidence.
 
-4. Repeat per repository, then the user runs
-   `node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js import <import.yaml>`.
+4. If you were handed a whole workspace (`import.yaml`), repeat steps 1-3 for every context
+   bundle `gather-context` wrote before finishing — don't stop after the first repository.
+   Once every repository has a `{repoName}.analysis.json`, the workspace is ready for
+   `node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js import <import.yaml>` (still no model
+   call — deterministic correlation only).
 
 ## Validate
 

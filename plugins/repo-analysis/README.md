@@ -9,8 +9,10 @@ tied to one product or one model.
 The procedure lives in [`AGENTS.md`](./AGENTS.md), following the open
 [agents.md](https://agents.md) convention adopted by 20+ coding agents — Claude Code, Cursor,
 GitHub Copilot, OpenAI Codex, Windsurf, Gemini CLI, Aider, Jules, Zed, Devin, and more. Point
-any AGENTS.md-aware agent at a repository (or hand it a `{repo}.context.json` bundle) and it
-will follow the same steps.
+any AGENTS.md-aware agent at your workspace's `import.yaml` and it gathers context and analyzes
+every listed repository itself, in one pass — no separate deterministic step for you to run by
+hand. (It'll follow the same steps for a single repo path or a `{repo}.context.json` bundle too,
+if that's all you hand it.)
 
 Claude Code users additionally get a packaged skill (`skills/repo-analysis/SKILL.md`) that
 wraps the same procedure so it's discoverable and auto-invocable inside a Claude Code session
@@ -60,16 +62,16 @@ follow the procedure.
 
 ## Walkthrough (multi-repo workspace)
 
-1. **Gather context bundles** (deterministic, offline)
+1. **Write `import.yaml`** listing the repositories and an output directory.
 
-   ```bash
-   node $ARCH_ATLAS_HOME/apps/llm-importer/dist/cli.js gather-context import.yaml
-   # writes ./architecture-output/{repo}.context.json for every repo in import.yaml
-   ```
+2. **Run the procedure against it** — point your agent at `import.yaml` and ask it to analyze
+   the workspace. It runs `gather-context import.yaml` itself first (deterministic, offline —
+   writes `{repo}.context.json` for every repo in one pass), then works through each bundle to
+   produce `./architecture-output/{repo}.analysis.json`. One request, every repository analyzed;
+   no separate `gather-context` step for you to run by hand.
 
-2. **Run the procedure once per repo** — point your agent at each `{repo}.context.json` (or at
-   a repo path, in which case it runs `gather-context` for you). It writes
-   `./architecture-output/{repo}.analysis.json`.
+   (You can still hand it a single repo path or one `{repo}.context.json` bundle directly if
+   you only want to (re-)analyze one repository.)
 
 3. **Import** (deterministic, offline)
 

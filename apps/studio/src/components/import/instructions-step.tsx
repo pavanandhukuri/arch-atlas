@@ -14,16 +14,6 @@ export function InstructionsStep() {
 
       <ol className="iw-instructions-list">
         <li>
-          <strong>Produce a {'{repo}'}.analysis.json for each repository</strong>
-          <p className="iw-step-hint">
-            The importer core never talks to a model. Analyzing a repository is a separate step done
-            by the <code>plugins/repo-analysis</code> skill/plugin &mdash; an <code>AGENTS.md</code>{' '}
-            procedure that works with any coding agent (Claude Code, Cursor, Copilot, Codex,
-            Windsurf, and more), against whatever model you&apos;ve configured that agent to use,
-            local or hosted. See <code>plugins/repo-analysis/README.md</code> for setup.
-          </p>
-        </li>
-        <li>
           <strong>Write a config file</strong>
           <p className="iw-step-hint">
             Create <code>import.yaml</code> pointing at your repositories and where the analysis
@@ -45,15 +35,17 @@ export function InstructionsStep() {
           </pre>
         </li>
         <li>
-          <strong>Gather context, then analyze each repo</strong>
-          <pre className="iw-code-block">
-            {'pnpm --filter @arch-atlas/llm-importer run gather-context import.yaml'}
-          </pre>
+          <strong>Point a coding agent at it to analyze every repository</strong>
           <p className="iw-step-hint">
-            Writes a bounded <code>{'{repo}'}.context.json</code> per repository (READMEs,
-            manifests, a directory listing, a few relevance-ranked source files &mdash; secret files
-            are never read). Point your coding agent at each bundle to produce the matching{' '}
-            <code>{'{repo}'}.analysis.json</code> in <code>output.directory</code>.
+            The importer core never talks to a model &mdash; analyzing a repository is a separate
+            step done by the <code>plugins/repo-analysis</code> skill/plugin, an{' '}
+            <code>AGENTS.md</code> procedure that works with any coding agent (Claude Code, Cursor,
+            Copilot, Codex, Windsurf, and more), against whatever model you&apos;ve configured that
+            agent to use, local or hosted. Ask it to run the procedure against{' '}
+            <code>import.yaml</code> and it gathers context and analyzes every listed repository
+            itself, in one pass &mdash; no separate <code>gather-context</code> step to run by hand.
+            It writes one {'{repo}'}.analysis.json per repository into <code>output.directory</code>
+            . See <code>plugins/repo-analysis/README.md</code> for setup.
           </p>
         </li>
         <li>
