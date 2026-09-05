@@ -23,6 +23,17 @@ optional, not a required separate step.
 See `specs/010-harness-neutral-importer/` for the producer contract. `specs/008-…` / `specs/007-…`
 are the historical record of the earlier in-process agentic approaches.
 
+## Install / run
+
+Published on npm — run it straight with `npx`, no checkout:
+
+```bash
+npx --yes @arch-atlas/llm-importer@latest gather-context import.yaml
+npx --yes @arch-atlas/llm-importer@latest import import.yaml
+```
+
+or `npm i -g @arch-atlas/llm-importer` for a persistent `arch-atlas-import` binary.
+
 ## Prerequisites
 
 - Node.js ≥ 22. **No Python. No model server of any kind** for the importer itself (a producer

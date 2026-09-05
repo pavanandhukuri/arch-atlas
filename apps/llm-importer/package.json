@@ -1,7 +1,22 @@
 {
   "name": "@arch-atlas/llm-importer",
   "version": "0.1.0",
-  "description": "Local-model-driven repository architecture importer",
+  "description": "Deterministic, model-free multi-repository architecture importer for arch-atlas",
+  "keywords": [
+    "architecture",
+    "c4",
+    "diagram",
+    "monorepo",
+    "static-analysis",
+    "arch-atlas"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/pavanandhukuri/arch-atlas/tree/main/apps/llm-importer#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pavanandhukuri/arch-atlas.git",
+    "directory": "apps/llm-importer"
+  },
   "type": "module",
   "bin": {
     "arch-atlas-import": "./dist/cli.js"
@@ -18,8 +33,18 @@
       "default": "./dist/cli.js"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "tsc",
+    "prepack": "pnpm run clean && pnpm run build",
     "import": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",

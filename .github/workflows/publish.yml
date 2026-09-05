@@ -1,0 +1,112 @@
+name: Publish to npm
+
+# Publishes @arch-atlas/core-model, @arch-atlas/layout and @arch-atlas/llm-importer
+# to the public npm registry, in dependency order.
+#
+# Release flow:
+#   1. Bump "version" in all three package.json files to the SAME value, in a PR.
+#   2. After it merges, tag that commit `vX.Y.Z` and push the tag:
+#        git tag v0.2.0 && git push origin v0.2.0
+#   3. This workflow verifies the tag matches package.json, runs the checks,
+#      and publishes any of the three packages not already on npm at that version.
+#
+# `workflow_dispatch` runs the same thing on demand (optionally as a dry run).
+#
+# Requires one repository secret: NPM_TOKEN — an npm automation token for an
+# account that owns the @arch-atlas scope (npmjs.com → Access Tokens → Granular,
+# "Read and write", scoped to @arch-atlas).
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build, test and pack, but do not publish'
+        type: boolean
+        default: true
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve target version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(node -p "require('./apps/llm-importer/package.json').version")"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Target version: $VERSION"
+
+      - name: Verify package.json versions match the tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          for dir in packages/core-model packages/layout apps/llm-importer; do
+            PKG_VERSION="$(node -p "require('./$dir/package.json').version")"
+            if [ "$PKG_VERSION" != "$VERSION" ]; then
+              echo "::error::$dir/package.json is $PKG_VERSION but the target version is $VERSION. Bump all three package.json files to $VERSION before tagging."
+              exit 1
+            fi
+          done
+          echo "All three packages are at $VERSION."
+
+      - name: Lint, type-check and test
+        run: pnpm turbo run lint typecheck test --filter=@arch-atlas/llm-importer...
+
+      - name: Build (dependency order)
+        run: pnpm turbo run build --filter=@arch-atlas/llm-importer...
+
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          for dir in packages/core-model packages/layout apps/llm-importer; do
+            NAME="$(node -p "require('./$dir/package.json').name")"
+            PUBLISHED="$(npm view "$NAME@$VERSION" version 2>/dev/null || true)"
+            if [ -n "$PUBLISHED" ]; then
+              echo "✓ $NAME@$VERSION already on npm — skipping."
+              continue
+            fi
+            if [ "${DRY_RUN:-false}" = "true" ]; then
+              echo "· dry run: would publish $NAME@$VERSION"
+              ( cd "$dir" && pnpm publish --no-git-checks --dry-run )
+            else
+              echo "→ publishing $NAME@$VERSION"
+              ( cd "$dir" && pnpm publish --no-git-checks --access public )
+            fi
+          done
+
+      - name: Summary
+        run: |
+          echo "### Published @arch-atlas packages @ ${{ steps.version.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- @arch-atlas/core-model" >> "$GITHUB_STEP_SUMMARY"
+          echo "- @arch-atlas/layout" >> "$GITHUB_STEP_SUMMARY"
+          echo "- @arch-atlas/llm-importer" >> "$GITHUB_STEP_SUMMARY"

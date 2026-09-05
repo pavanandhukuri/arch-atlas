@@ -114,12 +114,11 @@ Opens at `http://localhost:3000`. Requires a Google account to save diagrams to 
 
 ### LLM Importer (multi-repo → diagram)
 
-```bash
-pnpm --filter @arch-atlas/llm-importer build
-# point a coding agent at <config> running plugins/repo-analysis (any agent, any model) —
-# it gathers context, analyzes every listed repository, and imports, writing
-# architecture.review.yaml + architecture.arch.json
-```
+The importer CLI is published on npm — no checkout needed. Point a coding agent at your
+`import.yaml` running `plugins/repo-analysis` (any agent, any model): it runs
+`npx @arch-atlas/llm-importer@latest gather-context`, analyzes every listed repository, then
+`npx @arch-atlas/llm-importer@latest import`, writing `architecture.review.yaml` +
+`architecture.arch.json`.
 
 See `apps/llm-importer/README.md` for the full CLI reference and the producer contract.
 

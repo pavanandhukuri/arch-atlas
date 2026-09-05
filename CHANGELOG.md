@@ -31,10 +31,23 @@ All notable user-facing changes SHOULD be documented in this file.
   `SKILL.md` is now a thin Claude-Code-specific wrapper that points at it, kept only for
   discoverability inside a Claude Code session. Which model the procedure runs against — local
   or hosted — is entirely a property of the coding agent you use; arch-atlas has no opinion.
-- `SKILL.md`'s instructions no longer hardcode monorepo-relative paths
-  (`apps/llm-importer/dist/cli.js`) — they now reference an `$ARCH_ATLAS_HOME` checkout location,
-  since `@arch-atlas/llm-importer` isn't published to a package registry yet and the plugin itself
-  needs to be usable against any target repositories, not just from inside an arch-atlas checkout.
+
+### Added — `@arch-atlas/llm-importer` published to npm
+
+- **`@arch-atlas/core-model`, `@arch-atlas/layout` and `@arch-atlas/llm-importer` now publish to
+  the public npm registry** (`.github/workflows/publish.yml`, triggered by pushing a `vX.Y.Z`
+  tag, or manually with a dry-run default). Lockstep-versioned; the workflow verifies all three
+  `package.json` versions match the tag, runs lint/type-check/test, then publishes any not
+  already on npm — in dependency order.
+- **`plugins/repo-analysis` now runs the importer via `npx @arch-atlas/llm-importer@latest`** —
+  no arch-atlas checkout, no build step, no `$ARCH_ATLAS_HOME`. `AGENTS.md`, `SKILL.md` and the
+  plugin README are rewritten around this; a developer using the plugin needs only Node ≥ 22.
+- **Fixed:** the `arch-atlas-import` bin silently no-op'd (exit 0, no output) when invoked
+  through the `node_modules/.bin` symlink that npm / npx / pnpm create — the entry-point check
+  now compares realpath-resolved paths. Covered by `test/integration/cli-entrypoint.integration.test.ts`.
+- Package hygiene for the three published packages: `files`, `publishConfig.access`, `engines`,
+  `repository.directory`, `homepage`, and a `prepack` clean-rebuild so a stale `dist/` can't
+  ship.
 
 ### Security
 

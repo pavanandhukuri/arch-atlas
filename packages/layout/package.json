@@ -2,6 +2,13 @@
   "name": "@arch-atlas/layout",
   "version": "0.1.0",
   "description": "Deterministic layout engine and serialization",
+  "license": "MIT",
+  "homepage": "https://github.com/pavanandhukuri/arch-atlas/tree/main/packages/layout#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pavanandhukuri/arch-atlas.git",
+    "directory": "packages/layout"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -10,8 +17,18 @@
       "default": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc",
+    "prepack": "pnpm run clean && pnpm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src/ test/",
