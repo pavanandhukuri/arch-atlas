@@ -50,24 +50,23 @@ plugins/
 ### How a multi-repo workspace becomes a diagram
 
 ```
-point a coding agent at import.yaml, running plugins/repo-analysis:
-  gather-context (per repo)     → {repo}.context.json      (bounded, deterministic, secrets excluded —
-                                                              the agent runs this itself)
+point a coding agent at import.yaml, running plugins/repo-analysis — one request runs the
+whole pipeline itself:
+  gather-context (per repo)     → {repo}.context.json      (bounded, deterministic, secrets excluded)
   analyze each bundle           → {repo}.analysis.json      (the one step touching a model — your
                                                               agent, your model, local or hosted)
-
-llm-importer import:
-  correlate the analyses        → deterministic evidence passes over the raw source
+  import (correlate)            → deterministic evidence passes over the raw source
                                    (manifests, HTTP routes, gRPC, schemas, compose files, pub/sub topics)
-  assemble-review                → architecture.review.yaml
-  build-diagram                  → architecture.arch.json
+                                 → architecture.review.yaml
+                                 → architecture.arch.json
 
 Studio's import wizard reads architecture.review.yaml and lets a human confirm/classify
 elements before finalizing the diagram.
 ```
 
-One developer action produces every `{repo}.analysis.json` — no separate manual `gather-context`
-step. `gather-context` is still available directly if a producer wants to call it itself.
+One developer action — point an agent at `import.yaml` — produces a ready
+`architecture.review.yaml`. `gather-context` and `import` are still directly callable on their
+own if a producer wants to invoke them itself instead.
 
 See `apps/llm-importer/README.md` for the full pipeline and CLI reference, and
 `specs/010-harness-neutral-importer/` for the producer contract new producers implement against.
@@ -118,8 +117,8 @@ Opens at `http://localhost:3000`. Requires a Google account to save diagrams to 
 ```bash
 pnpm --filter @arch-atlas/llm-importer build
 # point a coding agent at <config> running plugins/repo-analysis (any agent, any model) —
-# it gathers context and analyzes every listed repository itself, writing {repo}.analysis.json
-arch-atlas-import import <config>           # correlate + write the review artifact
+# it gathers context, analyzes every listed repository, and imports, writing
+# architecture.review.yaml + architecture.arch.json
 ```
 
 See `apps/llm-importer/README.md` for the full CLI reference and the producer contract.

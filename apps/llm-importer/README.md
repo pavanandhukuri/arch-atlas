@@ -14,10 +14,11 @@ The one LLM step — turning a repository into its `{repo}.analysis.json` — is
 | `repo-analysis` | `plugins/repo-analysis` | Whatever you run it with — an `AGENTS.md` procedure any coding agent (Claude Code, Cursor, Copilot, Codex, Windsurf, …) can follow against a local or hosted model, your choice |
 | your own        | anything                | anything — the contract is `RepoAnalysisSchema` + the context-bundle format                                                                                                     |
 
-`plugins/repo-analysis` runs `gather-context` itself when handed a workspace config or a
-repository path — a developer only needs to point their agent at `import.yaml` and get back a
-`{repo}.analysis.json` for every listed repository; running `gather-context` by hand first is
-optional, not a separate required step.
+`plugins/repo-analysis` drives the other two CLI subcommands itself when handed a workspace
+config: `gather-context` before analyzing, and `import` after, once every repository has a
+`{repo}.analysis.json`. A developer only needs to point their agent at `import.yaml` and get
+back a ready `architecture.review.yaml` — running `gather-context` / `import` by hand is
+optional, not a required separate step.
 
 See `specs/010-harness-neutral-importer/` for the producer contract. `specs/008-…` / `specs/007-…`
 are the historical record of the earlier in-process agentic approaches.
