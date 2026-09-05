@@ -20,7 +20,7 @@ completion. This feature removes it and splits the tool cleanly:
     (minimal OpenAI-compatible client + the relocated prompt / tolerant-parse / retry / salvage /
     sanitize logic from `analyze-repo.ts`). Local-only. Also carries the relocated agentic
     cross-repo fallback as an optional step that writes `architecture.extra-connections.json`.
-  - `.claude/skills/repo-analysis/` — a Claude Code skill that produces a schema-valid
+  - `plugins/repo-analysis/skills/repo-analysis/` — a Claude Code skill that produces a schema-valid
     `{repo}.analysis.json` from a repo path or a context bundle. Documented as the hosted-API opt-in.
   - Contract docs: `RepoAnalysisSchema` + the new `ContextBundleSchema` are the whole contract.
 
@@ -54,7 +54,7 @@ _GATE: Must pass before Phase 0 research. Re-checked after Phase 1 design._
 | **IV. Security & Privacy by Design**                        | The core **loses all network capability** — a strict improvement. The runner is local-only (FR-008), reuses the unchanged secret-path exclusions (FR-005) so a context bundle never carries excluded content. The Claude Code skill is a hosted-API path: it only ever transmits the already-secret-scrubbed context bundle; documented in `security-review.md` and flagged in the skill README. `SECURITY.md` gets a one-line note that the shipped importer makes no external call and the skill is opt-in.            | PASS   |
 | **V. Latest Supported Versions & Supply-Chain Hygiene**     | Net removal of 3 dependencies from the core (`@earendil-works/pi-coding-agent`, `@earendil-works/pi-ai`, `typebox`) and their transitive trees; the new package adds **zero** runtime dependencies (uses `fetch`, `zod`, `js-yaml`, `commander` already in the monorepo). Lockfile shrinks.                                                                                                                                                                                                                              | PASS   |
 | **Quality gate: ≥ 80% coverage per changed project**        | Enforced by each project's `vitest` coverage config; the relocated logic keeps its existing tests (moved with it).                                                                                                                                                                                                                                                                                                                                                                                                       | PASS   |
-| **Quality gate: OSS hygiene / CHANGELOG / security review** | Root `CHANGELOG.md`, `apps/llm-importer/README.md`, `packages/analysis-runner-local/README.md`, `.claude/skills/repo-analysis/README.md`, `SECURITY.md` note, and `specs/010-*/security-review.md` all in the Polish phase.                                                                                                                                                                                                                                                                                              | PASS   |
+| **Quality gate: OSS hygiene / CHANGELOG / security review** | Root `CHANGELOG.md`, `apps/llm-importer/README.md`, `packages/analysis-runner-local/README.md`, `plugins/repo-analysis/README.md`, `SECURITY.md` note, and `specs/010-*/security-review.md` all in the Polish phase.                                                                                                                                                                                                                                                                                                     | PASS   |
 
 No violations. **Complexity Tracking** notes one deliberate, minimal choice (below); nothing to justify as a violation.
 
@@ -81,7 +81,7 @@ specs/010-harness-neutral-importer/
 │   ├── analysis-producer-contract.md     # what any producer must emit; the RepoAnalysis schema restated as the boundary; acceptance rules
 │   ├── importer-core-cli-contract.md     # `import` (aggregate-only default), `gather-context`; removed flags; exit codes; extra-connections merge
 │   ├── local-runner-contract.md          # `packages/analysis-runner-local` CLI + public API + config
-│   └── claude-skill-contract.md          # `.claude/skills/repo-analysis` inputs/outputs + the opt-in framing
+│   └── claude-skill-contract.md          # `plugins/repo-analysis/skills/repo-analysis` inputs/outputs + the opt-in framing
 ├── checklists/requirements.md
 ├── proof.md             # filled during implementation — model-free equivalence, runner parity, eval baseline delta
 ├── security-review.md   # LLM-integration review for the skill + the "core makes no external call" assertion
@@ -136,7 +136,7 @@ packages/analysis-runner-local/          # NEW — @arch-atlas/analysis-runner-l
     ├── unit/{openai-client,parse,sanitize,prompt,analyze-repo,agentic-fallback,reachability}.test.ts   # mocked fetch
     └── integration/live-analyze.integration.test.ts   # opt-in (env-gated), real local endpoint
 
-.claude/skills/repo-analysis/            # NEW
+plugins/repo-analysis/skills/repo-analysis/            # NEW
 ├── SKILL.md                             # skill definition — inputs (repo path | context bundle), output ({repo}.analysis.json), the RepoAnalysis schema inline, the "opt-in hosted API" note
 ├── README.md                            # walkthrough: gather-context → run skill per repo → import
 └── sample-analysis.json                 # committed; a core test asserts it satisfies RepoAnalysisSchema
@@ -147,8 +147,11 @@ Root: CHANGELOG.md, SECURITY.md (one-line note), pnpm-lock.yaml, eslint/tsconfig
 **Structure Decision**: Monorepo, three parts. (1) `apps/llm-importer` is reworked in place and gains
 a library entrypoint so its deterministic contract surface is importable. (2) `packages/analysis-runner-local`
 is a new standard workspace library holding everything model-touching that used to be in the app.
-(3) `.claude/skills/repo-analysis/` is a repo-local skill. No third "core" package is introduced —
-the app's own entrypoint is the reuse boundary (see Complexity Tracking).
+(3) `plugins/repo-analysis/skills/repo-analysis/` is a repo-local skill (**update, post-010**: since
+restructured into a proper, portable Claude Code plugin at `plugins/repo-analysis/` — it no longer
+requires the consuming repo to be arch-atlas itself, only the `arch-atlas-import` CLI to be reachable
+from wherever it's installed; see `plugins/repo-analysis/README.md`). No third "core" package is
+introduced — the app's own entrypoint is the reuse boundary (see Complexity Tracking).
 
 ## Complexity Tracking
 

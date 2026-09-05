@@ -48,7 +48,7 @@ atomic write (LR4). Coverage ≥ 80% line/statement.
 
 ## 6. Skill (FR-011/FR-012)
 
-`test/unit/skill-sample.test.ts`: `.claude/skills/repo-analysis/sample-analysis.json` satisfies
+`test/unit/skill-sample.test.ts`: `plugins/repo-analysis/skills/repo-analysis/sample-analysis.json` satisfies
 `RepoAnalysisSchema` and flows through `toCorrelationGraph`; `SKILL.md` names the schema fields and
 carries the "opt-in / hosted-API" caveat; `README.md` names the offline alternative.
 

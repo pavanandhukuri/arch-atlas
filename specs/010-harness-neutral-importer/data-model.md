@@ -155,7 +155,7 @@ repo tree ──gatherContext (unchanged)──▶ AnalysisContext
                          {repo}.context.json  (ContextBundle)   ← core `gather-context` subcommand
                                           │
               ┌───────────────────────────┼────────────────────────────┐
-   packages/analysis-runner-local   .claude/skills/repo-analysis   any other producer
+   packages/analysis-runner-local   plugins/repo-analysis/skills/repo-analysis   any other producer
    (local model, offline)           (Claude Code, hosted, opt-in)  (script / CI / human)
               └───────────────────────────┼────────────────────────────┘
                                           ▼

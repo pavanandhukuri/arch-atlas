@@ -210,7 +210,7 @@ new path.
 
 ## D12 — Claude Code skill shape
 
-**Decision**: `.claude/skills/repo-analysis/SKILL.md` — a skill that takes a repo path (or a
+**Decision**: `plugins/repo-analysis/skills/repo-analysis/SKILL.md` — a skill that takes a repo path (or a
 `{repo}.context.json`), runs `gather-context` if given a path, presents the bundle, and instructs the
 model to emit a `RepoAnalysis` JSON (schema inlined in the skill body) written to
 `{outDir}/{repo}.analysis.json`. `README.md` gives the multi-repo walkthrough and states plainly that

@@ -5,9 +5,10 @@ import { RepoAnalysisSchema } from '../../src/analysis/repo-analysis.schema.js';
 import { toCorrelationGraph } from '../../src/analysis/to-correlation-graph.js';
 import { RepositoryKnowledgeGraphSchema } from '../../src/graph/schema.js';
 
-const SKILL_DIR = join(import.meta.dirname, '../../../../.claude/skills/repo-analysis');
+const PLUGIN_DIR = join(import.meta.dirname, '../../../../plugins/repo-analysis');
+const SKILL_DIR = join(PLUGIN_DIR, 'skills/repo-analysis');
 
-describe('.claude/skills/repo-analysis', () => {
+describe('plugins/repo-analysis (skill)', () => {
   it('sample-analysis.json satisfies RepoAnalysisSchema (SK1)', () => {
     const raw = JSON.parse(
       readFileSync(join(SKILL_DIR, 'sample-analysis.json'), 'utf8')
@@ -42,8 +43,17 @@ describe('.claude/skills/repo-analysis', () => {
   });
 
   it('README.md states the offline alternative', () => {
-    const readme = readFileSync(join(SKILL_DIR, 'README.md'), 'utf8');
+    const readme = readFileSync(join(PLUGIN_DIR, 'README.md'), 'utf8');
     expect(readme).toContain('packages/analysis-runner-local');
     expect(readme.toLowerCase()).toContain('offline');
+  });
+
+  it('plugin.json declares a valid manifest', () => {
+    const manifest = JSON.parse(
+      readFileSync(join(PLUGIN_DIR, '.claude-plugin/plugin.json'), 'utf8')
+    ) as { name?: string; description?: string; version?: string };
+    expect(manifest.name).toBe('arch-atlas-repo-analysis');
+    expect(manifest.description).toBeTruthy();
+    expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });

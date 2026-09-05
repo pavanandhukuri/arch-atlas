@@ -38,9 +38,10 @@ packages/
                         OpenAI-compatible model endpoint and writes {repo}.analysis.json (offline,
                         no hosted API)
 
-.claude/skills/
-  repo-analysis/      — Alternative repo-analysis producer: the same {repo}.analysis.json contract,
-                        run as a Claude Code skill (hosted API, opt-in)
+plugins/
+  repo-analysis/      — Alternative repo-analysis producer, packaged as a Claude Code plugin
+                        (portable — install it into any project). The same {repo}.analysis.json
+                        contract, run as a Claude Code skill (hosted API, opt-in)
 ```
 
 ### How a multi-repo workspace becomes a diagram

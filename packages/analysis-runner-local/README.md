@@ -9,7 +9,7 @@ one bounded structured-output call to a **local, OpenAI-compatible** model endpo
 schema-valid `{repo}.analysis.json`.
 
 **Local endpoint only.** There is no hosted/cloud path here. To use a hosted model, use the
-`repo-analysis` Claude Code skill instead (`.claude/skills/repo-analysis/`), or write your own
+`repo-analysis` Claude Code skill instead (`plugins/repo-analysis/`), or write your own
 producer against `specs/010-harness-neutral-importer/contracts/analysis-producer-contract.md`.
 
 ## Usage

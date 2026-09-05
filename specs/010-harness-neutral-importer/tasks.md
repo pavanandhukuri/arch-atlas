@@ -97,7 +97,7 @@ the old in-app behaviour.
 ## Phase 5: User Story 3 — Claude Code skill (Priority: P2)
 
 - [x] T033 [P] [US3] `CORE/test/unit/skill-sample.test.ts` — `RepoAnalysisSchema.safeParse(sample).success`; `toCorrelationGraph(sample)` → `RepositoryKnowledgeGraphSchema` accepts; `SKILL.md` contains the schema field names + an "opt-in"/hosted-API caveat string. MUST fail (files absent).
-- [x] T034 [US3] Create `.claude/skills/repo-analysis/SKILL.md` (front-matter + procedure + inline `RepoAnalysis` schema, per `contracts/claude-skill-contract.md`), `README.md` (3-step walkthrough + offline-alternative note), `sample-analysis.json` (hand-authored, schema-valid). Make T033 pass.
+- [x] T034 [US3] Create `plugins/repo-analysis/skills/repo-analysis/SKILL.md` (front-matter + procedure + inline `RepoAnalysis` schema, per `contracts/claude-skill-contract.md`), `README.md` (3-step walkthrough + offline-alternative note), `sample-analysis.json` (hand-authored, schema-valid). Make T033 pass.
 
 ---
 
