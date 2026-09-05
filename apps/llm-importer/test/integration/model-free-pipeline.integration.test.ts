@@ -79,12 +79,18 @@ describe('model-free import pipeline', () => {
     expect(edgeSet.has('gateway -> notification-service')).toBe(true);
     expect(edgeSet.has('gateway -> user-service')).toBe(true);
     expect(edgeSet.has('gateway -> audit-service')).toBe(true);
+    // topicPass: audit-service's fixture source consumes Go's idiomatic capitalized
+    // `Topic: "user-created"` struct field — was silently missed before topics.ts's
+    // KAFKA_TOPIC_RE gained the case-insensitive flag (found via the repo-analysis skill
+    // eval, which surfaced this exact gap against real Go source).
+    expect(edgeSet.has('user-service -> audit-service')).toBe(true);
 
     expect([...edgeSet].sort()).toMatchInlineSnapshot(`
       [
         "gateway -> audit-service",
         "gateway -> notification-service",
         "gateway -> user-service",
+        "user-service -> audit-service",
         "user-service -> gateway",
         "user-service -> notification-service",
       ]

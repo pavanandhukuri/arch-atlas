@@ -7,7 +7,9 @@ import type { TopicRef } from '../types.js';
 
 const PUB_RE = /\.\s*(?:publish|emit|send(?:Message)?)\s*\(\s*["'`]([^"'`\n$]+)["'`]/g;
 const SUB_RE = /\.\s*(?:subscribe|on|consume|receiveMessage)\s*\(\s*["'`]([^"'`\n$]+)["'`]/g;
-const KAFKA_TOPIC_RE = /topic\s*[=:]\s*["'`]([^"'`\n$]+)["'`]/g;
+// Case-insensitive: Go exports struct fields capitalized (kafka.ReaderConfig{Topic: "..."}),
+// unlike the lowerCamelCase convention this pattern otherwise assumes.
+const KAFKA_TOPIC_RE = /topic\s*[=:]\s*["'`]([^"'`\n$]+)["'`]/gi;
 
 /**
  * Common words and too-short strings are never treated as topic evidence

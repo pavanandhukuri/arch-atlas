@@ -270,4 +270,15 @@ describe('topic extraction', () => {
     expect(isNoiseTopic('abc')).toBe(true);
     expect(isNoiseTopic('user-created')).toBe(false);
   });
+
+  it("matches Go's idiomatic capitalized 'Topic:' struct field (case-insensitive)", () => {
+    // e.g. kafka.ReaderConfig{Brokers: ..., Topic: "user-created"} — Go exports struct
+    // fields with a capital letter, so a lowercase-only regex silently misses this.
+    const refs = extractTopicRefs(
+      'reader.go',
+      `r := kafka.NewReader(kafka.ReaderConfig{\n\t\tBrokers: brokers,\n\t\tTopic:   "user-created",\n\t\tGroupID: "audit-service",\n\t})`
+    );
+    const topics = refs.map((r) => `${r.topic}:${r.role}`);
+    expect(topics).toContain('user-created:unknown');
+  });
 });
