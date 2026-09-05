@@ -5,8 +5,13 @@
  * File System Access API for reading and writing diagram files to local disk.
  *
  * Fallback: if the browser does not support showSaveFilePicker, operations
- * requiring write access return PERMISSION_DENIED. loadFromLocalStorage()
- * (crash recovery buffer) still works in all browsers.
+ * requiring write access return PERMISSION_DENIED.
+ *
+ * Note: the crash-recovery localStorage buffer this comment used to reference
+ * (loadFromLocalStorage()) was never implemented — see specs/002-flexible-storage/tasks.md's
+ * 2026-09-05 audit note on User Story 4. Recovering from an unexpected close before any save
+ * completed is not currently possible; the real storage backends' ~2s autosave interval covers
+ * the interrupted-session window once a first save has happened.
  *
  * Feature: 002-flexible-storage
  */
@@ -50,9 +55,11 @@ export class LocalFileProvider implements StorageProvider {
     }
 
     try {
-      const [fileHandle]: FSFileHandle[] = await (globalThis as typeof globalThis & {
-        showOpenFilePicker: (opts: unknown) => Promise<unknown[]>
-      }).showOpenFilePicker({
+      const [fileHandle]: FSFileHandle[] = await (
+        globalThis as typeof globalThis & {
+          showOpenFilePicker: (opts: unknown) => Promise<unknown[]>;
+        }
+      ).showOpenFilePicker({
         types: [
           {
             description: 'Architecture Diagram',
@@ -108,7 +115,8 @@ export class LocalFileProvider implements StorageProvider {
       return {
         success: false,
         code: 'PERMISSION_DENIED',
-        message: 'Your browser does not support the File System Access API. Use the Export button to download your diagram.',
+        message:
+          'Your browser does not support the File System Access API. Use the Export button to download your diagram.',
       };
     }
 
@@ -118,7 +126,11 @@ export class LocalFileProvider implements StorageProvider {
         ? suggestedName
         : `${suggestedName}.arch.json`;
 
-      const fileHandle: FSFileHandle = await (globalThis as typeof globalThis & { showSaveFilePicker: (opts: unknown) => Promise<unknown> }).showSaveFilePicker({
+      const fileHandle: FSFileHandle = await (
+        globalThis as typeof globalThis & {
+          showSaveFilePicker: (opts: unknown) => Promise<unknown>;
+        }
+      ).showSaveFilePicker({
         suggestedName: fileName,
         types: [
           {
