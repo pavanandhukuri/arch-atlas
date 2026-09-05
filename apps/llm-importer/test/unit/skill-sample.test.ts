@@ -8,7 +8,7 @@ import { RepositoryKnowledgeGraphSchema } from '../../src/graph/schema.js';
 const PLUGIN_DIR = join(import.meta.dirname, '../../../../plugins/repo-analysis');
 const SKILL_DIR = join(PLUGIN_DIR, 'skills/repo-analysis');
 
-describe('plugins/repo-analysis (skill)', () => {
+describe('plugins/repo-analysis (skill/plugin)', () => {
   it('sample-analysis.json satisfies RepoAnalysisSchema (SK1)', () => {
     const raw = JSON.parse(
       readFileSync(join(SKILL_DIR, 'sample-analysis.json'), 'utf8')
@@ -25,8 +25,8 @@ describe('plugins/repo-analysis (skill)', () => {
     expect(RepositoryKnowledgeGraphSchema.safeParse(graph).success).toBe(true);
   });
 
-  it('SKILL.md names the schema fields and flags the hosted-API trade-off (SK3)', () => {
-    const skill = readFileSync(join(SKILL_DIR, 'SKILL.md'), 'utf8');
+  it('AGENTS.md is the canonical, tool-neutral procedure and names the schema fields (SK3)', () => {
+    const agentsMd = readFileSync(join(PLUGIN_DIR, 'AGENTS.md'), 'utf8');
     for (const field of [
       'description',
       'languages',
@@ -35,17 +35,25 @@ describe('plugins/repo-analysis (skill)', () => {
       'outbound',
       'schemaVersion',
     ]) {
-      expect(skill).toContain(field);
+      expect(agentsMd).toContain(field);
     }
-    expect(skill.toLowerCase()).toContain('opt-in');
-    expect(skill.toLowerCase()).toMatch(/hosted[- ]api|hosted model/);
-    expect(skill).toContain('analysis-runner-local'); // points at the offline alternative
+    // No frontmatter — AGENTS.md is plain markdown per the agents.md convention, not a
+    // Claude-Code-specific skill file.
+    expect(agentsMd.startsWith('---')).toBe(false);
   });
 
-  it('README.md states the offline alternative', () => {
+  it('SKILL.md is a thin Claude Code wrapper pointing at AGENTS.md', () => {
+    const skill = readFileSync(join(SKILL_DIR, 'SKILL.md'), 'utf8');
+    expect(skill).toContain('name: repo-analysis');
+    expect(skill).toContain('../../AGENTS.md');
+  });
+
+  it('README.md advertises multi-agent compatibility, not a single hosted/local trade-off', () => {
     const readme = readFileSync(join(PLUGIN_DIR, 'README.md'), 'utf8');
-    expect(readme).toContain('packages/analysis-runner-local');
-    expect(readme.toLowerCase()).toContain('offline');
+    expect(readme.toLowerCase()).toContain('agents.md');
+    expect(readme).toContain('AGENTS.md');
+    // The importer core stays model-free — this file must not claim otherwise.
+    expect(readme.toLowerCase()).not.toContain('sends');
   });
 
   it('plugin.json declares a valid manifest', () => {

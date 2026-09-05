@@ -1,6 +1,6 @@
 {
   "name": "arch-atlas-repo-analysis",
-  "description": "Hosted-API analysis producer for the arch-atlas repo importer — reads one repository's context bundle and writes the {repo}.analysis.json the importer correlates into a diagram.",
+  "description": "Analysis producer for the arch-atlas repo importer — reads one repository's context bundle and writes the {repo}.analysis.json the importer correlates into a diagram. Multi-agent compatible via AGENTS.md; run it against any model you choose.",
   "version": "1.0.0",
   "author": {
     "name": "Arch Atlas contributors"
