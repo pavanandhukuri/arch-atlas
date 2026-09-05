@@ -24,6 +24,7 @@ import { useStorageSession } from '@/hooks/useStorageSession';
 import { exportModel } from '@/services/import-export';
 import type { StorageHandle, LoadResult } from '@/services/storage/storage-provider';
 import { addRelationshipToModel, removeRelationshipFromModel } from '@/services/relationships';
+import { applyMarkExternal, collectDescendantIds } from '@/services/mark-external';
 import { buildElementOptions } from '@/services/derived-relationships';
 import type {
   ArchitectureModel,
@@ -407,51 +408,23 @@ export default function StudioPage() {
     const currentModel = modelStore.getState().model;
     if (!currentModel) return;
 
+    // Marking external deletes the element's entire descendant subtree (spec 003 FR-004/005) —
+    // warn and require explicit confirmation whenever there's anything to lose. No warning when
+    // there's nothing underneath (FR-007), and none when reverting to internal (FR-006).
     if (isExternal) {
-      // Mark as external — delete all descendants silently
-      const toDelete = new Set<string>();
-      const queue = currentModel.elements.filter((e) => e.parentId === elementId).map((e) => e.id);
-      queue.forEach((id) => toDelete.add(id));
-      while (queue.length > 0) {
-        const id = queue.pop()!;
-        currentModel.elements
-          .filter((e) => e.parentId === id)
-          .forEach((child) => {
-            if (!toDelete.has(child.id)) {
-              toDelete.add(child.id);
-              queue.push(child.id);
-            }
-          });
+      const descendantCount = collectDescendantIds(currentModel, elementId).length;
+      if (descendantCount > 0) {
+        const confirmed = confirm(
+          `Marking this system as external will permanently delete ${descendantCount} ` +
+            `contained element${descendantCount === 1 ? '' : 's'} (containers, components, ` +
+            `or code) underneath it. This cannot be undone.\n\nContinue?`
+        );
+        if (!confirmed) return;
       }
-      const updatedElements = currentModel.elements
-        .filter((e) => !toDelete.has(e.id))
-        .map((e) => (e.id === elementId ? { ...e, isExternal: true, formatting: undefined } : e));
-      const updatedRelationships = currentModel.relationships.filter(
-        (r) => !toDelete.has(r.sourceId) && !toDelete.has(r.targetId)
-      );
-      const updatedViews = currentModel.views.map((v) => ({
-        ...v,
-        layout: {
-          ...v.layout,
-          nodes: v.layout.nodes.filter((n) => !toDelete.has(n.elementId)),
-          edges: v.layout.edges.filter((edge) =>
-            updatedRelationships.some((r) => r.id === edge.relationshipId)
-          ),
-        },
-      }));
-      modelStore.updateModel({
-        ...currentModel,
-        elements: updatedElements,
-        relationships: updatedRelationships,
-        views: updatedViews,
-      });
-    } else {
-      // Unmark external
-      const updatedElements = currentModel.elements.map((e) =>
-        e.id === elementId ? { ...e, isExternal: false } : e
-      );
-      modelStore.updateModel({ ...currentModel, elements: updatedElements });
     }
+
+    const { model: updatedModel } = applyMarkExternal(currentModel, elementId, isExternal);
+    modelStore.updateModel(updatedModel);
 
     // Auto-save: close the editor — change is already persisted in model
     setEditingElement(null);
