@@ -12,7 +12,8 @@ export interface CrossRepositoryConnection {
   type: GraphEdgeType;
   /** 'evidence' = raw-source evidence pass (manifest/endpoint/schema/compose/
    * topic); 'deterministic' = graph-text name-mention match; 'agentic-fallback'
-   * = local-model reasoning over condensed summaries. */
+   * = an external producer's model-assisted reasoning over condensed summaries
+   * (written to architecture.extra-connections.json — see extra-connections.ts). */
   foundBy: 'evidence' | 'deterministic' | 'agentic-fallback';
   evidence: string[];
   weight: number;
