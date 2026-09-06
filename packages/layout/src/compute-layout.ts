@@ -1,6 +1,6 @@
 // Deterministic layout computation
 
-import type { ArchitectureModel, View, LayoutState } from '@arch-atlas/core-model';
+import type { ArchitectureModel, View, LayoutState } from '@archatlas/core-model';
 
 export interface LayoutOptions {
   algorithm: string;
@@ -34,10 +34,10 @@ export function computeLayout(
   });
 
   // Find relationships between elements
-  const elementIds = new Set(elements.map(e => e.id));
+  const elementIds = new Set(elements.map((e) => e.id));
   const edges = model.relationships
-    .filter(rel => elementIds.has(rel.sourceId) && elementIds.has(rel.targetId))
-    .map(rel => ({
+    .filter((rel) => elementIds.has(rel.sourceId) && elementIds.has(rel.targetId))
+    .map((rel) => ({
       relationshipId: rel.id,
     }));
 

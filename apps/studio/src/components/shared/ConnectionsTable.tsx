@@ -1,6 +1,6 @@
 'use client';
 
-import type { Relationship, Element } from '@arch-atlas/core-model';
+import type { Relationship, Element } from '@archatlas/core-model';
 
 export interface ConnectionRow {
   relationship: Relationship;

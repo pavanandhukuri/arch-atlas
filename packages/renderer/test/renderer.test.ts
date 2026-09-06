@@ -8,7 +8,7 @@ import {
   drawUserInterface,
   drawBackendService,
 } from '../src/renderer';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import minimalModel from '../../core-model/test/fixtures/minimal-model.json';
 
 describe('Renderer initialization', () => {

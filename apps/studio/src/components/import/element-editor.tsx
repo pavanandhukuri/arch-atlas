@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, type KeyboardEvent } from 'react';
-import type { ArchitectureModel, ContainerSubtype } from '@arch-atlas/core-model';
+import type { ArchitectureModel, ContainerSubtype } from '@archatlas/core-model';
 import type { ElementConfig, SystemGroup } from '@/lib/import/types';
 
 // ---------------------------------------------------------------------------

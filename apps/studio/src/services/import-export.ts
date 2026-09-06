@@ -1,4 +1,4 @@
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 
 export function exportModel(model: ArchitectureModel): void {
   const json = JSON.stringify(model, null, 2);

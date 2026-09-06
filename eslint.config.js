@@ -25,7 +25,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['@arch-atlas/*/src/*', '@arch-atlas/*/dist/*'],
+              group: ['@archatlas/*/src/*', '@archatlas/*/dist/*'],
               message:
                 'Direct imports from package internals are prohibited. Use the public API exported from the package entrypoint.',
             },

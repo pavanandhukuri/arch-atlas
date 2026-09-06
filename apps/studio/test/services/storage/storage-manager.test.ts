@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { StorageManager } from '../../../src/services/storage/storage-manager';
 import type { StorageHandle, StorageProvider, SaveResult, StorageError, LoadResult } from '../../../src/services/storage/storage-provider';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 
 const makeModel = (): ArchitectureModel => ({
   schemaVersion: '0.1.0',

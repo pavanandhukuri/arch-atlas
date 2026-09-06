@@ -7,12 +7,12 @@ export default defineConfig({
   base: './',
   resolve: {
     alias: {
-      '@arch-atlas/viewer-components': path.resolve(
+      '@archatlas/viewer-components': path.resolve(
         __dirname,
         '../../packages/viewer-components/src/index.ts'
       ),
-      '@arch-atlas/renderer': path.resolve(__dirname, '../../packages/renderer/src/index.ts'),
-      '@arch-atlas/core-model': path.resolve(__dirname, '../../packages/core-model/src/index.ts'),
+      '@archatlas/renderer': path.resolve(__dirname, '../../packages/renderer/src/index.ts'),
+      '@archatlas/core-model': path.resolve(__dirname, '../../packages/core-model/src/index.ts'),
     },
   },
 });

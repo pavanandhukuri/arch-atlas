@@ -7,7 +7,7 @@ export function InstructionsStep() {
       <p className="iw-step-subtitle">
         The import wizard turns an <code>architecture.review.yaml</code> file into a diagram. That
         file is produced by pointing a coding agent at a workspace config &mdash; it runs the
-        <code>@arch-atlas/llm-importer</code> pipeline end-to-end and writes the review file
+        <code>@archatlas/llm-importer</code> pipeline end-to-end and writes the review file
         deterministically, correlating analysis artifacts with no model call of its own. Run it
         locally first, then come back here to load the result.
       </p>

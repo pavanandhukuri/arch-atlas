@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import type { Element, ElementKind, ElementFormatting } from '@arch-atlas/core-model';
+import type { Element, ElementKind, ElementFormatting } from '@archatlas/core-model';
 
 interface PropertiesPanelProps {
   element: Element | null;

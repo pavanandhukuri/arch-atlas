@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { computeLayout, type LayoutOptions } from '../src/compute-layout';
-import type { ArchitectureModel, View } from '@arch-atlas/core-model';
+import type { ArchitectureModel, View } from '@archatlas/core-model';
 import minimalModel from '../../core-model/test/fixtures/minimal-model.json';
 
 describe('Layout computation determinism', () => {
@@ -26,7 +26,7 @@ describe('Layout computation determinism', () => {
     const layout = computeLayout(model, view, { algorithm: 'deterministic-v1' });
 
     expect(layout.nodes.length).toBeGreaterThan(0);
-    layout.nodes.forEach(node => {
+    layout.nodes.forEach((node) => {
       expect(typeof node.x).toBe('number');
       expect(typeof node.y).toBe('number');
       expect(node.elementId).toBeTruthy();

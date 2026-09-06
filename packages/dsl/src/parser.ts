@@ -1,7 +1,7 @@
 import type { Token, DslAst, DslElementNode, DslRelationshipNode } from './types';
 import { TokenKind } from './types';
 import type { ParseError } from './types';
-import type { ElementKind } from '@arch-atlas/core-model';
+import type { ElementKind } from '@archatlas/core-model';
 
 const ELEMENT_KINDS = new Set<string>([
   'landscape',

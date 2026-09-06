@@ -22,26 +22,24 @@ wraps the same procedure so it's discoverable and auto-invocable inside a Claude
 to install.
 
 **Local model or hosted model — your choice.** The arch-atlas importer core
-(`@arch-atlas/llm-importer`) is deterministic and makes no model call itself; it only ever
+(`@archatlas/llm-importer`) is deterministic and makes no model call itself; it only ever
 reads the `{repo}.analysis.json` files this procedure produces. Whichever model does the
 actual analysis is entirely a property of how you've configured your coding agent (a local
 Ollama/vLLM/MLX endpoint, or a hosted API) — arch-atlas has no opinion on it and no code path
 that talks to a model directly.
 
-## What this needs (and doesn't)
+## What this needs
 
-This procedure is portable: run it against any collection of repositories, anywhere on disk.
-What it does **not** provide is the arch-atlas importer CLI itself — `@arch-atlas/llm-importer`
-isn't published to a package registry yet, so you need a checkout of the arch-atlas repo
-somewhere to get it. That checkout does not need to contain (or be anywhere near) the
-repositories you're actually analyzing; it's only the source of the `arch-atlas-import` CLI the
-procedure drives.
+Just **Node ≥ 22**. The procedure runs the importer CLI straight from npm with `npx`:
 
 ```bash
-git clone https://github.com/pavanandhukuri/arch-atlas.git
-pnpm --filter @arch-atlas/llm-importer install
-pnpm --filter @arch-atlas/llm-importer build
+npx --yes @archatlas/llm-importer@latest gather-context import.yaml
+npx --yes @archatlas/llm-importer@latest import import.yaml
 ```
+
+No arch-atlas checkout, no build step. `npx` downloads and caches
+[`@archatlas/llm-importer`](https://www.npmjs.com/package/@archatlas/llm-importer) on first
+use. Run it against any collection of repositories, anywhere on disk.
 
 ## Install (Claude Code)
 
@@ -52,8 +50,7 @@ claude --plugin-dir /path/to/arch-atlas/plugins/repo-analysis
 ```
 
 (or clone/copy just this `plugins/repo-analysis/` directory anywhere and point `--plugin-dir`
-at that copy — the plugin itself doesn't need to live inside an arch-atlas checkout, only the
-CLI does, per above).
+at that copy — nothing here depends on an arch-atlas checkout).
 
 Once loaded, invoke the skill explicitly with `/arch-atlas-repo-analysis:repo-analysis`, or let
 Claude pick it up automatically when you ask it to analyze a repository for arch-atlas import.
@@ -67,7 +64,8 @@ follow the procedure.
 1. **Write `import.yaml`** listing the repositories and an output directory.
 
 2. **Run the procedure against it** — point your agent at `import.yaml` and ask it to import the
-   workspace. It runs the whole pipeline itself, in order:
+   workspace. It runs the whole pipeline itself (via `npx @archatlas/llm-importer@latest`), in
+   order:
    - `gather-context import.yaml` (deterministic, offline) — writes `{repo}.context.json` for
      every repo in one pass.
    - Analyzes each bundle, producing `./architecture-output/{repo}.analysis.json`.

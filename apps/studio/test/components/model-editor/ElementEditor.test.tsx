@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { ElementEditor } from '../../../src/components/model-editor/ElementEditor';
-import type { Element, Relationship } from '@arch-atlas/core-model';
+import type { Element, Relationship } from '@archatlas/core-model';
 
 // ConnectionsTable is a non-trivial child — stub it out
 vi.mock('../../../src/components/shared', () => ({

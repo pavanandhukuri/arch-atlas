@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import minimalModel from '../../../packages/core-model/test/fixtures/minimal-model.json';
 
 describe('Export includes layout metadata', () => {
   it('should include layout state in views', () => {
     const model = minimalModel as ArchitectureModel;
-    
+
     expect(model.views.length).toBeGreaterThan(0);
     const view = model.views[0]!;
     expect(view.layout).toBeDefined();

@@ -1,6 +1,6 @@
 # Layout
 
-**@arch-atlas/layout** provides deterministic layout algorithms for architecture maps.
+**@archatlas/layout** provides deterministic layout algorithms for architecture maps.
 
 ## Purpose
 
@@ -11,14 +11,14 @@
 ## Installation
 
 ```bash
-pnpm add @arch-atlas/layout
+pnpm add @archatlas/layout
 ```
 
 ## Usage
 
 ```typescript
-import { computeLayout, computeSemanticZoomLevel } from '@arch-atlas/layout';
-import type { ArchitectureModel, View } from '@arch-atlas/core-model';
+import { computeLayout, computeSemanticZoomLevel } from '@archatlas/layout';
+import type { ArchitectureModel, View } from '@archatlas/core-model';
 
 const model: ArchitectureModel = /* ... */;
 const view: View = model.views[0];

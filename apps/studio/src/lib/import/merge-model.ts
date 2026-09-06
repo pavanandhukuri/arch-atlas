@@ -1,5 +1,5 @@
-import type { ArchitectureModel, Element, Relationship } from '@arch-atlas/core-model';
-import { computeLayout } from '@arch-atlas/layout';
+import type { ArchitectureModel, Element, Relationship } from '@archatlas/core-model';
+import { computeLayout } from '@archatlas/layout';
 import type { ElementConfig } from './types';
 
 /**

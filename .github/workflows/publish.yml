@@ -1,0 +1,146 @@
+name: Publish to npm
+
+# Publishes @archatlas/core-model, @archatlas/layout and @archatlas/llm-importer
+# to the public npm registry, in dependency order, using npm **trusted publishing**
+# (OIDC) — no long-lived npm token in CI.
+#
+# Release flow:
+#   1. Bump "version" in all three package.json files to the SAME value, in a PR.
+#   2. After it merges, tag that commit `vX.Y.Z` and push the tag:
+#        git tag v0.2.0 && git push origin v0.2.0
+#   3. This workflow verifies the tag matches package.json, runs the checks,
+#      packs each package (pnpm, so `workspace:*` deps become real versions),
+#      and `npm publish`es any not already on npm at that version.
+#
+# `workflow_dispatch` runs the same thing on demand (dry run by default).
+#
+# ── One-time setup on npmjs.com (per package) ─────────────────────────────────
+# Trusted publishing can't create a package that doesn't exist yet, so each of
+# the three packages must be published once the old-fashioned way first:
+#   1. Either `npm login` on a laptop and run, in order,
+#        pnpm --filter @archatlas/core-model  publish --access public
+#        pnpm --filter @archatlas/layout      publish --access public
+#        pnpm --filter @archatlas/llm-importer publish --access public
+#      or add a repo secret NPM_TOKEN (npm automation token, "Read and write",
+#      scoped to @archatlas) and run this workflow once — npm uses the token only
+#      while OIDC isn't configured yet.
+#   2. On npmjs.com, for EACH package → Settings → Trusted Publisher → GitHub
+#      Actions:
+#        Organization or user:  pavanandhukuri
+#        Repository:            arch-atlas
+#        Workflow filename:     publish.yml
+#   3. Delete the NPM_TOKEN secret if you added one. Every later release is
+#      OIDC-only — just push a vX.Y.Z tag.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build, test and pack, but do not publish'
+        type: boolean
+        default: true
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for npm trusted publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24' # ships npm >= 11.5.1, required for OIDC
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Ensure npm >= 11.5.1 (trusted publishing)
+        run: |
+          need="11.5.1"
+          have="$(npm --version)"
+          if [ "$(printf '%s\n%s\n' "$need" "$have" | sort -V | head -1)" != "$need" ]; then
+            echo "npm $have < $need — upgrading"
+            npm install -g npm@latest
+          fi
+          npm --version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve target version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$(node -p "require('./apps/llm-importer/package.json').version")"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Target version: $VERSION"
+
+      - name: Verify package.json versions match the tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          for dir in packages/core-model packages/layout apps/llm-importer; do
+            PKG_VERSION="$(node -p "require('./$dir/package.json').version")"
+            if [ "$PKG_VERSION" != "$VERSION" ]; then
+              echo "::error::$dir/package.json is $PKG_VERSION but the target version is $VERSION. Bump all three package.json files to $VERSION before tagging."
+              exit 1
+            fi
+          done
+          echo "All three packages are at $VERSION."
+
+      - name: Lint, type-check and test
+        run: pnpm turbo run lint typecheck test --filter=@archatlas/llm-importer...
+
+      - name: Build (dependency order)
+        run: pnpm turbo run build --filter=@archatlas/llm-importer...
+
+      - name: Pack and publish
+        env:
+          # Only used to bootstrap a package's first-ever publish; unset once its
+          # trusted publisher is configured on npmjs.com. Empty ⇒ npm uses OIDC.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          OUT="$RUNNER_TEMP/pkgs"
+          mkdir -p "$OUT"
+          for dir in packages/core-model packages/layout apps/llm-importer; do
+            NAME="$(node -p "require('./$dir/package.json').name")"
+            if [ -n "$(npm view "$NAME@$VERSION" version 2>/dev/null || true)" ]; then
+              echo "✓ $NAME@$VERSION already on npm — skipping."
+              continue
+            fi
+            # pnpm pack rewrites workspace:* deps to real versions in the tarball
+            TARBALL="$(cd "$dir" && pnpm pack --pack-destination "$OUT" | tail -1)"
+            if [ "${DRY_RUN:-false}" = "true" ]; then
+              echo "· dry run: would publish $NAME@$VERSION from $(basename "$TARBALL")"
+              npm publish "$TARBALL" --access public --dry-run
+            else
+              echo "→ publishing $NAME@$VERSION"
+              npm publish "$TARBALL" --access public
+            fi
+          done
+
+      - name: Summary
+        run: |
+          {
+            echo "### @archatlas packages @ ${{ steps.version.outputs.version }}"
+            echo
+            echo "- @archatlas/core-model"
+            echo "- @archatlas/layout"
+            echo "- @archatlas/llm-importer"
+          } >> "$GITHUB_STEP_SUMMARY"

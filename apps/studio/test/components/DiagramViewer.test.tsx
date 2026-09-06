@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
-import type { ArchitectureModel, View } from '@arch-atlas/core-model';
+import type { ArchitectureModel, View } from '@archatlas/core-model';
 
 // Mock MapCanvas so tests don't need a real PixiJS canvas
 vi.mock('../../../../packages/viewer-components/src/components/map-canvas', () => ({
@@ -10,7 +10,7 @@ vi.mock('../../../../packages/viewer-components/src/components/map-canvas', () =
   )),
 }));
 
-import { DiagramViewer } from '@arch-atlas/viewer-components';
+import { DiagramViewer } from '@archatlas/viewer-components';
 import { MapCanvas } from '../../../../packages/viewer-components/src/components/map-canvas';
 
 const EMPTY_VIEW: View = {

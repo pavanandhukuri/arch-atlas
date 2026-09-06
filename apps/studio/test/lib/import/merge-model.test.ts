@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mergeModels } from '../../../src/lib/import/merge-model';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import type { ElementConfig } from '../../../src/lib/import/types';
 
 function baseModel(overrides: Partial<ArchitectureModel> = {}): ArchitectureModel {

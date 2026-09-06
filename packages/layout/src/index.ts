@@ -1,4 +1,4 @@
-// Public API for @arch-atlas/layout
+// Public API for @archatlas/layout
 
 export * from './semantic-zoom';
 export * from './compute-layout';

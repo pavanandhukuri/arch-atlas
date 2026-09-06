@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import { ModelStore } from '../../src/state/model-store';
 
 function createBaseModel(): ArchitectureModel {

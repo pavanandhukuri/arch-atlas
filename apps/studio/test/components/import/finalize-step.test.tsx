@@ -14,7 +14,7 @@ vi.mock('../../../src/services/import-export', () => ({
 
 import { FinalizeStep } from '../../../src/components/import/finalize-step';
 import type { WizardState, Candidate } from '../../../src/lib/import/types';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 
 const baseState: WizardState = {
   step: 5,

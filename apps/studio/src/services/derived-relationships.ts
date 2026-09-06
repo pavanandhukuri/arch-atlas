@@ -1,10 +1,10 @@
 // Service for building element navigation helpers used by the Studio editor.
 // Cross-layer relationship derivation (deriveViewRelationships) lives in
-// @arch-atlas/viewer-components — it's shared with the read-only DiagramViewer
+// @archatlas/viewer-components — it's shared with the read-only DiagramViewer
 // used by the shareable viewer, the import wizard preview, and the standalone
 // viewer app, so there's a single implementation instead of two copies drifting.
 
-import type { ArchitectureModel, Element } from '@arch-atlas/core-model';
+import type { ArchitectureModel, Element } from '@archatlas/core-model';
 
 /**
  * Build a human-readable hierarchy path for an element

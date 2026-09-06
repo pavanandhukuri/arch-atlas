@@ -16,7 +16,7 @@ Include:
 
 ## LLM / external-service surface
 
-- The shipped `@arch-atlas/llm-importer` package makes **no** model call and **no** network request
+- The shipped `@archatlas/llm-importer` package makes **no** model call and **no** network request
   under any configuration — it operates entirely on local files.
 - `plugins/repo-analysis` is a skill/plugin, not code arch-atlas runs on your behalf: it's a
   procedure your own coding agent follows. arch-atlas ships no code that itself contacts a model

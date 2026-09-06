@@ -1,6 +1,6 @@
 # Model Schema
 
-**@arch-atlas/model-schema** provides JSON schemas for the Arch Atlas architecture model.
+**@archatlas/model-schema** provides JSON schemas for the Arch Atlas architecture model.
 
 ## Purpose
 
@@ -11,13 +11,13 @@
 ## Installation
 
 ```bash
-pnpm add @arch-atlas/model-schema
+pnpm add @archatlas/model-schema
 ```
 
 ## Usage
 
 ```typescript
-import { architectureModelSchema, changeProposalSchema } from '@arch-atlas/model-schema';
+import { architectureModelSchema, changeProposalSchema } from '@archatlas/model-schema';
 
 console.log(architectureModelSchema);
 // {

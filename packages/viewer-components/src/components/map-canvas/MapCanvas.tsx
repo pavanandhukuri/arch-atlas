@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { createRenderer, type Renderer } from '@arch-atlas/renderer';
-import type { ArchitectureModel, View } from '@arch-atlas/core-model';
+import { createRenderer, type Renderer } from '@archatlas/renderer';
+import type { ArchitectureModel, View } from '@archatlas/core-model';
 
 interface MapCanvasProps {
   model: ArchitectureModel;

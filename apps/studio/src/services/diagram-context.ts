@@ -1,6 +1,6 @@
 // Diagram level management for semantic zoom
 
-import type { ElementKind } from '@arch-atlas/core-model';
+import type { ElementKind } from '@archatlas/core-model';
 
 export type DiagramLevel = 'landscape' | 'system' | 'container' | 'component' | 'code';
 
@@ -25,18 +25,18 @@ export function getDiagramTitle(level: DiagramLevel, elementName?: string): stri
     component: 'Component Diagram',
     code: 'Code Diagram',
   };
-  
+
   const baseTitle = titles[level];
   return elementName ? `${baseTitle}: ${elementName}` : baseTitle;
 }
 
 export function getElementKindForLevel(level: DiagramLevel): ElementKind {
   const mapping: Record<DiagramLevel, ElementKind> = {
-    landscape: 'system',    // In landscape, we add systems
-    system: 'container',     // In system context, we add containers
-    container: 'component',  // In container diagram, we add components
-    component: 'code',       // In component diagram, we add code
-    code: 'code',           // In code diagram, we add code (leaf level)
+    landscape: 'system', // In landscape, we add systems
+    system: 'container', // In system context, we add containers
+    container: 'component', // In container diagram, we add components
+    component: 'code', // In component diagram, we add code
+    code: 'code', // In code diagram, we add code (leaf level)
   };
   return mapping[level];
 }

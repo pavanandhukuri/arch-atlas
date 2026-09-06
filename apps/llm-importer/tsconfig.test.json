@@ -6,7 +6,7 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@arch-atlas/llm-importer": ["./src/index.ts"]
+      "@archatlas/llm-importer": ["./src/index.ts"]
     }
   },
   "include": ["src/**/*", "test/**/*"],

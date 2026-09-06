@@ -1,6 +1,6 @@
 # Renderer
 
-**@arch-atlas/renderer** is a PixiJS-based WebGL renderer for architecture maps.
+**@archatlas/renderer** is a PixiJS-based WebGL renderer for architecture maps.
 
 ## Purpose
 
@@ -13,14 +13,14 @@
 ## Installation
 
 ```bash
-pnpm add @arch-atlas/renderer pixi.js
+pnpm add @archatlas/renderer pixi.js
 ```
 
 ## Usage
 
 ```typescript
-import { createRenderer, ZOOM_MIN, ZOOM_MAX } from '@arch-atlas/renderer';
-import type { ArchitectureModel, View } from '@arch-atlas/core-model';
+import { createRenderer, ZOOM_MIN, ZOOM_MAX } from '@archatlas/renderer';
+import type { ArchitectureModel, View } from '@archatlas/core-model';
 
 const model: ArchitectureModel = /* ... */;
 const view: View = model.views[0];

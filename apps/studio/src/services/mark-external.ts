@@ -1,4 +1,4 @@
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 
 /**
  * Ids of every descendant (children, grandchildren, ...) of `elementId` within `model`,

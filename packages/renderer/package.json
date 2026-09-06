@@ -1,5 +1,5 @@
 {
-  "name": "@arch-atlas/renderer",
+  "name": "@archatlas/renderer",
   "version": "0.1.0",
   "description": "PixiJS-based rendering engine for the zoomable architecture map",
   "main": "./dist/index.js",
@@ -19,7 +19,7 @@
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {
-    "@arch-atlas/core-model": "workspace:*",
+    "@archatlas/core-model": "workspace:*",
     "@pixi/unsafe-eval": "^7.4.3",
     "pixi.js": "^7.3.0"
   },

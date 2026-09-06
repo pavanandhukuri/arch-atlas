@@ -1,4 +1,4 @@
-import type { ArchitectureModel, Element, Relationship } from '@arch-atlas/core-model';
+import type { ArchitectureModel, Element, Relationship } from '@archatlas/core-model';
 
 export type DiagramLevel = 'landscape' | 'system' | 'container' | 'component' | 'code';
 

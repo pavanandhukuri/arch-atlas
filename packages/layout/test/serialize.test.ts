@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { serializeLayoutState, deserializeLayoutState, cloneLayoutState } from '../src/serialize';
-import type { LayoutState } from '@arch-atlas/core-model';
+import type { LayoutState } from '@archatlas/core-model';
 
 const sampleLayout: LayoutState = {
   algorithm: 'deterministic-v1',

@@ -3,7 +3,7 @@
 // Patch PixiJS to work in environments with strict CSP (no unsafe-eval).
 // Must be imported before any other pixi.js import.
 import '@pixi/unsafe-eval';
-import type { ArchitectureModel, View, Element } from '@arch-atlas/core-model';
+import type { ArchitectureModel, View, Element } from '@archatlas/core-model';
 import { Application, Graphics, Text, Container, Rectangle, settings } from 'pixi.js';
 
 export const ZOOM_MIN = 0.1;

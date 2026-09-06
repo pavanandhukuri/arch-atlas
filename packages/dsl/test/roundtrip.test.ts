@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parse, serialize } from '../src/index';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 
 function elementsEquivalent(a: ArchitectureModel, b: ArchitectureModel): boolean {
   if (a.elements.length !== b.elements.length) return false;

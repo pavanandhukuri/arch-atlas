@@ -1,4 +1,4 @@
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import type { ParseResult } from './types';
 import { tokenize } from './lexer';
 import { buildAst } from './parser';

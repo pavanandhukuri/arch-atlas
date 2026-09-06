@@ -1,5 +1,5 @@
 {
-  "name": "@arch-atlas/studio",
+  "name": "@archatlas/studio",
   "version": "0.1.0",
   "description": "Browser-based Studio for creating and exploring architecture maps",
   "private": true,
@@ -14,10 +14,10 @@
     "clean": "rm -rf .next out"
   },
   "dependencies": {
-    "@arch-atlas/core-model": "workspace:*",
-    "@arch-atlas/layout": "workspace:*",
-    "@arch-atlas/renderer": "workspace:*",
-    "@arch-atlas/viewer-components": "workspace:*",
+    "@archatlas/core-model": "workspace:*",
+    "@archatlas/layout": "workspace:*",
+    "@archatlas/renderer": "workspace:*",
+    "@archatlas/viewer-components": "workspace:*",
     "@react-oauth/google": "^0.13.4",
     "idb": "^8.0.0",
     "js-yaml": "^5.2.0",

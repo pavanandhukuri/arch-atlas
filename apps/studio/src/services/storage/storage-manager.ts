@@ -5,7 +5,7 @@
  * Feature: 002-flexible-storage
  */
 
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import type {
   StorageProvider,
   StorageHandle,
@@ -42,7 +42,7 @@ export class StorageManager {
   ): void {
     this.stopAutosave();
     this.timer = setInterval(() => {
-      if (this.isSaving) return;   // previous save still in-flight — skip tick
+      if (this.isSaving) return; // previous save still in-flight — skip tick
       if (!isDirty()) return;
       const model = getModel();
       if (!model) return;
@@ -120,6 +120,6 @@ export class StorageManager {
   }
 
   private emit(event: StorageEvent): void {
-    this.listeners.get(event.type)?.forEach(l => l(event));
+    this.listeners.get(event.type)?.forEach((l) => l(event));
   }
 }

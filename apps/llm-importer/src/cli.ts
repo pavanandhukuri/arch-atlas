@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+import { realpathSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { loadConfig, ConfigValidationError } from './config/loader.js';
 import { runImport } from './analysis/run-import.js';
@@ -135,8 +137,23 @@ export function buildProgram(): Command {
   return program;
 }
 
-const isEntryPoint = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
-if (isEntryPoint) {
+/**
+ * True when this module is the process entry point. Compares realpath-resolved
+ * paths so it still fires when invoked through the `arch-atlas-import` bin
+ * symlink that npm / npx / pnpm create (a naive `file://${process.argv[1]}`
+ * check silently no-ops there, and also breaks on paths containing spaces).
+ */
+function isEntryPoint(): boolean {
+  const argv1 = process.argv[1];
+  if (!argv1) return false;
+  try {
+    return realpathSync(argv1) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+}
+
+if (isEntryPoint()) {
   buildProgram()
     .parseAsync(process.argv)
     .catch((error: unknown) => {

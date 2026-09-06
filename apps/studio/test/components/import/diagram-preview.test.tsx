@@ -1,14 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 
-vi.mock('@arch-atlas/viewer-components', () => ({
+vi.mock('@archatlas/viewer-components', () => ({
   DiagramViewer: vi.fn(() => <div data-testid="diagram-viewer" />),
 }));
 
 import { DiagramPreview } from '../../../src/components/import/diagram-preview';
-import { DiagramViewer } from '@arch-atlas/viewer-components';
+import { DiagramViewer } from '@archatlas/viewer-components';
 
 function modelWith(elementCount: number): ArchitectureModel {
   return {

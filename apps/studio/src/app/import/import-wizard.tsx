@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import { useWizardState } from '@/lib/import/wizard-state';
 import type { WizardStep, WizardState } from '@/lib/import/types';
 import { classifyElements } from '@/lib/import/classify-elements';

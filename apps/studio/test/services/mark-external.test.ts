@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import { collectDescendantIds, applyMarkExternal } from '../../src/services/mark-external';
 
 function baseModel(): ArchitectureModel {

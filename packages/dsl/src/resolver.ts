@@ -1,5 +1,5 @@
 import type { DslAst, DslElementNode, DslRelationshipNode, ParseError, ParseResult } from './types';
-import type { ArchitectureModel, Element, Relationship } from '@arch-atlas/core-model';
+import type { ArchitectureModel, Element, Relationship } from '@archatlas/core-model';
 import { SUPPORTED_DSL_VERSION } from './constants';
 
 export function slugify(name: string): string {

@@ -40,10 +40,10 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: [
-    '@arch-atlas/core-model',
-    '@arch-atlas/layout',
-    '@arch-atlas/renderer',
-    '@arch-atlas/viewer-components',
+    '@archatlas/core-model',
+    '@archatlas/layout',
+    '@archatlas/renderer',
+    '@archatlas/viewer-components',
   ],
   async headers() {
     return [

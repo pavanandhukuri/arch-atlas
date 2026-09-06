@@ -1,4 +1,4 @@
-import type { ArchitectureModel, ElementKind } from '@arch-atlas/core-model';
+import type { ArchitectureModel, ElementKind } from '@archatlas/core-model';
 
 // ─── Public types ────────────────────────────────────────────────────────────
 

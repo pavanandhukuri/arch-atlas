@@ -1,10 +1,11 @@
 # Core Model
 
-**@arch-atlas/core-model** is the headless semantic architecture model and validation engine.
+**@archatlas/core-model** is the headless semantic architecture model and validation engine.
 
 ## Purpose
 
 This package provides:
+
 - TypeScript types for the architecture model (Element, Relationship, View, etc.)
 - Validation rules (ID uniqueness, hierarchy constraints, reference integrity)
 - Change proposal API (diff/patch)
@@ -20,21 +21,29 @@ This package provides:
 ## Installation
 
 ```bash
-pnpm add @arch-atlas/core-model
+pnpm add @archatlas/core-model
 ```
 
 ## Usage
 
 ```typescript
-import { validateModel, type ArchitectureModel } from '@arch-atlas/core-model';
+import { validateModel, type ArchitectureModel } from '@archatlas/core-model';
 
 const model: ArchitectureModel = {
   schemaVersion: '0.1.0',
-  metadata: { /* ... */ },
-  elements: [ /* ... */ ],
-  relationships: [ /* ... */ ],
+  metadata: {
+    /* ... */
+  },
+  elements: [
+    /* ... */
+  ],
+  relationships: [
+    /* ... */
+  ],
   constraints: [],
-  views: [ /* ... */ ],
+  views: [
+    /* ... */
+  ],
 };
 
 const errors = validateModel(model);

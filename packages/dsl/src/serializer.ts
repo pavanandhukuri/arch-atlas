@@ -1,4 +1,4 @@
-import type { ArchitectureModel, Element, Relationship } from '@arch-atlas/core-model';
+import type { ArchitectureModel, Element, Relationship } from '@archatlas/core-model';
 import { SUPPORTED_DSL_VERSION } from './constants';
 
 function escapeAttr(value: string): string {

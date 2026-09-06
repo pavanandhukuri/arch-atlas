@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import { addRelationshipToModel, removeRelationshipFromModel } from '../src/services/relationships';
 
 function createBaseModel(): ArchitectureModel {
@@ -53,7 +53,7 @@ describe('Relationship helpers', () => {
     expect(updated.relationships[0]?.sourceId).toBe('sys-1');
     expect(updated.relationships[0]?.targetId).toBe('sys-2');
 
-    const view = updated.views.find(v => v.id === 'view-1');
+    const view = updated.views.find((v) => v.id === 'view-1');
     expect(view).toBeDefined();
     expect(view?.layout.edges).toHaveLength(1);
     expect(view?.layout.edges[0]?.relationshipId).toBe('rel-1');
@@ -73,7 +73,7 @@ describe('Relationship helpers', () => {
     const updated = removeRelationshipFromModel(withRelationship, 'rel-1');
     expect(updated.relationships).toHaveLength(0);
 
-    const view = updated.views.find(v => v.id === 'view-1');
+    const view = updated.views.find((v) => v.id === 'view-1');
     expect(view).toBeDefined();
     expect(view?.layout.edges).toHaveLength(0);
   });

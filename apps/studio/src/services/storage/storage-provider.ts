@@ -8,7 +8,7 @@
  * Feature: 002-flexible-storage
  */
 
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 
 // ---------------------------------------------------------------------------
 // Supporting types

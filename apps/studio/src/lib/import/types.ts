@@ -1,6 +1,6 @@
 // All TypeScript types for the import wizard
 
-import type { ContainerSubtype } from '@arch-atlas/core-model';
+import type { ContainerSubtype } from '@archatlas/core-model';
 
 export type CandidateType = 'database' | 'http' | 'kafka' | 'queue' | 'grpc';
 export type CandidateConfidence = 'high' | 'medium' | 'low';
