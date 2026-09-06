@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import type { WizardState, WizardAction, ElementConfig } from '@/lib/import/types';
 import { ElementCard } from '@/components/import/element-card';
 import { DiagramPreview } from '@/components/import/diagram-preview';

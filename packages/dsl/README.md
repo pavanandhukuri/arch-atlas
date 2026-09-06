@@ -1,4 +1,4 @@
-# @arch-atlas/dsl
+# @archatlas/dsl
 
 Plain-text DSL for describing C4 architecture models — parse and serialize [`ArchitectureModel`](../core-model).
 
@@ -13,7 +13,7 @@ This package provides:
 
 ## Design Principles
 
-- **Zero dependencies**: No prod deps beyond `@arch-atlas/core-model` (peer)
+- **Zero dependencies**: No prod deps beyond `@archatlas/core-model` (peer)
 - **Never throws**: All errors returned as structured `ParseError` objects
 - **Round-trip fidelity**: `parse(serialize(model))` is structurally equivalent to the original
 - **LLM-friendly**: Brace-delimited, whitespace-insensitive, case-insensitive keywords
@@ -21,7 +21,7 @@ This package provides:
 ## Installation
 
 ```bash
-pnpm add @arch-atlas/dsl
+pnpm add @archatlas/dsl
 ```
 
 ## DSL Format
@@ -66,7 +66,7 @@ system "Web App" {
 ## Usage
 
 ```typescript
-import { parse, serialize, DSL_FORMAT_DESCRIPTION } from '@arch-atlas/dsl';
+import { parse, serialize, DSL_FORMAT_DESCRIPTION } from '@archatlas/dsl';
 
 // Parse DSL text → ArchitectureModel
 const result = parse(dslText);
@@ -102,6 +102,6 @@ const systemPrompt = `Describe the architecture as arch-atlas DSL:\n\n${DSL_FORM
 ## Running tests
 
 ```bash
-pnpm --filter @arch-atlas/dsl test
-pnpm --filter @arch-atlas/dsl test -- --coverage
+pnpm --filter @archatlas/dsl test
+pnpm --filter @archatlas/dsl test -- --coverage
 ```

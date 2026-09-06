@@ -1,5 +1,5 @@
 {
-  "name": "@arch-atlas/viewer",
+  "name": "@archatlas/viewer",
   "version": "0.1.0",
   "description": "Standalone static diagram viewer — deployable to nginx or any static web server",
   "private": true,
@@ -13,9 +13,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@arch-atlas/core-model": "workspace:*",
-    "@arch-atlas/renderer": "workspace:*",
-    "@arch-atlas/viewer-components": "workspace:*",
+    "@archatlas/core-model": "workspace:*",
+    "@archatlas/renderer": "workspace:*",
+    "@archatlas/viewer-components": "workspace:*",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

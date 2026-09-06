@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { DiagramViewer } from '@arch-atlas/viewer-components';
-import { computeLayout } from '@arch-atlas/layout';
-import type { ArchitectureModel, View } from '@arch-atlas/core-model';
+import { DiagramViewer } from '@archatlas/viewer-components';
+import { computeLayout } from '@archatlas/layout';
+import type { ArchitectureModel, View } from '@archatlas/core-model';
 
 // ---------------------------------------------------------------------------
 // Props

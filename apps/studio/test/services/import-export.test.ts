@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { exportModel, parseModelFromText, importModel } from '../../src/services/import-export';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 
 const makeModel = (): ArchitectureModel => ({
   schemaVersion: '0.1.0',

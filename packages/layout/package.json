@@ -1,5 +1,5 @@
 {
-  "name": "@arch-atlas/layout",
+  "name": "@archatlas/layout",
   "version": "0.1.0",
   "description": "Deterministic layout engine and serialization",
   "license": "MIT",
@@ -36,7 +36,7 @@
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {
-    "@arch-atlas/core-model": "workspace:*"
+    "@archatlas/core-model": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

@@ -1,4 +1,4 @@
-import type { ArchitectureModel, Relationship } from '@arch-atlas/core-model';
+import type { ArchitectureModel, Relationship } from '@archatlas/core-model';
 
 interface AddRelationshipParams {
   model: ArchitectureModel;
@@ -21,7 +21,7 @@ export function addRelationshipToModel(params: AddRelationshipParams): Architect
   };
 
   const updatedRelationships = [...model.relationships, relationship];
-  const updatedViews = model.views.map(view => {
+  const updatedViews = model.views.map((view) => {
     if (view.id !== viewId) {
       return view;
     }
@@ -47,12 +47,12 @@ export function removeRelationshipFromModel(
   model: ArchitectureModel,
   relationshipId: string
 ): ArchitectureModel {
-  const updatedRelationships = model.relationships.filter(rel => rel.id !== relationshipId);
-  const updatedViews = model.views.map(view => ({
+  const updatedRelationships = model.relationships.filter((rel) => rel.id !== relationshipId);
+  const updatedViews = model.views.map((view) => ({
     ...view,
     layout: {
       ...view.layout,
-      edges: view.layout.edges.filter(edge => edge.relationshipId !== relationshipId),
+      edges: view.layout.edges.filter((edge) => edge.relationshipId !== relationshipId),
     },
   }));
 

@@ -1,3 +1,3 @@
-// Public API for @arch-atlas/renderer
+// Public API for @archatlas/renderer
 
 export * from './renderer';

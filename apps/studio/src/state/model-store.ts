@@ -1,4 +1,4 @@
-import { ArchitectureModel, validateModel, ValidationError } from '@arch-atlas/core-model';
+import { ArchitectureModel, validateModel, ValidationError } from '@archatlas/core-model';
 
 export interface ModelState {
   model: ArchitectureModel | null;
@@ -49,6 +49,6 @@ export class ModelStore {
   }
 
   private notify(): void {
-    this.listeners.forEach(listener => listener(this.getState()));
+    this.listeners.forEach((listener) => listener(this.getState()));
   }
 }

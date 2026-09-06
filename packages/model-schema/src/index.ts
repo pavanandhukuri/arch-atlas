@@ -1,4 +1,4 @@
-// Public API for @arch-atlas/model-schema
+// Public API for @archatlas/model-schema
 
 import * as architectureModelSchema from './architecture-model.schema.json';
 import * as changeProposalSchema from './change-proposal.schema.json';

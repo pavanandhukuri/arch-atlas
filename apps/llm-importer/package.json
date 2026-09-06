@@ -1,5 +1,5 @@
 {
-  "name": "@arch-atlas/llm-importer",
+  "name": "@archatlas/llm-importer",
   "version": "0.1.0",
   "description": "Deterministic, model-free multi-repository architecture importer for arch-atlas",
   "keywords": [
@@ -53,8 +53,8 @@
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {
-    "@arch-atlas/core-model": "workspace:*",
-    "@arch-atlas/layout": "workspace:*",
+    "@archatlas/core-model": "workspace:*",
+    "@archatlas/layout": "workspace:*",
     "commander": "^12.1.0",
     "js-yaml": "^4.1.0",
     "zod": "^3.23.8"

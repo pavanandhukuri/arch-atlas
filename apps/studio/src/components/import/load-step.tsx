@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, type DragEvent, type ChangeEvent } from 'react';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import type { WizardState, WizardAction } from '@/lib/import/types';
 import { parseReviewYaml } from '@/lib/import/parse-review';
 import { parseModelFromText } from '@/services/import-export';

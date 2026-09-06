@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { PropertiesPanel } from '../../../src/components/properties-panel/PropertiesPanel';
-import type { Element } from '@arch-atlas/core-model';
+import type { Element } from '@archatlas/core-model';
 
 const makeElement = (overrides: Partial<Element> = {}): Element => ({
   id: 'elem-1',

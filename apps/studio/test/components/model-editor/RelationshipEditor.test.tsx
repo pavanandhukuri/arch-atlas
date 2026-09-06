@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { RelationshipEditor } from '../../../src/components/model-editor/RelationshipEditor';
-import type { Relationship } from '@arch-atlas/core-model';
+import type { Relationship } from '@archatlas/core-model';
 import type { DropdownOption } from '../../../src/components/shared';
 
 // SearchableDropdown renders a button + panel; stub it to a simple select for test ease

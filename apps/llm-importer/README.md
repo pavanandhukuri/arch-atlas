@@ -1,4 +1,4 @@
-# @arch-atlas/llm-importer
+# @archatlas/llm-importer
 
 **Deterministic, model-free** repository architecture importer. It gathers a bounded per-repo
 context, reads one `{repo}.analysis.json` per repository (produced by _some_ analysis producer —
@@ -28,11 +28,11 @@ are the historical record of the earlier in-process agentic approaches.
 Published on npm — run it straight with `npx`, no checkout:
 
 ```bash
-npx --yes @arch-atlas/llm-importer@latest gather-context import.yaml
-npx --yes @arch-atlas/llm-importer@latest import import.yaml
+npx --yes @archatlas/llm-importer@latest gather-context import.yaml
+npx --yes @archatlas/llm-importer@latest import import.yaml
 ```
 
-or `npm i -g @arch-atlas/llm-importer` for a persistent `arch-atlas-import` binary.
+or `npm i -g @archatlas/llm-importer` for a persistent `arch-atlas-import` binary.
 
 ## Prerequisites
 
@@ -80,9 +80,9 @@ Pairs no pass resolves can optionally be linked by a producer's model-assisted f
 ## Development
 
 ```bash
-pnpm --filter @arch-atlas/llm-importer typecheck
-pnpm --filter @arch-atlas/llm-importer test
-pnpm --filter @arch-atlas/llm-importer lint
+pnpm --filter @archatlas/llm-importer typecheck
+pnpm --filter @archatlas/llm-importer test
+pnpm --filter @archatlas/llm-importer lint
 ```
 
 See `specs/010-harness-neutral-importer/quickstart.md` for end-to-end usage.

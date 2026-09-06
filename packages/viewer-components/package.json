@@ -1,5 +1,5 @@
 {
-  "name": "@arch-atlas/viewer-components",
+  "name": "@archatlas/viewer-components",
   "version": "0.1.0",
   "description": "Shared read-only diagram viewer components — used by Studio and the standalone viewer bundle",
   "main": "./src/index.ts",
@@ -9,8 +9,8 @@
     "lint": "eslint src/"
   },
   "dependencies": {
-    "@arch-atlas/core-model": "workspace:*",
-    "@arch-atlas/renderer": "workspace:*"
+    "@archatlas/core-model": "workspace:*",
+    "@archatlas/renderer": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18.2.0",

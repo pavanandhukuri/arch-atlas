@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { ConnectionsTable } from '../../../src/components/shared/ConnectionsTable';
 import type { ConnectionRow } from '../../../src/components/shared/ConnectionsTable';
-import type { Relationship, Element } from '@arch-atlas/core-model';
+import type { Relationship, Element } from '@archatlas/core-model';
 
 const makeRel = (overrides: Partial<Relationship> = {}): Relationship => ({
   id: 'r1',

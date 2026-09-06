@@ -1,5 +1,5 @@
 {
-  "name": "@arch-atlas/model-schema",
+  "name": "@archatlas/model-schema",
   "version": "0.1.0",
   "description": "Canonical JSON schemas for architecture model files",
   "main": "./dist/index.js",

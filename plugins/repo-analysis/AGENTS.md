@@ -2,7 +2,7 @@
 
 This is the canonical, tool-neutral procedure for producing one `{repo}.analysis.json`
 artifact per repository for the [arch-atlas](https://github.com/pavanandhukuri/arch-atlas)
-importer (`@arch-atlas/llm-importer`). It follows the [AGENTS.md](https://agents.md)
+importer (`@archatlas/llm-importer`). It follows the [AGENTS.md](https://agents.md)
 convention, so any coding agent that reads AGENTS.md (Claude Code, Cursor, GitHub Copilot,
 OpenAI Codex, Windsurf, Gemini CLI, Aider, Jules, Zed, Devin, and others) can run it directly,
 against whichever model you've configured that agent to use — local or hosted, your choice.
@@ -23,22 +23,22 @@ in Studio — everything in between is one request to your agent.
 ## The CLI
 
 This procedure runs the `arch-atlas-import` CLI (from the published
-[`@arch-atlas/llm-importer`](https://www.npmjs.com/package/@arch-atlas/llm-importer) package)
+[`@archatlas/llm-importer`](https://www.npmjs.com/package/@archatlas/llm-importer) package)
 to gather context and, afterward, to correlate. Run it with `npx` — no checkout, no build:
 
 ```bash
-npx --yes @arch-atlas/llm-importer@latest <command> …
+npx --yes @archatlas/llm-importer@latest <command> …
 ```
 
 Requires Node ≥ 22. `npx` downloads and caches the package on first use. Pin a version instead
-of `@latest` if you need reproducibility (e.g. `@arch-atlas/llm-importer@0.1.0`).
+of `@latest` if you need reproducibility (e.g. `@archatlas/llm-importer@0.1.0`).
 
 ## Input
 
 One of:
 
 - **An `import.yaml` (the common case — a whole workspace)** — run
-  `npx --yes @arch-atlas/llm-importer@latest gather-context <import.yaml>` once. This is
+  `npx --yes @archatlas/llm-importer@latest gather-context <import.yaml>` once. This is
   deterministic and makes no model call; it writes `{outDir}/{name}.context.json` for **every**
   repository listed in the config in one pass. Then work through the Procedure below once per
   bundle it produced, writing every `{repoName}.analysis.json`, and finish by running
@@ -101,7 +101,7 @@ repo with confidence.
 4. If you were handed a whole workspace (`import.yaml`), repeat steps 1-3 for every context
    bundle `gather-context` wrote — don't stop after the first repository. Once every repository
    has a `{repoName}.analysis.json`, run
-   `npx --yes @arch-atlas/llm-importer@latest import <import.yaml>` **yourself** (still
+   `npx --yes @archatlas/llm-importer@latest import <import.yaml>` **yourself** (still
    deterministic, no model call — six evidence passes over the raw source plus a name-mention
    fallback). It's safe to always run this last: a repository with no or a malformed analysis
    artifact is named and skipped, the rest still produce a diagram. Report back the

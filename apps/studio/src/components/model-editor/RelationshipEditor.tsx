@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Relationship } from '@arch-atlas/core-model';
+import type { Relationship } from '@archatlas/core-model';
 import { SearchableDropdown } from '@/components/shared';
 import type { DropdownOption } from '@/components/shared';
 

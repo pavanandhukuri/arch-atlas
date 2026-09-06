@@ -1,5 +1,5 @@
 import type { Candidate, ElementConfig, CandidateType, SystemGroup } from './types';
-import type { ContainerSubtype } from '@arch-atlas/core-model';
+import type { ContainerSubtype } from '@archatlas/core-model';
 
 function slugify(name: string): string {
   return (

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
-import type { Renderer } from '@arch-atlas/renderer';
-import type { ArchitectureModel, View } from '@arch-atlas/core-model';
+import type { Renderer } from '@archatlas/renderer';
+import type { ArchitectureModel, View } from '@archatlas/core-model';
 import { MapCanvas } from '../map-canvas';
 import { ZoomControls } from '../zoom-controls';
 import { useZoom } from '../../hooks/useZoom';

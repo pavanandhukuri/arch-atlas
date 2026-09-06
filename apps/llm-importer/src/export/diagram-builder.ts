@@ -1,5 +1,5 @@
-import type { ArchitectureModel, Element, Relationship, View } from '@arch-atlas/core-model';
-import { computeLayout } from '@arch-atlas/layout';
+import type { ArchitectureModel, Element, Relationship, View } from '@archatlas/core-model';
+import { computeLayout } from '@archatlas/layout';
 import type { RepoMeta, ReviewFile } from '../review/review-file.js';
 
 function slug(name: string): string {

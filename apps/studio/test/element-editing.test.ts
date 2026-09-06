@@ -1,7 +1,7 @@
 // Test suite for element editing workflow to catch deletion bugs
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { ArchitectureModel, Element } from '@arch-atlas/core-model';
+import type { ArchitectureModel, Element } from '@archatlas/core-model';
 
 describe('Element Editing Workflow', () => {
   let model: ArchitectureModel;

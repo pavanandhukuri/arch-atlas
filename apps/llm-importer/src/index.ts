@@ -1,5 +1,5 @@
 /**
- * Public entrypoint for `@arch-atlas/llm-importer` (010-harness-neutral-importer).
+ * Public entrypoint for `@archatlas/llm-importer` (010-harness-neutral-importer).
  *
  * The importer is a deterministic, model-free library + CLI. This module is the
  * contract surface an analysis *producer* (e.g. the `plugins/repo-analysis`

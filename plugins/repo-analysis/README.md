@@ -22,7 +22,7 @@ wraps the same procedure so it's discoverable and auto-invocable inside a Claude
 to install.
 
 **Local model or hosted model — your choice.** The arch-atlas importer core
-(`@arch-atlas/llm-importer`) is deterministic and makes no model call itself; it only ever
+(`@archatlas/llm-importer`) is deterministic and makes no model call itself; it only ever
 reads the `{repo}.analysis.json` files this procedure produces. Whichever model does the
 actual analysis is entirely a property of how you've configured your coding agent (a local
 Ollama/vLLM/MLX endpoint, or a hosted API) — arch-atlas has no opinion on it and no code path
@@ -33,12 +33,12 @@ that talks to a model directly.
 Just **Node ≥ 22**. The procedure runs the importer CLI straight from npm with `npx`:
 
 ```bash
-npx --yes @arch-atlas/llm-importer@latest gather-context import.yaml
-npx --yes @arch-atlas/llm-importer@latest import import.yaml
+npx --yes @archatlas/llm-importer@latest gather-context import.yaml
+npx --yes @archatlas/llm-importer@latest import import.yaml
 ```
 
 No arch-atlas checkout, no build step. `npx` downloads and caches
-[`@arch-atlas/llm-importer`](https://www.npmjs.com/package/@arch-atlas/llm-importer) on first
+[`@archatlas/llm-importer`](https://www.npmjs.com/package/@archatlas/llm-importer) on first
 use. Run it against any collection of repositories, anywhere on disk.
 
 ## Install (Claude Code)
@@ -64,7 +64,7 @@ follow the procedure.
 1. **Write `import.yaml`** listing the repositories and an output directory.
 
 2. **Run the procedure against it** — point your agent at `import.yaml` and ask it to import the
-   workspace. It runs the whole pipeline itself (via `npx @arch-atlas/llm-importer@latest`), in
+   workspace. It runs the whole pipeline itself (via `npx @archatlas/llm-importer@latest`), in
    order:
    - `gather-context import.yaml` (deterministic, offline) — writes `{repo}.context.json` for
      every repo in one pass.

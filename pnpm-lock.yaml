@@ -80,10 +80,10 @@ importers:
 
   apps/llm-importer:
     dependencies:
-      '@arch-atlas/core-model':
+      '@archatlas/core-model':
         specifier: workspace:*
         version: link:../../packages/core-model
-      '@arch-atlas/layout':
+      '@archatlas/layout':
         specifier: workspace:*
         version: link:../../packages/layout
       commander:
@@ -117,16 +117,16 @@ importers:
 
   apps/studio:
     dependencies:
-      '@arch-atlas/core-model':
+      '@archatlas/core-model':
         specifier: workspace:*
         version: link:../../packages/core-model
-      '@arch-atlas/layout':
+      '@archatlas/layout':
         specifier: workspace:*
         version: link:../../packages/layout
-      '@arch-atlas/renderer':
+      '@archatlas/renderer':
         specifier: workspace:*
         version: link:../../packages/renderer
-      '@arch-atlas/viewer-components':
+      '@archatlas/viewer-components':
         specifier: workspace:*
         version: link:../../packages/viewer-components
       '@react-oauth/google':
@@ -184,13 +184,13 @@ importers:
 
   apps/viewer:
     dependencies:
-      '@arch-atlas/core-model':
+      '@archatlas/core-model':
         specifier: workspace:*
         version: link:../../packages/core-model
-      '@arch-atlas/renderer':
+      '@archatlas/renderer':
         specifier: workspace:*
         version: link:../../packages/renderer
-      '@arch-atlas/viewer-components':
+      '@archatlas/viewer-components':
         specifier: workspace:*
         version: link:../../packages/viewer-components
       react:
@@ -248,7 +248,7 @@ importers:
 
   packages/dsl:
     devDependencies:
-      '@arch-atlas/core-model':
+      '@archatlas/core-model':
         specifier: workspace:*
         version: link:../core-model
       '@types/node':
@@ -266,7 +266,7 @@ importers:
 
   packages/layout:
     dependencies:
-      '@arch-atlas/core-model':
+      '@archatlas/core-model':
         specifier: workspace:*
         version: link:../core-model
     devDependencies:
@@ -300,7 +300,7 @@ importers:
 
   packages/renderer:
     dependencies:
-      '@arch-atlas/core-model':
+      '@archatlas/core-model':
         specifier: workspace:*
         version: link:../core-model
       '@pixi/unsafe-eval':
@@ -325,10 +325,10 @@ importers:
 
   packages/viewer-components:
     dependencies:
-      '@arch-atlas/core-model':
+      '@archatlas/core-model':
         specifier: workspace:*
         version: link:../core-model
-      '@arch-atlas/renderer':
+      '@archatlas/renderer':
         specifier: workspace:*
         version: link:../renderer
       react:

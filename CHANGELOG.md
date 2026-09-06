@@ -32,9 +32,17 @@ All notable user-facing changes SHOULD be documented in this file.
   discoverability inside a Claude Code session. Which model the procedure runs against — local
   or hosted — is entirely a property of the coding agent you use; arch-atlas has no opinion.
 
-### Added — `@arch-atlas/llm-importer` published to npm
+### Changed — npm scope is now `@archatlas` (was `@arch-atlas`)
 
-- **`@arch-atlas/core-model`, `@arch-atlas/layout` and `@arch-atlas/llm-importer` now publish to
+- Every workspace package is renamed `@arch-atlas/*` → `@archatlas/*` (the `@arch-atlas` npm
+  org was already taken). The product, the GitHub repo, the `arch-atlas-import` CLI binary and
+  the `arch-atlas-repo-analysis` plugin keep the hyphenated name — only the npm scope changed.
+  A purely mechanical rename across `package.json` names, imports, configs and docs; no code
+  behaviour changes. `specs/` is left as the historical record.
+
+### Added — `@archatlas/llm-importer` published to npm
+
+- **`@archatlas/core-model`, `@archatlas/layout` and `@archatlas/llm-importer` now publish to
   the public npm registry** (`.github/workflows/publish.yml`, triggered by pushing a `vX.Y.Z`
   tag, or manually with a dry-run default). Uses npm **trusted publishing** (OIDC) — no
   long-lived npm token in CI, and provenance attestations are generated automatically.
@@ -42,7 +50,7 @@ All notable user-facing changes SHOULD be documented in this file.
   runs lint/type-check/test, `pnpm pack`s each package (so `workspace:*` deps become real
   versions), then `npm publish`es any not already on npm — in dependency order. (First-ever
   publish of each package still needs a one-time token; see the workflow header.)
-- **`plugins/repo-analysis` now runs the importer via `npx @arch-atlas/llm-importer@latest`** —
+- **`plugins/repo-analysis` now runs the importer via `npx @archatlas/llm-importer@latest`** —
   no arch-atlas checkout, no build step, no `$ARCH_ATLAS_HOME`. `AGENTS.md`, `SKILL.md` and the
   plugin README are rewritten around this; a developer using the plugin needs only Node ≥ 22.
 - **Fixed:** the `arch-atlas-import` bin silently no-op'd (exit 0, no output) when invoked
@@ -77,7 +85,7 @@ All notable user-facing changes SHOULD be documented in this file.
 
 - **`apps/llm-importer` is now deterministic and model-free.** It reads one `{repo}.analysis.json` per repository, correlates, and writes the review artifact + diagram — no model call, no network request, no agent-framework dependency. The `@earendil-works/pi-coding-agent`, `@earendil-works/pi-ai`, and `typebox` dependencies are removed.
 - The per-repository analysis step is now an **external, swappable producer**. Two ship in-repo, plus a documented contract for your own:
-  - `@arch-atlas/analysis-runner-local` (`packages/analysis-runner-local`) — reference runner against a **local** OpenAI-compatible endpoint (offline; carries the 007/008 local-only guarantee).
+  - `@archatlas/analysis-runner-local` (`packages/analysis-runner-local`) — reference runner against a **local** OpenAI-compatible endpoint (offline; carries the 007/008 local-only guarantee).
   - `.claude/skills/repo-analysis` — a Claude Code skill; **opt-in hosted-API** path.
   - Contract: `RepoAnalysisSchema` (unchanged) + the new `{repo}.context.json` bundle format — see `specs/010-harness-neutral-importer/contracts/`.
 - CLI: `arch-atlas-import` gains `gather-context <config>` (write context bundles) and `import <config>` (build the diagram from artifacts). Removed: `--analyze-only`, the model-endpoint reachability gate, exit code 2. A missing/malformed `{repo}.analysis.json` is named and skipped; the rest still produce a diagram.

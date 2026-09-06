@@ -1,5 +1,5 @@
 {
-  "name": "@arch-atlas/core-model",
+  "name": "@archatlas/core-model",
   "version": "0.1.0",
   "description": "Semantic architecture model, validation, and diff/patch APIs",
   "license": "MIT",

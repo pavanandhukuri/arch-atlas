@@ -1,6 +1,6 @@
 'use client';
 
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import type { ElementConfig, SystemGroup } from '@/lib/import/types';
 import { ElementEditorPanel } from '@/components/import/element-editor';
 import { isElementClassified } from '@/lib/import/element-validation';

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { serialize } from '../src/index';
-import type { ArchitectureModel } from '@arch-atlas/core-model';
+import type { ArchitectureModel } from '@archatlas/core-model';
 
 const EMPTY_MODEL: ArchitectureModel = {
   schemaVersion: '1.0.0',

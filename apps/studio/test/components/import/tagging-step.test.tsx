@@ -6,7 +6,7 @@ import React from 'react';
 // TaggingStep renders DiagramPreview -> DiagramViewer -> MapCanvas, which tries to
 // create a real PixiJS/WebGL renderer — unavailable in jsdom. Same mock diagram-preview
 // .test.tsx already uses.
-vi.mock('@arch-atlas/viewer-components', () => ({
+vi.mock('@archatlas/viewer-components', () => ({
   DiagramViewer: vi.fn(() => <div data-testid="diagram-viewer" />),
 }));
 

@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DiagramViewer } from '@arch-atlas/viewer-components';
+import { DiagramViewer } from '@archatlas/viewer-components';
 import { GoogleDriveProvider } from '@/services/storage/google-drive-provider';
 import { useGoogleDriveAuth } from '@/hooks/useGoogleDriveAuth';
-import type { ArchitectureModel, View } from '@arch-atlas/core-model';
+import type { ArchitectureModel, View } from '@archatlas/core-model';
 
 interface ViewerPageProps {
   fileId: string;

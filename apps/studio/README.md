@@ -6,10 +6,10 @@
 
 Studio is a **thin client** that consumes core packages:
 
-- `@arch-atlas/core-model` for model validation and manipulation
-- `@arch-atlas/layout` for deterministic layout computation
-- `@arch-atlas/renderer` for WebGL-based canvas rendering
-- `@arch-atlas/viewer-components` for shared React components (MapCanvas, DiagramViewer, ZoomControls, useZoom)
+- `@archatlas/core-model` for model validation and manipulation
+- `@archatlas/layout` for deterministic layout computation
+- `@archatlas/renderer` for WebGL-based canvas rendering
+- `@archatlas/viewer-components` for shared React components (MapCanvas, DiagramViewer, ZoomControls, useZoom)
 
 **IMPORTANT**: Studio contains **no domain logic**. All semantic rules, validation, and business logic live in the core packages.
 
@@ -20,13 +20,13 @@ Studio is a **thin client** that consumes core packages:
 pnpm install
 
 # Start development server
-pnpm --filter=@arch-atlas/studio dev
+pnpm --filter=@archatlas/studio dev
 
 # Build for production
-pnpm --filter=@arch-atlas/studio build
+pnpm --filter=@archatlas/studio build
 
 # Run tests
-pnpm --filter=@arch-atlas/studio test
+pnpm --filter=@archatlas/studio test
 ```
 
 ## Environment Setup
@@ -45,7 +45,7 @@ For Google Drive storage, you need a Google Cloud project with the **Google Driv
 - **UI**: React 18+
 - **Styling**: CSS (globals)
 - **State Management**: Custom ModelStore (thin wrapper over core-model)
-- **Canvas**: PixiJS via `@arch-atlas/renderer`
+- **Canvas**: PixiJS via `@archatlas/renderer`
 - **Storage**: File System Access API (local) · Google Drive REST API
 - **Auth**: `@react-oauth/google` popup OAuth — no server-side token handling
 
@@ -81,10 +81,10 @@ Autosave runs every 2 seconds when dirty, skips ticks if a save is already in-fl
 
 Studio should **never** contain:
 
-- Model validation rules (use `@arch-atlas/core-model`)
-- Layout algorithms (use `@arch-atlas/layout`)
-- Rendering logic (use `@arch-atlas/renderer`)
-- Duplicate diagram viewer components (use `@arch-atlas/viewer-components`)
+- Model validation rules (use `@archatlas/core-model`)
+- Layout algorithms (use `@archatlas/layout`)
+- Rendering logic (use `@archatlas/renderer`)
+- Duplicate diagram viewer components (use `@archatlas/viewer-components`)
 
 Studio **should** contain:
 

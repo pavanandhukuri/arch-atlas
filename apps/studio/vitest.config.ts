@@ -10,7 +10,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@arch-atlas/viewer-components': path.resolve(
+      '@archatlas/viewer-components': path.resolve(
         __dirname,
         '../../packages/viewer-components/src/index.ts'
       ),

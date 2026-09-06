@@ -75,7 +75,7 @@ export class LocalFileProvider implements StorageProvider {
       const file = await fileHandle.getFile();
       const text: string = await file.text();
 
-      let model: import('@arch-atlas/core-model').ArchitectureModel;
+      let model: import('@archatlas/core-model').ArchitectureModel;
       try {
         model = parseModelFromText(text);
       } catch (err) {
@@ -167,7 +167,7 @@ export class LocalFileProvider implements StorageProvider {
 
   async save(
     handle: StorageHandle,
-    model: import('@arch-atlas/core-model').ArchitectureModel,
+    model: import('@archatlas/core-model').ArchitectureModel,
     options?: { force?: boolean }
   ): Promise<SaveResult | StorageError> {
     const fileHandle = handle.ref as FSFileHandle;

@@ -1,5 +1,5 @@
 {
-  "name": "@arch-atlas/dsl",
+  "name": "@archatlas/dsl",
   "version": "0.1.0",
   "description": "Plain-text DSL for describing architecture models — parse and serialize ArchitectureModel",
   "main": "./dist/index.js",
@@ -19,10 +19,10 @@
     "clean": "rm -rf dist coverage"
   },
   "peerDependencies": {
-    "@arch-atlas/core-model": "workspace:*"
+    "@archatlas/core-model": "workspace:*"
   },
   "devDependencies": {
-    "@arch-atlas/core-model": "workspace:*",
+    "@archatlas/core-model": "workspace:*",
     "@types/node": "^20.11.0",
     "@vitest/coverage-v8": "^1.6.1",
     "typescript": "^5.3.0",

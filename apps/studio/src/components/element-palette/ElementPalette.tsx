@@ -1,7 +1,7 @@
 'use client';
 
-import type { ElementKind } from '@arch-atlas/core-model';
-import type { ContainerSubtype } from '@arch-atlas/core-model';
+import type { ElementKind } from '@archatlas/core-model';
+import type { ContainerSubtype } from '@archatlas/core-model';
 import type { DiagramLevel } from '@/services/diagram-context';
 import { getElementKindForLevel, getLevelIcon } from '@/services/diagram-context';
 

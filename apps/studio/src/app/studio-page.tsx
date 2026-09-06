@@ -7,8 +7,8 @@ import {
   ZoomControls,
   useZoom,
   deriveViewRelationships,
-} from '@arch-atlas/viewer-components';
-import type { Renderer } from '@arch-atlas/renderer';
+} from '@archatlas/viewer-components';
+import type { Renderer } from '@archatlas/renderer';
 import { ElementEditor, RelationshipEditor } from '@/components/model-editor';
 import { ElementPalette } from '@/components/element-palette';
 import { PropertiesPanel } from '@/components/properties-panel/PropertiesPanel';
@@ -33,8 +33,8 @@ import type {
   ContainerSubtype,
   ElementFormatting,
   Relationship,
-} from '@arch-atlas/core-model';
-import { computeLayout } from '@arch-atlas/layout';
+} from '@archatlas/core-model';
+import { computeLayout } from '@archatlas/layout';
 import type { DiagramLevel } from '@/services/diagram-context';
 import {
   getDiagramTitle,

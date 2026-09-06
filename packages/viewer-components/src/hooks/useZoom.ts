@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
-import type { Renderer } from '@arch-atlas/renderer';
-import { ZOOM_MIN, ZOOM_MAX } from '@arch-atlas/renderer';
+import type { Renderer } from '@archatlas/renderer';
+import { ZOOM_MIN, ZOOM_MAX } from '@archatlas/renderer';
 
 const STEP = 1.2;
 

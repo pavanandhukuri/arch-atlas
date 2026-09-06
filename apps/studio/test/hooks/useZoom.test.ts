@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { ZOOM_MIN, ZOOM_MAX } from '@arch-atlas/renderer';
+import { ZOOM_MIN, ZOOM_MAX } from '@archatlas/renderer';
 
 import { useZoom } from '../../src/hooks/useZoom';
 

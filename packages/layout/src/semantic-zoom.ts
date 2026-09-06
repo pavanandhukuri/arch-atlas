@@ -1,6 +1,6 @@
 // Semantic zoom level computation
 
-import type { ElementKind } from '@arch-atlas/core-model';
+import type { ElementKind } from '@archatlas/core-model';
 
 export type ZoomBehavior = {
   level: ElementKind;
@@ -32,6 +32,6 @@ export function computeSemanticZoomLevel(zoomValue: number): ElementKind {
 }
 
 export function getZoomRange(level: ElementKind): { min: number; max: number } {
-  const threshold = ZOOM_THRESHOLDS.find(t => t.level === level);
+  const threshold = ZOOM_THRESHOLDS.find((t) => t.level === level);
   return threshold ? { min: threshold.minZoom, max: threshold.maxZoom } : { min: 0, max: 0.2 };
 }

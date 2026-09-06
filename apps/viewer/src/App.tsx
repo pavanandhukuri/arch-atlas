@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { DiagramViewer } from '@arch-atlas/viewer-components';
+import { DiagramViewer } from '@archatlas/viewer-components';
 import { DiagramPicker } from './components/DiagramPicker';
 import type { DiagramManifestEntry } from './components/DiagramPicker';
-import type { ArchitectureModel, View } from '@arch-atlas/core-model';
+import type { ArchitectureModel, View } from '@archatlas/core-model';
 
 type AppState =
   | { phase: 'loading-manifest' }

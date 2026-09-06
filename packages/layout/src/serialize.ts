@@ -1,6 +1,6 @@
 // Layout serialization utilities
 
-import type { LayoutState } from '@arch-atlas/core-model';
+import type { LayoutState } from '@archatlas/core-model';
 
 export function serializeLayoutState(layout: LayoutState): string {
   return JSON.stringify(layout, null, 2);

@@ -74,17 +74,17 @@ See `apps/llm-importer/README.md` for the full pipeline and CLI reference, and
 ### Package dependency hierarchy (editor/viewer stack)
 
 ```
-@arch-atlas/core-model
-@arch-atlas/layout
+@archatlas/core-model
+@archatlas/layout
         ↓
-@arch-atlas/renderer          (PixiJS engine, no React)
+@archatlas/renderer          (PixiJS engine, no React)
         ↓
-@arch-atlas/viewer-components (React: MapCanvas, DiagramViewer, ZoomControls, useZoom)
+@archatlas/viewer-components (React: MapCanvas, DiagramViewer, ZoomControls, useZoom)
         ↓                ↓
   apps/studio       apps/viewer
 ```
 
-`apps/studio` and `apps/viewer` both import from `@arch-atlas/viewer-components` — the single source of truth for the rendering stack. Neither app duplicates diagram rendering code.
+`apps/studio` and `apps/viewer` both import from `@archatlas/viewer-components` — the single source of truth for the rendering stack. Neither app duplicates diagram rendering code.
 
 ## Getting started
 
@@ -116,8 +116,8 @@ Opens at `http://localhost:3000`. Requires a Google account to save diagrams to 
 
 The importer CLI is published on npm — no checkout needed. Point a coding agent at your
 `import.yaml` running `plugins/repo-analysis` (any agent, any model): it runs
-`npx @arch-atlas/llm-importer@latest gather-context`, analyzes every listed repository, then
-`npx @arch-atlas/llm-importer@latest import`, writing `architecture.review.yaml` +
+`npx @archatlas/llm-importer@latest gather-context`, analyzes every listed repository, then
+`npx @archatlas/llm-importer@latest import`, writing `architecture.review.yaml` +
 `architecture.arch.json`.
 
 See `apps/llm-importer/README.md` for the full CLI reference and the producer contract.

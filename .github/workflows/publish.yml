@@ -1,6 +1,6 @@
 name: Publish to npm
 
-# Publishes @arch-atlas/core-model, @arch-atlas/layout and @arch-atlas/llm-importer
+# Publishes @archatlas/core-model, @archatlas/layout and @archatlas/llm-importer
 # to the public npm registry, in dependency order, using npm **trusted publishing**
 # (OIDC) — no long-lived npm token in CI.
 #
@@ -15,17 +15,22 @@ name: Publish to npm
 # `workflow_dispatch` runs the same thing on demand (dry run by default).
 #
 # ── One-time setup on npmjs.com (per package) ─────────────────────────────────
-# Trusted publishing can't create a package that doesn't exist yet, so the FIRST
-# release of each of the three packages needs a token:
-#   a. Add a repo secret NPM_TOKEN (npm automation token, "Read and write",
-#      scoped to @arch-atlas) and run this workflow once (tag or manual, not dry
-#      run). npm uses the token only because OIDC isn't configured yet.
-#   b. On npmjs.com, for EACH of the three packages → Settings → Trusted
-#      Publisher → GitHub Actions:
+# Trusted publishing can't create a package that doesn't exist yet, so each of
+# the three packages must be published once the old-fashioned way first:
+#   1. Either `npm login` on a laptop and run, in order,
+#        pnpm --filter @archatlas/core-model  publish --access public
+#        pnpm --filter @archatlas/layout      publish --access public
+#        pnpm --filter @archatlas/llm-importer publish --access public
+#      or add a repo secret NPM_TOKEN (npm automation token, "Read and write",
+#      scoped to @archatlas) and run this workflow once — npm uses the token only
+#      while OIDC isn't configured yet.
+#   2. On npmjs.com, for EACH package → Settings → Trusted Publisher → GitHub
+#      Actions:
 #        Organization or user:  pavanandhukuri
 #        Repository:            arch-atlas
 #        Workflow filename:     publish.yml
-#   c. Delete the NPM_TOKEN secret. Every later release is OIDC-only.
+#   3. Delete the NPM_TOKEN secret if you added one. Every later release is
+#      OIDC-only — just push a vX.Y.Z tag.
 
 on:
   push:
@@ -97,10 +102,10 @@ jobs:
           echo "All three packages are at $VERSION."
 
       - name: Lint, type-check and test
-        run: pnpm turbo run lint typecheck test --filter=@arch-atlas/llm-importer...
+        run: pnpm turbo run lint typecheck test --filter=@archatlas/llm-importer...
 
       - name: Build (dependency order)
-        run: pnpm turbo run build --filter=@arch-atlas/llm-importer...
+        run: pnpm turbo run build --filter=@archatlas/llm-importer...
 
       - name: Pack and publish
         env:
@@ -133,9 +138,9 @@ jobs:
       - name: Summary
         run: |
           {
-            echo "### @arch-atlas packages @ ${{ steps.version.outputs.version }}"
+            echo "### @archatlas packages @ ${{ steps.version.outputs.version }}"
             echo
-            echo "- @arch-atlas/core-model"
-            echo "- @arch-atlas/layout"
-            echo "- @arch-atlas/llm-importer"
+            echo "- @archatlas/core-model"
+            echo "- @archatlas/layout"
+            echo "- @archatlas/llm-importer"
           } >> "$GITHUB_STEP_SUMMARY"

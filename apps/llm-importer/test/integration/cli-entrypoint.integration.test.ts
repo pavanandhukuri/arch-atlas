@@ -13,7 +13,7 @@ const execFileP = promisify(execFile);
  * SYMLINK into node_modules/.bin. The entry-point check in cli.ts must resolve
  * realpaths — a naive `import.meta.url === file://${process.argv[1]}` silently
  * no-ops when invoked through that symlink (exit 0, no output, nothing written),
- * which broke `npx @arch-atlas/llm-importer` before this test existed.
+ * which broke `npx @archatlas/llm-importer` before this test existed.
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
