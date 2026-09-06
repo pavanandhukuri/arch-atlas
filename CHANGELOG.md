@@ -36,9 +36,12 @@ All notable user-facing changes SHOULD be documented in this file.
 
 - **`@arch-atlas/core-model`, `@arch-atlas/layout` and `@arch-atlas/llm-importer` now publish to
   the public npm registry** (`.github/workflows/publish.yml`, triggered by pushing a `vX.Y.Z`
-  tag, or manually with a dry-run default). Lockstep-versioned; the workflow verifies all three
-  `package.json` versions match the tag, runs lint/type-check/test, then publishes any not
-  already on npm — in dependency order.
+  tag, or manually with a dry-run default). Uses npm **trusted publishing** (OIDC) — no
+  long-lived npm token in CI, and provenance attestations are generated automatically.
+  Lockstep-versioned; the workflow verifies all three `package.json` versions match the tag,
+  runs lint/type-check/test, `pnpm pack`s each package (so `workspace:*` deps become real
+  versions), then `npm publish`es any not already on npm — in dependency order. (First-ever
+  publish of each package still needs a one-time token; see the workflow header.)
 - **`plugins/repo-analysis` now runs the importer via `npx @arch-atlas/llm-importer@latest`** —
   no arch-atlas checkout, no build step, no `$ARCH_ATLAS_HOME`. `AGENTS.md`, `SKILL.md` and the
   plugin README are rewritten around this; a developer using the plugin needs only Node ≥ 22.

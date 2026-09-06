@@ -1,20 +1,31 @@
 name: Publish to npm
 
 # Publishes @arch-atlas/core-model, @arch-atlas/layout and @arch-atlas/llm-importer
-# to the public npm registry, in dependency order.
+# to the public npm registry, in dependency order, using npm **trusted publishing**
+# (OIDC) — no long-lived npm token in CI.
 #
 # Release flow:
 #   1. Bump "version" in all three package.json files to the SAME value, in a PR.
 #   2. After it merges, tag that commit `vX.Y.Z` and push the tag:
 #        git tag v0.2.0 && git push origin v0.2.0
 #   3. This workflow verifies the tag matches package.json, runs the checks,
-#      and publishes any of the three packages not already on npm at that version.
+#      packs each package (pnpm, so `workspace:*` deps become real versions),
+#      and `npm publish`es any not already on npm at that version.
 #
-# `workflow_dispatch` runs the same thing on demand (optionally as a dry run).
+# `workflow_dispatch` runs the same thing on demand (dry run by default).
 #
-# Requires one repository secret: NPM_TOKEN — an npm automation token for an
-# account that owns the @arch-atlas scope (npmjs.com → Access Tokens → Granular,
-# "Read and write", scoped to @arch-atlas).
+# ── One-time setup on npmjs.com (per package) ─────────────────────────────────
+# Trusted publishing can't create a package that doesn't exist yet, so the FIRST
+# release of each of the three packages needs a token:
+#   a. Add a repo secret NPM_TOKEN (npm automation token, "Read and write",
+#      scoped to @arch-atlas) and run this workflow once (tag or manual, not dry
+#      run). npm uses the token only because OIDC isn't configured yet.
+#   b. On npmjs.com, for EACH of the three packages → Settings → Trusted
+#      Publisher → GitHub Actions:
+#        Organization or user:  pavanandhukuri
+#        Repository:            arch-atlas
+#        Workflow filename:     publish.yml
+#   c. Delete the NPM_TOKEN secret. Every later release is OIDC-only.
 
 on:
   push:
@@ -35,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write # required for npm trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
 
@@ -44,9 +56,19 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24' # ships npm >= 11.5.1, required for OIDC
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Ensure npm >= 11.5.1 (trusted publishing)
+        run: |
+          need="11.5.1"
+          have="$(npm --version)"
+          if [ "$(printf '%s\n%s\n' "$need" "$have" | sort -V | head -1)" != "$need" ]; then
+            echo "npm $have < $need — upgrading"
+            npm install -g npm@latest
+          fi
+          npm --version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -80,33 +102,40 @@ jobs:
       - name: Build (dependency order)
         run: pnpm turbo run build --filter=@arch-atlas/llm-importer...
 
-      - name: Publish
+      - name: Pack and publish
         env:
+          # Only used to bootstrap a package's first-ever publish; unset once its
+          # trusted publisher is configured on npmjs.com. Empty ⇒ npm uses OIDC.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: |
           set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
+          OUT="$RUNNER_TEMP/pkgs"
+          mkdir -p "$OUT"
           for dir in packages/core-model packages/layout apps/llm-importer; do
             NAME="$(node -p "require('./$dir/package.json').name")"
-            PUBLISHED="$(npm view "$NAME@$VERSION" version 2>/dev/null || true)"
-            if [ -n "$PUBLISHED" ]; then
+            if [ -n "$(npm view "$NAME@$VERSION" version 2>/dev/null || true)" ]; then
               echo "✓ $NAME@$VERSION already on npm — skipping."
               continue
             fi
+            # pnpm pack rewrites workspace:* deps to real versions in the tarball
+            TARBALL="$(cd "$dir" && pnpm pack --pack-destination "$OUT" | tail -1)"
             if [ "${DRY_RUN:-false}" = "true" ]; then
-              echo "· dry run: would publish $NAME@$VERSION"
-              ( cd "$dir" && pnpm publish --no-git-checks --dry-run )
+              echo "· dry run: would publish $NAME@$VERSION from $(basename "$TARBALL")"
+              npm publish "$TARBALL" --access public --dry-run
             else
               echo "→ publishing $NAME@$VERSION"
-              ( cd "$dir" && pnpm publish --no-git-checks --access public )
+              npm publish "$TARBALL" --access public
             fi
           done
 
       - name: Summary
         run: |
-          echo "### Published @arch-atlas packages @ ${{ steps.version.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- @arch-atlas/core-model" >> "$GITHUB_STEP_SUMMARY"
-          echo "- @arch-atlas/layout" >> "$GITHUB_STEP_SUMMARY"
-          echo "- @arch-atlas/llm-importer" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### @arch-atlas packages @ ${{ steps.version.outputs.version }}"
+            echo
+            echo "- @arch-atlas/core-model"
+            echo "- @arch-atlas/layout"
+            echo "- @arch-atlas/llm-importer"
+          } >> "$GITHUB_STEP_SUMMARY"
