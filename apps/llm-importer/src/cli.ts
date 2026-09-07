@@ -105,7 +105,7 @@ export async function runGatherContextCommand(
 export function buildProgram(): Command {
   const program = new Command();
   program
-    .name('arch-atlas-import')
+    .name('archatlas')
     .description('Deterministic, model-free repository architecture importer');
 
   program
@@ -139,9 +139,9 @@ export function buildProgram(): Command {
 
 /**
  * True when this module is the process entry point. Compares realpath-resolved
- * paths so it still fires when invoked through the `arch-atlas-import` bin
- * symlink that npm / npx / pnpm create (a naive `file://${process.argv[1]}`
- * check silently no-ops there, and also breaks on paths containing spaces).
+ * paths so it still fires when invoked through the `archatlas` bin symlink that
+ * npm / npx / pnpm create (a naive `file://${process.argv[1]}` check silently
+ * no-ops there, and also breaks on paths containing spaces).
  */
 function isEntryPoint(): boolean {
   const argv1 = process.argv[1];

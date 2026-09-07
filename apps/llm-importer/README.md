@@ -32,7 +32,7 @@ npx --yes @archatlas/llm-importer@latest gather-context import.yaml
 npx --yes @archatlas/llm-importer@latest import import.yaml
 ```
 
-or `npm i -g @archatlas/llm-importer` for a persistent `arch-atlas-import` binary.
+or `npm i -g @archatlas/llm-importer` for a persistent `archatlas` binary.
 
 ## Prerequisites
 
@@ -52,7 +52,7 @@ repo → gather-context (bounded, deterministic, secret-paths excluded)  → {re
        → build-diagram        → architecture.arch.json
 ```
 
-`arch-atlas-import` has two subcommands: `gather-context <config>` (write the bundles) and
+`archatlas` has two subcommands: `gather-context <config>` (write the bundles) and
 `import <config>` (build the diagram from `{repo}.analysis.json` artifacts). Neither contacts a
 model or the network.
 

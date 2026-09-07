@@ -1,6 +1,6 @@
 {
   "name": "@archatlas/llm-importer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Deterministic, model-free multi-repository architecture importer for arch-atlas",
   "keywords": [
     "architecture",
@@ -19,7 +19,7 @@
   },
   "type": "module",
   "bin": {
-    "arch-atlas-import": "./dist/cli.js"
+    "archatlas": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

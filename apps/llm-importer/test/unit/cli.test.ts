@@ -74,7 +74,7 @@ describe('buildProgram — commander wiring', () => {
     const prev = process.exitCode;
     process.exitCode = undefined;
     try {
-      await program.parseAsync(['node', 'arch-atlas-import', 'import', 'config.yaml', '--verbose']);
+      await program.parseAsync(['node', 'archatlas', 'import', 'config.yaml', '--verbose']);
       expect(runImportMock).toHaveBeenCalledOnce();
       expect(process.exitCode).toBeUndefined();
     } finally {
@@ -88,7 +88,7 @@ describe('buildProgram — commander wiring', () => {
     const prev = process.exitCode;
     process.exitCode = undefined;
     try {
-      await program.parseAsync(['node', 'arch-atlas-import', 'import', 'bad.yaml']);
+      await program.parseAsync(['node', 'archatlas', 'import', 'bad.yaml']);
       expect(process.exitCode).toBe(1);
     } finally {
       process.exitCode = prev;
@@ -103,7 +103,7 @@ describe('buildProgram — commander wiring', () => {
   it('no longer accepts --analyze-only', async () => {
     const program = buildProgram().exitOverride();
     await expect(
-      program.parseAsync(['node', 'arch-atlas-import', 'import', 'config.yaml', '--analyze-only'])
+      program.parseAsync(['node', 'archatlas', 'import', 'config.yaml', '--analyze-only'])
     ).rejects.toThrow();
   });
 });

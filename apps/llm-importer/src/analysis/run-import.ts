@@ -80,7 +80,7 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
   if (graphs.length === 0) {
     log(
       `\nNo valid analysis artifacts found in ${outputDir} — run a producer first ` +
-        `(e.g. \`arch-atlas-import gather-context\` then the repo-analysis skill/plugin — ` +
+        `(e.g. \`archatlas gather-context\` then the repo-analysis skill/plugin — ` +
         `see plugins/repo-analysis). Nothing exported.`
     );
     return;

@@ -22,7 +22,7 @@ in Studio — everything in between is one request to your agent.
 
 ## The CLI
 
-This procedure runs the `arch-atlas-import` CLI (from the published
+This procedure runs the `archatlas` CLI (from the published
 [`@archatlas/llm-importer`](https://www.npmjs.com/package/@archatlas/llm-importer) package)
 to gather context and, afterward, to correlate. Run it with `npx` — no checkout, no build:
 
