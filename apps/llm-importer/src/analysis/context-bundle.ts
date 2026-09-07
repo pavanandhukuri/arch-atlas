@@ -71,7 +71,7 @@ export class ContextBundleVersionError extends Error {
   constructor(found: string, path: string) {
     super(
       `${path}: context bundle schemaVersion "${found}" is not supported ` +
-        `(expected "${CONTEXT_BUNDLE_VERSION}"). Regenerate it with \`arch-atlas-import gather-context\`.`
+        `(expected "${CONTEXT_BUNDLE_VERSION}"). Regenerate it with \`archatlas gather-context\`.`
     );
     this.name = 'ContextBundleVersionError';
   }

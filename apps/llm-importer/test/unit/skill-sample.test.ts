@@ -60,7 +60,7 @@ describe('plugins/repo-analysis (skill/plugin)', () => {
     const manifest = JSON.parse(
       readFileSync(join(PLUGIN_DIR, '.claude-plugin/plugin.json'), 'utf8')
     ) as { name?: string; description?: string; version?: string };
-    expect(manifest.name).toBe('arch-atlas-repo-analysis');
+    expect(manifest.name).toBe('archatlas-repo-analysis');
     expect(manifest.description).toBeTruthy();
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
   });

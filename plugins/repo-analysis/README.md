@@ -52,7 +52,7 @@ claude --plugin-dir /path/to/arch-atlas/plugins/repo-analysis
 (or clone/copy just this `plugins/repo-analysis/` directory anywhere and point `--plugin-dir`
 at that copy — nothing here depends on an arch-atlas checkout).
 
-Once loaded, invoke the skill explicitly with `/arch-atlas-repo-analysis:repo-analysis`, or let
+Once loaded, invoke the skill explicitly with `/archatlas-repo-analysis:repo-analysis`, or let
 Claude pick it up automatically when you ask it to analyze a repository for arch-atlas import.
 
 For any other AGENTS.md-aware agent, no install step is needed — just point it at this

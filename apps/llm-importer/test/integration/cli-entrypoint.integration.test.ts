@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const execFileP = promisify(execFile);
 
 /**
- * Regression guard: npm / npx / pnpm expose the `arch-atlas-import` bin as a
+ * Regression guard: npm / npx / pnpm expose the `archatlas` bin as a
  * SYMLINK into node_modules/.bin. The entry-point check in cli.ts must resolve
  * realpaths — a naive `import.meta.url === file://${process.argv[1]}` silently
  * no-ops when invoked through that symlink (exit 0, no output, nothing written),
@@ -25,8 +25,8 @@ let linkedCli: string;
 
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'cli-entrypoint-'));
-  // mimic node_modules/.bin/arch-atlas-import -> ../<pkg>/src/cli.ts
-  linkedCli = join(dir, 'arch-atlas-import');
+  // mimic node_modules/.bin/archatlas -> ../<pkg>/src/cli.ts
+  linkedCli = join(dir, 'archatlas');
   await symlink(CLI_SRC, linkedCli);
 });
 
@@ -37,7 +37,7 @@ afterAll(async () => {
 describe('cli.ts entry-point detection', () => {
   it('still parses argv when invoked through a bin symlink', async () => {
     const { stdout } = await execFileP(TSX, [linkedCli, '--help']);
-    expect(stdout).toContain('arch-atlas-import');
+    expect(stdout).toContain('archatlas');
     expect(stdout).toContain('gather-context');
     expect(stdout).toContain('import');
   });

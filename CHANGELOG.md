@@ -35,10 +35,15 @@ All notable user-facing changes SHOULD be documented in this file.
 ### Changed — npm scope is now `@archatlas` (was `@arch-atlas`)
 
 - Every workspace package is renamed `@arch-atlas/*` → `@archatlas/*` (the `@arch-atlas` npm
-  org was already taken). The product, the GitHub repo, the `arch-atlas-import` CLI binary and
-  the `arch-atlas-repo-analysis` plugin keep the hyphenated name — only the npm scope changed.
-  A purely mechanical rename across `package.json` names, imports, configs and docs; no code
-  behaviour changes. `specs/` is left as the historical record.
+  org was already taken). A purely mechanical rename across `package.json` names, imports,
+  configs and docs; no code behaviour changes. `specs/` is left as the historical record.
+- Aligned with the new scope: the CLI binary is now **`archatlas`** (was `arch-atlas-import`) —
+  `archatlas gather-context …` / `archatlas import …` — and the Claude Code plugin is
+  **`archatlas-repo-analysis`** (was `arch-atlas-repo-analysis`), invoked as
+  `/archatlas-repo-analysis:repo-analysis`. Done now while nothing depends on the published
+  `0.1.0` — renaming a bin after that would be breaking. The product name ("Arch Atlas") and the
+  GitHub repo keep the hyphen.
+- Ships as **`0.1.1`** (the three packages bump in lockstep).
 
 ### Added — `@archatlas/llm-importer` published to npm
 
@@ -53,9 +58,9 @@ All notable user-facing changes SHOULD be documented in this file.
 - **`plugins/repo-analysis` now runs the importer via `npx @archatlas/llm-importer@latest`** —
   no arch-atlas checkout, no build step, no `$ARCH_ATLAS_HOME`. `AGENTS.md`, `SKILL.md` and the
   plugin README are rewritten around this; a developer using the plugin needs only Node ≥ 22.
-- **Fixed:** the `arch-atlas-import` bin silently no-op'd (exit 0, no output) when invoked
-  through the `node_modules/.bin` symlink that npm / npx / pnpm create — the entry-point check
-  now compares realpath-resolved paths. Covered by `test/integration/cli-entrypoint.integration.test.ts`.
+- **Fixed:** the CLI bin silently no-op'd (exit 0, no output) when invoked through the
+  `node_modules/.bin` symlink that npm / npx / pnpm create — the entry-point check now compares
+  realpath-resolved paths. Covered by `test/integration/cli-entrypoint.integration.test.ts`.
 - Package hygiene for the three published packages: `files`, `publishConfig.access`, `engines`,
   `repository.directory`, `homepage`, and a `prepack` clean-rebuild so a stale `dist/` can't
   ship.
