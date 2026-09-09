@@ -31,6 +31,10 @@ All notable user-facing changes SHOULD be documented in this file.
   `SKILL.md` is now a thin Claude-Code-specific wrapper that points at it, kept only for
   discoverability inside a Claude Code session. Which model the procedure runs against — local
   or hosted — is entirely a property of the coding agent you use; arch-atlas has no opinion.
+- **Claude Code plugin marketplace** (`.claude-plugin/marketplace.json` at the repo root) — the
+  plugin is now `/plugin install`-able from anywhere:
+  `/plugin marketplace add pavanandhukuri/arch-atlas` then
+  `/plugin install archatlas-repo-analysis@archatlas`. `--plugin-dir` still works for local dev.
 
 ### Changed — npm scope is now `@archatlas` (was `@arch-atlas`)
 

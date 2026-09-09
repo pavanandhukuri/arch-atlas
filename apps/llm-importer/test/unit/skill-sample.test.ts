@@ -5,7 +5,8 @@ import { RepoAnalysisSchema } from '../../src/analysis/repo-analysis.schema.js';
 import { toCorrelationGraph } from '../../src/analysis/to-correlation-graph.js';
 import { RepositoryKnowledgeGraphSchema } from '../../src/graph/schema.js';
 
-const PLUGIN_DIR = join(import.meta.dirname, '../../../../plugins/repo-analysis');
+const REPO_ROOT = join(import.meta.dirname, '../../../..');
+const PLUGIN_DIR = join(REPO_ROOT, 'plugins/repo-analysis');
 const SKILL_DIR = join(PLUGIN_DIR, 'skills/repo-analysis');
 
 describe('plugins/repo-analysis (skill/plugin)', () => {
@@ -63,5 +64,29 @@ describe('plugins/repo-analysis (skill/plugin)', () => {
     expect(manifest.name).toBe('archatlas-repo-analysis');
     expect(manifest.description).toBeTruthy();
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  it('the repo-root marketplace.json lists this plugin at its real path', () => {
+    const mkt = JSON.parse(
+      readFileSync(join(REPO_ROOT, '.claude-plugin/marketplace.json'), 'utf8')
+    ) as {
+      name?: string;
+      owner?: { name?: string };
+      plugins?: Array<{ name?: string; source?: string; description?: string }>;
+    };
+    expect(mkt.name).toBe('archatlas');
+    expect(mkt.owner?.name).toBeTruthy();
+
+    const entry = mkt.plugins?.find((p) => p.name === 'archatlas-repo-analysis');
+    expect(entry).toBeDefined();
+    expect(entry?.description).toBeTruthy();
+    // A relative `source` resolves from the marketplace root (the dir that
+    // contains .claude-plugin/) — i.e. the repo root — and must land on the
+    // plugin dir that actually holds plugin.json.
+    const resolved = join(REPO_ROOT, entry?.source ?? '');
+    const pluginManifest = JSON.parse(
+      readFileSync(join(resolved, '.claude-plugin/plugin.json'), 'utf8')
+    ) as { name?: string };
+    expect(pluginManifest.name).toBe('archatlas-repo-analysis');
   });
 });

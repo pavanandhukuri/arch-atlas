@@ -43,14 +43,21 @@ use. Run it against any collection of repositories, anywhere on disk.
 
 ## Install (Claude Code)
 
-Test locally without any marketplace setup:
+From the marketplace (persistent; `/plugin marketplace update` pulls new versions):
+
+```
+/plugin marketplace add pavanandhukuri/arch-atlas
+/plugin install archatlas-repo-analysis@archatlas
+```
+
+Or for a one-off / local development session, skip the marketplace:
 
 ```bash
 claude --plugin-dir /path/to/arch-atlas/plugins/repo-analysis
 ```
 
-(or clone/copy just this `plugins/repo-analysis/` directory anywhere and point `--plugin-dir`
-at that copy — nothing here depends on an arch-atlas checkout).
+(clone/copy just this `plugins/repo-analysis/` directory anywhere and point `--plugin-dir` at
+that copy — nothing here depends on an arch-atlas checkout).
 
 Once loaded, invoke the skill explicitly with `/archatlas-repo-analysis:repo-analysis`, or let
 Claude pick it up automatically when you ask it to analyze a repository for arch-atlas import.
