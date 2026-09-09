@@ -16,10 +16,10 @@ wizard. No separate deterministic steps for you to run by hand. (It'll follow th
 steps for a single repo path or a `{repo}.context.json` bundle too, if that's all you hand it —
 `import` needs the whole workspace, so that step only runs when you point it at `import.yaml`.)
 
-Claude Code users additionally get a packaged skill (`skills/repo-analysis/SKILL.md`) that
-wraps the same procedure so it's discoverable and auto-invocable inside a Claude Code session
-— see [Install](#install) below. Every other agent just reads `AGENTS.md` directly; nothing
-to install.
+Claude Code users additionally get a packaged skill (`skills/import/SKILL.md`) that wraps the
+same procedure so it's discoverable and auto-invocable inside a Claude Code session — see
+[Install](#install) below. Every other agent just reads `AGENTS.md` directly; nothing to
+install.
 
 **Local model or hosted model — your choice.** The arch-atlas importer core
 (`@archatlas/llm-importer`) is deterministic and makes no model call itself; it only ever
@@ -47,7 +47,7 @@ From the marketplace (persistent; `/plugin marketplace update` pulls new version
 
 ```
 /plugin marketplace add pavanandhukuri/arch-atlas
-/plugin install archatlas-repo-analysis@archatlas
+/plugin install repo-analysis@archatlas
 ```
 
 Or for a one-off / local development session, skip the marketplace:
@@ -59,8 +59,8 @@ claude --plugin-dir /path/to/arch-atlas/plugins/repo-analysis
 (clone/copy just this `plugins/repo-analysis/` directory anywhere and point `--plugin-dir` at
 that copy — nothing here depends on an arch-atlas checkout).
 
-Once loaded, invoke the skill explicitly with `/archatlas-repo-analysis:repo-analysis`, or let
-Claude pick it up automatically when you ask it to analyze a repository for arch-atlas import.
+Once loaded, invoke the skill explicitly with `/repo-analysis:import`, or let Claude pick it up
+automatically when you ask it to import a workspace for arch-atlas.
 
 For any other AGENTS.md-aware agent, no install step is needed — just point it at this
 directory (or copy `AGENTS.md` alongside the repositories you're analyzing) and ask it to

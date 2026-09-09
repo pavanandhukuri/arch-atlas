@@ -7,7 +7,7 @@ import { RepositoryKnowledgeGraphSchema } from '../../src/graph/schema.js';
 
 const REPO_ROOT = join(import.meta.dirname, '../../../..');
 const PLUGIN_DIR = join(REPO_ROOT, 'plugins/repo-analysis');
-const SKILL_DIR = join(PLUGIN_DIR, 'skills/repo-analysis');
+const SKILL_DIR = join(PLUGIN_DIR, 'skills/import');
 
 describe('plugins/repo-analysis (skill/plugin)', () => {
   it('sample-analysis.json satisfies RepoAnalysisSchema (SK1)', () => {
@@ -45,7 +45,7 @@ describe('plugins/repo-analysis (skill/plugin)', () => {
 
   it('SKILL.md is a thin Claude Code wrapper pointing at AGENTS.md', () => {
     const skill = readFileSync(join(SKILL_DIR, 'SKILL.md'), 'utf8');
-    expect(skill).toContain('name: repo-analysis');
+    expect(skill).toContain('name: import');
     expect(skill).toContain('../../AGENTS.md');
   });
 
@@ -61,7 +61,7 @@ describe('plugins/repo-analysis (skill/plugin)', () => {
     const manifest = JSON.parse(
       readFileSync(join(PLUGIN_DIR, '.claude-plugin/plugin.json'), 'utf8')
     ) as { name?: string; description?: string; version?: string };
-    expect(manifest.name).toBe('archatlas-repo-analysis');
+    expect(manifest.name).toBe('repo-analysis');
     expect(manifest.description).toBeTruthy();
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
@@ -77,7 +77,7 @@ describe('plugins/repo-analysis (skill/plugin)', () => {
     expect(mkt.name).toBe('archatlas');
     expect(mkt.owner?.name).toBeTruthy();
 
-    const entry = mkt.plugins?.find((p) => p.name === 'archatlas-repo-analysis');
+    const entry = mkt.plugins?.find((p) => p.name === 'repo-analysis');
     expect(entry).toBeDefined();
     expect(entry?.description).toBeTruthy();
     // A relative `source` resolves from the marketplace root (the dir that
@@ -87,6 +87,6 @@ describe('plugins/repo-analysis (skill/plugin)', () => {
     const pluginManifest = JSON.parse(
       readFileSync(join(resolved, '.claude-plugin/plugin.json'), 'utf8')
     ) as { name?: string };
-    expect(pluginManifest.name).toBe('archatlas-repo-analysis');
+    expect(pluginManifest.name).toBe('repo-analysis');
   });
 });

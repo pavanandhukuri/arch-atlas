@@ -114,5 +114,5 @@ Each `{repo}.analysis.json` must satisfy the importer's `RepoAnalysisSchema`. Yo
 separate validation step — the `import` run in Procedure step 4 parses every artifact and
 names-and-skips any that doesn't match the schema, so a malformed file shows up in that
 output. Match the shape in the JSON block above, and follow
-`skills/repo-analysis/sample-analysis.json` (a worked example beside this file), and it will
+`skills/import/sample-analysis.json` (a worked example beside this file), and it will
 pass.
