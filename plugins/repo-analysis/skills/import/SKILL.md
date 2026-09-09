@@ -1,9 +1,9 @@
 ---
-name: repo-analysis
+name: import
 description: Run the arch-atlas repo importer end-to-end for a workspace's import.yaml — gathers context, analyzes every listed repository, and correlates them into architecture.review.yaml / architecture.arch.json, ready for Studio's import wizard. Also handles a single repository or a context bundle. Use when the user wants to run the arch-atlas repo importer with Claude Code.
 ---
 
-# repo-analysis (Claude Code)
+# repo-analysis: import (Claude Code)
 
 Follow the procedure in [`../../AGENTS.md`](../../AGENTS.md) — that file is the canonical,
 tool-neutral version of this skill (it works the same way under any AGENTS.md-aware coding

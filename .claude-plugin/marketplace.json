@@ -1,0 +1,15 @@
+{
+  "name": "archatlas",
+  "owner": {
+    "name": "Arch Atlas contributors",
+    "url": "https://github.com/pavanandhukuri/arch-atlas"
+  },
+  "description": "Plugins for arch-atlas — turn a multi-repository workspace into a C4 architecture diagram.",
+  "plugins": [
+    {
+      "name": "repo-analysis",
+      "source": "./plugins/repo-analysis",
+      "description": "Import a multi-repo workspace into an arch-atlas / C4 diagram — gathers context, analyzes each repo, correlates. Works with any AGENTS.md-aware coding agent, against any model you choose."
+    }
+  ]
+}

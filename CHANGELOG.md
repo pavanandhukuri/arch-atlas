@@ -21,7 +21,7 @@ All notable user-facing changes SHOULD be documented in this file.
 
 - **The `repo-analysis` producer moved from `.claude/skills/repo-analysis/` to `plugins/repo-analysis/`,
   restructured as a proper, portable Claude Code plugin** (`.claude-plugin/plugin.json` manifest +
-  `skills/repo-analysis/`). `.claude/` is personal, gitignored configuration for whoever is
+  a `skills/` dir). `.claude/` is personal, gitignored configuration for whoever is
   developing this repo — not the right place to ship a deliverable other people install into their
   own, unrelated projects. Install with `claude --plugin-dir /path/to/plugins/repo-analysis`; see
   `plugins/repo-analysis/README.md`.
@@ -31,6 +31,11 @@ All notable user-facing changes SHOULD be documented in this file.
   `SKILL.md` is now a thin Claude-Code-specific wrapper that points at it, kept only for
   discoverability inside a Claude Code session. Which model the procedure runs against — local
   or hosted — is entirely a property of the coding agent you use; arch-atlas has no opinion.
+- **Claude Code plugin marketplace** (`.claude-plugin/marketplace.json` at the repo root) — the
+  plugin is now `/plugin install`-able from anywhere:
+  `/plugin marketplace add pavanandhukuri/arch-atlas` then `/plugin install repo-analysis@archatlas`.
+  `--plugin-dir` still works for local dev. The plugin is named `repo-analysis` (the `@archatlas`
+  marketplace already namespaces it) and its one skill is `import`, so it's `/repo-analysis:import`.
 
 ### Changed — npm scope is now `@archatlas` (was `@arch-atlas`)
 
@@ -38,11 +43,10 @@ All notable user-facing changes SHOULD be documented in this file.
   org was already taken). A purely mechanical rename across `package.json` names, imports,
   configs and docs; no code behaviour changes. `specs/` is left as the historical record.
 - Aligned with the new scope: the CLI binary is now **`archatlas`** (was `arch-atlas-import`) —
-  `archatlas gather-context …` / `archatlas import …` — and the Claude Code plugin is
-  **`archatlas-repo-analysis`** (was `arch-atlas-repo-analysis`), invoked as
-  `/archatlas-repo-analysis:repo-analysis`. Done now while nothing depends on the published
-  `0.1.0` — renaming a bin after that would be breaking. The product name ("Arch Atlas") and the
-  GitHub repo keep the hyphen.
+  `archatlas gather-context …` / `archatlas import …`. Done now while nothing depends on the
+  published `0.1.0` — renaming a bin after that would be breaking. The Claude Code plugin is
+  **`repo-analysis`** (skill `import`, so `/repo-analysis:import`). The product name
+  ("Arch Atlas") and the GitHub repo keep the hyphen.
 - Ships as **`0.1.1`** (the three packages bump in lockstep).
 
 ### Added — `@archatlas/llm-importer` published to npm
