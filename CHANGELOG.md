@@ -4,6 +4,26 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Added — external systems, connection context, cleaner technology labels
+
+- **External systems in the imported model.** A per-repo `outbound` intent that names something
+  outside the workspace — an identity provider, object store, managed queue, third-party API —
+  used to be silently dropped: only repo↔repo edges and `docker-compose` images ever became
+  diagram elements. A new external-system pass (`src/correlate/external-systems.ts`) promotes
+  those intents into candidates, normalizing the name so `"Lenovo Passport / Keycloak"` /
+  `"Lenovo Service Clients Keycloak"` collapse to one **Keycloak**, `"S3-compatible blob storage"`
+  → **Amazon S3**, etc. Model-derived and unverified by literal evidence, so they surface no
+  higher than `medium` for the reviewer to confirm. (On the uds-sdk workspace this recovered
+  Keycloak, Amazon S3, AWS KMS/STS and Firebase Cloud Messaging.)
+- **Richer connection labels.** The name-mention pass and the new external pass now carry the
+  producer's full `outbound.detail` onto the candidate's `reasoning` (e.g. _"opens an
+  authenticated WebSocket to /api/notifications/v1/ws…"_) instead of just the bare repo/system
+  name that matched.
+- **Cleaner `technology` labels.** `<language> / <first real framework>` with a denylist for
+  stdlib HTTP and transport/client libs — so a repo reads `Go` or `Java / Spring Boot`, not
+  `Go / net/http` or `Go / IBM/sarama`. Falls back to the language alone when every listed
+  framework is noise.
+
 ### Removed — the local-model reference producer
 
 - **`packages/analysis-runner-local` is deleted.** It was a reference implementation of the

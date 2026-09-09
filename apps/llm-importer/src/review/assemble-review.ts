@@ -26,11 +26,21 @@ const EDGE_TYPE_TO_CANDIDATE_TYPE: Partial<Record<GraphEdgeType, Candidate['type
 
 function connectionSource(
   connection: CrossRepositoryConnection
-): 'evidence-correlation' | 'deterministic-correlation' | 'agentic-correlation-fallback' {
-  if (connection.foundBy === 'evidence') return 'evidence-correlation';
-  return connection.foundBy === 'deterministic'
-    ? 'deterministic-correlation'
-    : 'agentic-correlation-fallback';
+):
+  | 'evidence-correlation'
+  | 'deterministic-correlation'
+  | 'external-outbound'
+  | 'agentic-correlation-fallback' {
+  switch (connection.foundBy) {
+    case 'evidence':
+      return 'evidence-correlation';
+    case 'deterministic':
+      return 'deterministic-correlation';
+    case 'external-outbound':
+      return 'external-outbound';
+    default:
+      return 'agentic-correlation-fallback';
+  }
 }
 
 export function assembleReviewFile(

@@ -29,6 +29,18 @@ describe('mapToConfidenceBucket', () => {
     });
   });
 
+  describe('external-outbound source (trusted as-is, capped at medium)', () => {
+    it('caps a would-be-high model confidence at medium', () => {
+      expect(mapToConfidenceBucket(0.9, 'external-outbound')).toBe('medium');
+    });
+    it('keeps a medium confidence at medium', () => {
+      expect(mapToConfidenceBucket(0.5, 'external-outbound')).toBe('medium');
+    });
+    it('leaves a low confidence at low', () => {
+      expect(mapToConfidenceBucket(0.3, 'external-outbound')).toBe('low');
+    });
+  });
+
   describe('agentic-correlation-fallback source (capped at low — research.md D14.4)', () => {
     it('caps a would-be-high weight at low', () => {
       expect(mapToConfidenceBucket(0.95, 'agentic-correlation-fallback')).toBe('low');

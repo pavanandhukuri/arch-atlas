@@ -68,7 +68,42 @@ describe('correlateDeterministically', () => {
       type: 'publishes',
       foundBy: 'deterministic',
     });
+    // The connection carries the full outbound detail (edge.description), not
+    // just the bare repo-name substring that matched — so a reviewer sees why.
+    expect(connections[0]?.evidence).toEqual([
+      'publishes to a topic consumed by notification-service',
+    ]);
     expect(unresolvedPairs).toHaveLength(0);
+  });
+
+  it('promotes an outbound intent to an external system not in the workspace', () => {
+    const svc = makeGraph({
+      repository: { name: 'sdk', path: '/sdk' },
+      nodes: [
+        { id: 'module:sdk', type: 'module', name: 'sdk', summary: '' },
+        {
+          id: 'service:Lenovo Passport / Keycloak',
+          type: 'service',
+          name: 'Lenovo Passport / Keycloak',
+          summary: '',
+        },
+      ],
+      edges: [
+        {
+          source: 'module:sdk',
+          target: 'service:Lenovo Passport / Keycloak',
+          type: 'calls',
+          weight: 0.9,
+          description: 'OIDC token exchange against /auth/realms/…/token',
+        },
+      ],
+    });
+    const other = makeGraph({ repository: { name: 'other', path: '/other' } });
+
+    const { connections } = correlateDeterministically([svc, other]);
+    const kc = connections.find((c) => c.targetRepo === 'Keycloak');
+    expect(kc).toMatchObject({ sourceRepo: 'sdk', type: 'calls', foundBy: 'external-outbound' });
+    expect(kc?.evidence).toEqual(['OIDC token exchange against /auth/realms/…/token']);
   });
 
   it('reports an unresolved pair when neither repo mentions the other', () => {
