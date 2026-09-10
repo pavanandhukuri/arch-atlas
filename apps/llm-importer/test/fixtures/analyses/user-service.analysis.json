@@ -21,6 +21,12 @@
       "verb": "calls",
       "detail": "sends welcome notifications via POST /api/notifications/v1/send through the API gateway",
       "confidence": 0.7
+    },
+    {
+      "target": "Amazon S3",
+      "verb": "writes_to",
+      "detail": "stores user avatars in an S3 bucket via the AWS SDK",
+      "confidence": 0.8
     }
   ],
   "analysisStatus": "complete",

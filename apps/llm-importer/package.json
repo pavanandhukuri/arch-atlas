@@ -46,10 +46,12 @@
     "build": "tsc",
     "prepack": "pnpm run clean && pnpm run build",
     "import": "tsx src/cli.ts",
+    "eval": "tsx eval/run.ts",
+    "eval:extract": "tsx eval/extract.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src/ test/",
-    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/ test/ eval/",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "clean": "rm -rf dist coverage"
   },
   "dependencies": {

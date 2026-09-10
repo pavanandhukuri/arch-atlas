@@ -1,0 +1,54 @@
+{
+  "repos": {
+    "user-service": {
+      "role": "Owns user accounts; persists them to PostgreSQL and publishes user-created on registration",
+      "languages": ["TypeScript"],
+      "frameworks": ["node-postgres", "KafkaJS"],
+      "served": {
+        "topics": ["user-created:pub"],
+        "datastores": ["users"]
+      },
+      "outbound": ["notification-service", "Amazon S3"]
+    },
+    "notification-service": {
+      "role": "Delivers user-facing notifications; consumes user-created and serves POST /v1/send",
+      "languages": ["TypeScript"],
+      "frameworks": ["KafkaJS"],
+      "served": {
+        "httpRoutes": ["/v1/send"],
+        "topics": ["user-created:sub"]
+      },
+      "outbound": []
+    },
+    "audit-service": {
+      "role": "Records an append-only audit trail; consumes user-created and writes to the audit_log table",
+      "languages": ["Go"],
+      "frameworks": ["kafka-go", "pgx"],
+      "served": {
+        "httpRoutes": ["/v1/audit"],
+        "topics": ["user-created:sub"],
+        "datastores": ["audit_log"]
+      },
+      "outbound": []
+    },
+    "gateway": {
+      "role": "Public API gateway that reverse-proxies /api/* to the backing services",
+      "languages": ["TypeScript"],
+      "frameworks": ["Express", "http-proxy-middleware"],
+      "served": {
+        "httpRoutes": ["/api/users", "/api/notifications", "/api/audit"]
+      },
+      "outbound": ["user-service", "notification-service", "audit-service", "Keycloak"]
+    }
+  },
+  "connections": [
+    { "from": "gateway", "to": "user-service", "kind": "http" },
+    { "from": "gateway", "to": "notification-service", "kind": "http" },
+    { "from": "gateway", "to": "audit-service", "kind": "http" },
+    { "from": "gateway", "to": "Keycloak", "kind": "auth" },
+    { "from": "user-service", "to": "notification-service", "kind": "http" },
+    { "from": "user-service", "to": "audit-service", "kind": "event" },
+    { "from": "user-service", "to": "Amazon S3", "kind": "blob" }
+  ],
+  "externalSystems": ["Amazon S3", "Keycloak"]
+}

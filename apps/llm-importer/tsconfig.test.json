@@ -9,12 +9,12 @@
       "@archatlas/llm-importer": ["./src/index.ts"]
     }
   },
-  "include": ["src/**/*", "test/**/*"],
+  "include": ["src/**/*", "test/**/*", "eval/**/*"],
   "exclude": [
     "node_modules",
     "dist",
     "vendor/**/*",
     "test/fixtures/repos/**/*",
-    "test/eval/golden/*/workspace/**/*"
+    "eval/golden/*/workspace/**/*"
   ]
 }
