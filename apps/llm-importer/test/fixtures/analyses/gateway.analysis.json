@@ -37,6 +37,12 @@
       "verb": "calls",
       "detail": "proxies /api/audit/* to audit-service",
       "confidence": 0.8
+    },
+    {
+      "target": "Keycloak",
+      "verb": "depends_on",
+      "detail": "validates bearer tokens against the Keycloak realm on every proxied request",
+      "confidence": 0.85
     }
   ],
   "analysisStatus": "complete",

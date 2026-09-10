@@ -1,0 +1,11 @@
+# Synthetic CI-gating golden set. The repo trees and the committed analyses are
+# the ones the model-free pipeline integration test already uses
+# (test/fixtures/repos + test/fixtures/analyses) — no copies, no clones, offline.
+name: fixtures
+workspace:
+  local: ../../../test/fixtures/repos
+repos:
+  - { name: user-service, path: user-service }
+  - { name: notification-service, path: notification-service }
+  - { name: audit-service, path: audit-service }
+  - { name: gateway, path: gateway }

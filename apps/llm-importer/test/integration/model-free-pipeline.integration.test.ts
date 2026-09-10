@@ -76,11 +76,16 @@ describe('model-free import pipeline', () => {
     // eval, which surfaced this exact gap against real Go source).
     expect(edgeSet.has('user-service -> audit-service')).toBe(true);
 
+    // gateway -> Keycloak and user-service -> Amazon S3 come from the
+    // external-systems pass (013) reading the two external outbound intents
+    // added to the gateway / user-service fixture analyses.
     expect([...edgeSet].sort()).toMatchInlineSnapshot(`
       [
+        "gateway -> Keycloak",
         "gateway -> audit-service",
         "gateway -> notification-service",
         "gateway -> user-service",
+        "user-service -> Amazon S3",
         "user-service -> audit-service",
         "user-service -> gateway",
         "user-service -> notification-service",

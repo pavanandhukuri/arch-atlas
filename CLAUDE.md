@@ -1,8 +1,10 @@
 # arch-atlas Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-09-05
+Auto-generated from all feature plans. Last updated: 2026-09-11
 
 ## Active Technologies
+
+- TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022), Node ≥ 22. **013**: rebuilds the deterministic correlation eval under `apps/llm-importer/eval/` — resurrected model-call-free `score.ts` (`scoreConnections` + new `scoreExternalSystems`) + a runner that scores committed golden `{repo}.analysis.json` via `toCorrelationGraph → correlateDeterministically → assembleReviewFile` against `ground-truth.json`, gated in CI by `eval --check` vs a committed `baseline.json`. No new dependency (`tsx`/`js-yaml`/`zod`/`vitest` already present); nothing under `eval/` ships in the npm tarball (`files: ["dist"]`). Also an opt-in local-only `eval:extract` per-field score. (013-eval-harness-rebuild)
 
 - TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022), Node ≥ 22. **012**: `endpointPass` in `src/correlate/evidence-passes.ts` no longer treats a route-shaped literal with no HTTP-method signal as a real call when it only matches a served route's single static segment (e.g. `/product/*`) — a new `staticSegmentCount` helper in `evidence/parsers/routes.ts` plus one guard clause. No new dep, no evidence/parser-shape/schema/CLI change; only `routes.ts` + `evidence-passes.ts` + their unit tests + the `online-boutique` eval baseline. (012-endpointpass-wildcard-fp)
 
@@ -46,11 +48,11 @@ TypeScript 5.3.0: Follow standard conventions
 
 ## Recent Changes
 
+- 013-eval-harness-rebuild: rebuilt the deterministic correlation eval (deleted with `analysis-runner-local` in #23) under `apps/llm-importer/eval/`; scores connection + external-system P/R/F1 over a committed synthetic golden set, gated in CI by `eval --check` vs `baseline.json`. Extraction eval split out as local-only. No new dep, no published-surface change.
+
 - 012-endpointpass-wildcard-fp: `endpointPass` no longer accepts a route-shaped literal with no HTTP-method signal as a match against a served route that has at most one static segment (e.g. `/product/*`) — closes the last documented false positive on Online Boutique (011 D2 follow-up), taking `connectionsPrecision` from ~0.933 to 1.0. New `staticSegmentCount` helper in `evidence/parsers/routes.ts`; scoped guard in `endpointPass` only. No deps, no evidence-shape/schema/CLI change.
 
 - 011-schemapass-shared-contract: `schemaPass` no longer treats a shared vendored multi-service `.proto` (or a proto package held by ≥3 repos) as a cross-repo dependency; identical-copy edges now route to the single owning repo or are dropped. Fixes the ~0.667 `connectionsPrecision` ceiling on Online Boutique (009 D14 follow-up). Scoped to `evidence-passes.ts`; no deps, no schema/CLI change.
-
-- 009-grpc-cross-repo-correlation: new deterministic `grpcPass` in the evidence-grounded correlator — matches gRPC client/stub construction sites against served gRPC services to draw directed cross-repo `calls` edges (fixes `connectionsRecall = 0` on all-gRPC workspaces). Purely additive; no new deps, no persisted-schema change.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

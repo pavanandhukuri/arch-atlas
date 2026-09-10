@@ -4,6 +4,24 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Added — deterministic correlation eval harness
+
+- **`apps/llm-importer/eval/` rebuilt.** The eval harness deleted with
+  `packages/analysis-runner-local` is back, split to match the model-free architecture:
+  - **Correlation eval** (`pnpm --filter @archatlas/llm-importer eval`) — deterministic, offline,
+    no model. Runs the real `toCorrelationGraph` → `correlateDeterministically` pipeline over a
+    golden set's committed `{repo}.analysis.json` artifacts and scores cross-repo connection
+    precision/recall/F1 **and** external-system recovery (Keycloak / Amazon S3 / …) against a
+    hand-labelled `ground-truth.json`. `eval -- --check` gates against a committed
+    `baseline.json` (0.02 tolerance) and now runs in CI; `eval -- --update-baseline` moves the
+    baseline deliberately, reviewed like a snapshot.
+  - **Extraction eval** (`eval:extract`) — per-repo languages / frameworks / served-interface /
+    outbound precision/recall/F1 for analyses produced by an agent. Always exits 0, never runs
+    in CI.
+  - One synthetic golden set (`eval/golden/fixtures/`) reusing the in-repo 6-repo fixture
+    workspace; two fixture analyses gained an external `outbound` intent (user-service → Amazon
+    S3, gateway → Keycloak) so external-system recall is actually exercised.
+
 ### Added — external systems, connection context, cleaner technology labels
 
 - **External systems in the imported model.** A per-repo `outbound` intent that names something
