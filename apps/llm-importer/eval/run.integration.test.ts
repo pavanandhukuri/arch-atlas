@@ -4,9 +4,11 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { toCorrelationGraph } from '../src/analysis/to-correlation-graph.js';
 import { correlateDeterministically } from '../src/correlate/deterministic-correlator.js';
-import { loadGoldenSet } from './load.js';
+import { diffBaseline } from './baseline.js';
+import { listGoldenSets, loadGoldenSet } from './load.js';
 import { scoreConnections, scoreExternalSystems } from './score.js';
 import { BaselineSchema } from './schema.js';
+import type { CorrelationReport } from './types.js';
 
 /**
  * The `fixtures` golden set is the CI gate. This runs the real correlation
@@ -19,6 +21,10 @@ describe('correlation eval — fixtures golden set', () => {
   const repoNames = config.repos.map((r) => r.name);
   const graphs = analyses.map(toCorrelationGraph);
   const { connections } = correlateDeterministically(graphs);
+
+  it('is discoverable as a golden set', () => {
+    expect(listGoldenSets()).toContain('fixtures');
+  });
 
   it('recovers every true cross-repo connection (recall 1.0) with one known name-mention FP', () => {
     const s = scoreConnections(connections, groundTruth);
@@ -44,18 +50,22 @@ describe('correlation eval — fixtures golden set', () => {
     expect(s.tp).toBe(0);
   });
 
-  it('matches the committed baseline.json', () => {
+  it('still passes `eval -- --check` against the committed baseline.json', () => {
     const here = fileURLToPath(new URL('.', import.meta.url));
     const baseline = BaselineSchema.parse(
       JSON.parse(readFileSync(join(here, 'baseline.json'), 'utf8'))
     );
-    const conn = scoreConnections(connections, groundTruth);
-    const ext = scoreExternalSystems(connections, groundTruth.externalSystems, repoNames);
-    const b = baseline['fixtures'];
-    if (!b) throw new Error('baseline.json has no "fixtures" entry');
-    expect(conn.precision).toBeCloseTo(b.connections.precision, 3);
-    expect(conn.recall).toBeCloseTo(b.connections.recall, 3);
-    expect(ext.recall).toBeCloseTo(b.externalSystems.recall, 3);
-    expect(ext.f1).toBeCloseTo(b.externalSystems.f1, 3);
+    const report: CorrelationReport = {
+      set: 'fixtures',
+      generatedAt: '',
+      connections: scoreConnections(connections, groundTruth),
+      externalSystems: scoreExternalSystems(connections, groundTruth.externalSystems, repoNames),
+      expected: { connections: [], externalSystems: [] },
+      predicted: { connections: [], externalSystems: [] },
+    };
+    const diff = diffBaseline([report], baseline);
+    expect(diff.missing).toEqual([]);
+    expect(diff.movements.filter((m) => m.regressed)).toEqual([]);
+    expect(diff.ok).toBe(true);
   });
 });

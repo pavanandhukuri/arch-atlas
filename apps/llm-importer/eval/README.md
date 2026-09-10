@@ -14,11 +14,14 @@ Deterministic and offline: it loads a golden set's committed `{repo}.analysis.js
 runs the real `toCorrelationGraph` → `correlateDeterministically` pipeline against the repo
 source on disk, and scores against `ground-truth.json`:
 
-- **connections** — directed cross-repo edge precision / recall / F1 (external systems included:
-  `gateway → Keycloak` is a real edge).
-- **externalSystems** — precision / recall / F1 of the ground-truth `externalSystems` list
-  against the connection targets that are not workspace repos. Recall is the headline — a
-  dropped external dependency is the regression this exists to catch.
+- **connections** — precision / recall / F1 over **every** directed cross-repo edge in
+  `ground-truth.json`'s `connections[]`, edges to external systems included (`gateway → Keycloak`
+  is a real edge). So an external system the correlator recovers must also appear as a
+  `connections[]` row or it scores as a false positive here.
+- **externalSystems** — precision / recall / F1 of the ground-truth `externalSystems[]` list
+  against the connection targets that are not workspace repos. A focused second view on the same
+  external edges. Recall is the headline — a dropped external dependency is the regression this
+  exists to catch.
 
 ```bash
 pnpm --filter @archatlas/llm-importer eval                     # report every golden set
@@ -72,6 +75,28 @@ eval/golden/<name>/
 ├── eval.config.yaml     # name; workspace.local (dir of repo trees, relative to this file); repos[]
 ├── ground-truth.json    # repos{} + connections[] + externalSystems[]
 └── analyses/            # optional: <repo>.analysis.json committed here …
+```
+
+`ground-truth.json`:
+
+```jsonc
+{
+  "repos": {
+    "svc-a": {
+      "role": "…",
+      "languages": ["Go"],
+      "frameworks": ["Gin"],
+      "served": {},
+      "outbound": ["svc-b", "Keycloak"],
+    },
+    // …one entry per repo in eval.config.yaml
+  },
+  "connections": [
+    { "from": "svc-a", "to": "svc-b", "kind": "http" },
+    { "from": "svc-a", "to": "Keycloak", "kind": "auth" }, // external edges go here too
+  ],
+  "externalSystems": ["Keycloak"], // the non-repo targets, repeated for the focused recall metric
+}
 ```
 
 Analyses resolve from `golden/<name>/analyses/` if that dir exists, otherwise from `../analyses`

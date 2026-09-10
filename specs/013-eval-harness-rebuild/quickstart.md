@@ -83,12 +83,18 @@ Per-repo, per-field precision / recall / F1 for `languages` / `frameworks` / ser
          "outbound": [],
        },
      },
-     "connections": [{ "from": "svc-a", "to": "svc-b", "kind": "http" }],
-     "externalSystems": ["Amazon S3", "Keycloak"],
+     "connections": [
+       { "from": "svc-a", "to": "svc-b", "kind": "http" },
+       { "from": "svc-a", "to": "Keycloak", "kind": "auth" },
+     ],
+     "externalSystems": ["Keycloak"],
    }
    ```
 
-   Every `from`/`to` must be a `repos` key or listed in `externalSystems`.
+   Every `from`/`to` must be a `repos` key or listed in `externalSystems`. External edges belong
+   in **both** `connections[]` (scored by the connections metric) and `externalSystems[]` (the
+   focused recall metric) — an external the correlator recovers but `connections[]` omits scores
+   as a connections false positive.
 
 3. Provide the analyses: either commit `<name>.analysis.json` next to `eval.config.yaml` under an
    `analyses/` dir, **or** (like the `fixtures` set) point `workspace.local` at an existing tree and

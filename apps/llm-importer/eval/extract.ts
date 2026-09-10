@@ -57,7 +57,14 @@ function main(): void {
     if (args.out) {
       const file = join(args.out, `${repoName}.analysis.json`);
       if (!existsSync(file)) return null;
-      return RepoAnalysisSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
+      try {
+        return RepoAnalysisSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
+      } catch (err) {
+        console.error(
+          `  [skip] ${repoName}: ${file} is not a valid analysis artifact — ${err instanceof Error ? err.message : String(err)}`
+        );
+        return null;
+      }
     }
     return committed.find((a) => a.repository.name === repoName) ?? null;
   };
@@ -109,4 +116,11 @@ function printReport(r: ExtractionReport): void {
   console.log('\n(extraction eval is advisory — exit 0 regardless)');
 }
 
-main();
+try {
+  main();
+} catch (err) {
+  // advisory tool — a broken golden set or config is reported, never a failure
+  console.error(
+    `\ncould not run the extraction eval: ${err instanceof Error ? err.message : String(err)}`
+  );
+}
