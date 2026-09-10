@@ -29,11 +29,21 @@ function log(line: string): void {
   console.error(line);
 }
 
+/**
+ * Frameworks the producer lists that aren't what you'd label a container with —
+ * stdlib HTTP, transport/client libs, small utilities. Skipped when picking the
+ * headline framework so `technology` reads "Go" or "Java / Spring Boot", not
+ * "Go / net/http" or "Go / IBM/sarama". If every listed framework is noise, the
+ * label falls back to just the language.
+ */
+const NOISE_FRAMEWORK =
+  /^(net\/http|gorilla\/|golang\.org\/x\/|golang-jwt\/|lestrrat-go\/|IBM\/sarama|segmentio\/kafka-go|confluent|commander|dotenv|zod|js-yaml|lodash|axios|@types\/|kotlinx\.|firebase-)/i;
+
 function techLabel(analysis: RepoAnalysis): string {
-  return (
-    analysis.frameworks[0] ??
-    (analysis.languages.length > 0 ? analysis.languages.join('/') : 'unknown')
-  );
+  const lang = analysis.languages[0];
+  const framework = analysis.frameworks.find((f) => !NOISE_FRAMEWORK.test(f));
+  if (lang && framework) return `${lang} / ${framework}`;
+  return lang ?? framework ?? analysis.frameworks[0] ?? 'unknown';
 }
 
 /** 008 US3: per-repo metadata carried onto the review artifact + diagram. */

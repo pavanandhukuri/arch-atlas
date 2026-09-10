@@ -3,6 +3,7 @@ import type { RepositoryKnowledgeGraph, GraphEdge, GraphEdgeType } from '../grap
 // so these value imports do not create a runtime cycle.
 import { EVIDENCE_PASSES, type CorrelationInput } from './evidence-passes.js';
 import { collectEvidence } from './evidence/collect.js';
+import { externalSystemConnections } from './external-systems.js';
 
 export interface CrossRepositoryConnection {
   sourceRepo: string;
@@ -11,10 +12,12 @@ export interface CrossRepositoryConnection {
   targetNodeId: string;
   type: GraphEdgeType;
   /** 'evidence' = raw-source evidence pass (manifest/endpoint/schema/compose/
-   * topic); 'deterministic' = graph-text name-mention match; 'agentic-fallback'
-   * = an external producer's model-assisted reasoning over condensed summaries
-   * (written to architecture.extra-connections.json — see extra-connections.ts). */
-  foundBy: 'evidence' | 'deterministic' | 'agentic-fallback';
+   * topic); 'deterministic' = graph-text name-mention match; 'external-outbound'
+   * = a per-repo `outbound` intent toward a normalized external system (see
+   * external-systems.ts); 'agentic-fallback' = an external producer's
+   * model-assisted reasoning over condensed summaries (written to
+   * architecture.extra-connections.json — see extra-connections.ts). */
+  foundBy: 'evidence' | 'deterministic' | 'external-outbound' | 'agentic-fallback';
   evidence: string[];
   weight: number;
   /** Set to 'grpc' only by `grpcPass` (009-grpc-cross-repo-correlation).
@@ -90,7 +93,10 @@ function nameMentionConnections(graphs: RepositoryKnowledgeGraph[]): CrossReposi
           targetNodeId: edge.target,
           type: edge.type,
           foundBy: 'deterministic',
-          evidence: [evidence],
+          // Prefer the producer's full `outbound.detail` (carried on
+          // `edge.description`) over the bare name substring that matched — it's
+          // what a reviewer actually needs to see on the connection.
+          evidence: [edge.description?.trim() || evidence],
           weight: edge.weight,
         });
       }
@@ -114,6 +120,13 @@ export function correlateDeterministically(
   const mentions = nameMentionConnections(graphs);
   connections.push(...mentions);
   passSummaries.push(`name-mention: ${mentions.length} connection(s)`);
+
+  // External systems named in `outbound` intents but not present in the
+  // workspace (identity providers, object stores, managed queues, …). Deduped
+  // against everything found above (e.g. a repo->PostgreSQL edge from compose).
+  const externals = externalSystemConnections(graphs, connections);
+  connections.push(...externals);
+  passSummaries.push(`external-systems: ${externals.length} connection(s)`);
 
   // A pair is unresolved only when no pass produced a connection between the
   // two repositories in either direction.

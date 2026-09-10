@@ -87,13 +87,15 @@ describe('model-free import pipeline', () => {
       ]
     `);
 
-    expect(review.repos.find((r) => r.name === 'audit-service')?.technology).toBe('kafka-go');
+    expect(review.repos.find((r) => r.name === 'audit-service')?.technology).toBe('Go / kafka-go');
 
     const diagram = JSON.parse(
       await readFile(join(outputDir, 'architecture.arch.json'), 'utf8')
     ) as { schemaVersion: string; elements: Array<{ name: string; technology?: string }> };
     expect(diagram.schemaVersion).toBe('1.0.0');
-    expect(diagram.elements.find((e) => e.name === 'gateway')?.technology).toBe('Express');
+    expect(diagram.elements.find((e) => e.name === 'gateway')?.technology).toBe(
+      'TypeScript / Express'
+    );
 
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();

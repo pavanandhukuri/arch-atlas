@@ -11,6 +11,7 @@ export type ConnectionSource =
   | 'agent-analysis'
   | 'evidence-correlation'
   | 'deterministic-correlation'
+  | 'external-outbound'
   | 'agentic-correlation-fallback';
 
 const BUCKET_ORDER: CandidateConfidence[] = ['low', 'medium', 'high'];
@@ -41,6 +42,10 @@ export function mapToConfidenceBucket(
   // no adjustment.
   if (source === 'evidence-correlation') return base;
   if (source === 'deterministic-correlation') return bump(base, 1);
+  // An external-system dependency lifted from a model `outbound` intent: the
+  // producer's confidence number is trusted as-is, but nothing model-derived
+  // without literal evidence auto-surfaces as `high` — a reviewer confirms it.
+  if (source === 'external-outbound') return cap(base, 'medium');
   // research.md D14.4: an agentic-fallback connection is an unverified prose
   // guess — always surface it as `low` so a reviewer treats it as "check this",
   // not "probably real" (was capped at `medium` in D11).

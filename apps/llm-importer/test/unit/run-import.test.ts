@@ -184,7 +184,11 @@ describe('runImport — model-free core (010)', () => {
   it('carries description + technology onto container elements (008 US3)', async () => {
     await writeAnalysis(
       outputDir,
-      makeAnalysis('service-a', { description: 'the accounts service', frameworks: ['NestJS'] })
+      makeAnalysis('service-a', {
+        description: 'the accounts service',
+        languages: ['TypeScript'],
+        frameworks: ['NestJS'],
+      })
     );
     await runImport(makeConfig(), OPTS);
     const diagram = JSON.parse(
@@ -192,7 +196,37 @@ describe('runImport — model-free core (010)', () => {
     ) as { elements: Array<{ name: string; description?: string; technology?: string }> };
     const el = diagram.elements.find((e) => e.name === 'service-a');
     expect(el?.description).toBe('the accounts service');
-    expect(el?.technology).toBe('NestJS');
+    expect(el?.technology).toBe('TypeScript / NestJS');
+  });
+
+  it('technology label: language headline + first non-noise framework, else language alone', async () => {
+    await writeAnalysis(
+      outputDir,
+      makeAnalysis('service-a', {
+        languages: ['Go'],
+        frameworks: ['net/http', 'gorilla/websocket'],
+      })
+    );
+    await writeAnalysis(
+      outputDir,
+      makeAnalysis('service-b', { languages: ['Java'], frameworks: ['Spring Boot', 'Liquibase'] })
+    );
+    await runImport(
+      makeConfig({
+        repositories: [
+          { path: '/service-a', name: 'service-a' },
+          { path: '/service-b', name: 'service-b' },
+        ],
+      }),
+      OPTS
+    );
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { repos: Array<{ name: string; technology?: string }> };
+    const tech = (n: string): string | undefined =>
+      review.repos.find((r) => r.name === n)?.technology;
+    expect(tech('service-a')).toBe('Go'); // every framework is transport noise → language only
+    expect(tech('service-b')).toBe('Java / Spring Boot');
   });
 
   it('is deterministic — two runs produce an identical review modulo generated_at', async () => {

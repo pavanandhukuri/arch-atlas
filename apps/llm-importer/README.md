@@ -74,6 +74,12 @@ detection from compose files, and (009) a **gRPC pass**.
 | `compose`  | compose files wiring services to repos / to well-known external systems (databases, brokers, auth)                                                                                           |
 | `topic`    | cross-repo pub/sub on the same literal topic string                                                                                                                                          |
 
+Then two graph-level passes over the per-repo `outbound` intents: **name-mention** (an intent
+whose prose names another workspace repo) and **external-systems** (an intent naming something
+outside the workspace — Keycloak, S3, KMS, a managed queue — normalized to a canonical name;
+`src/correlate/external-systems.ts`). Both carry the intent's full detail onto the candidate
+and, being model-derived, surface no higher than `medium`.
+
 Pairs no pass resolves can optionally be linked by a producer's model-assisted fallback, written to
 `architecture.extra-connections.json` and merged by `import`.
 
