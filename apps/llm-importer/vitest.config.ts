@@ -9,8 +9,8 @@ export default defineConfig({
       '**/dist/**',
       'vendor/**',
       // externally-cloned golden workspaces for the eval (their own test files
-      // are not ours to run)
-      'test/eval/golden/*/workspace/**',
+      // are not ours to run) + the eval runner itself (not a vitest suite)
+      'eval/golden/*/workspace/**',
     ],
     coverage: {
       provider: 'v8',
