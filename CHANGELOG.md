@@ -15,6 +15,15 @@ All notable user-facing changes SHOULD be documented in this file.
   say so once, upfront, instead of repeating it on every re-import. A `repositories[]` entry that
   doesn't match an imported repo's resolved name is warned about and dropped, not a hard failure.
 
+### Changed — Studio pre-accepts high-confidence import candidates
+
+- Studio's import wizard now seeds every `high`-confidence candidate as `accepted` the moment
+  `architecture.review.yaml` loads, instead of `pending`. Previously a reviewer had to either
+  click "Accept All High Confidence" or accept each one individually before every import, even
+  though that button already existed specifically to save that effort. Nothing changes about
+  what's reviewable or committed — every one of these is still visible and can be un-accepted in
+  the Review Candidates step, and nothing is written to a diagram until Finalize.
+
 ### Added — deterministic correlation eval harness
 
 - **`apps/llm-importer/eval/` rebuilt.** The eval harness deleted with

@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { wizardReducer } from '../../../src/lib/import/wizard-state';
-import type { WizardState, ElementConfig, SystemGroup } from '../../../src/lib/import/types';
+import type {
+  WizardState,
+  ElementConfig,
+  SystemGroup,
+  Candidate,
+} from '../../../src/lib/import/types';
 
 function baseState(overrides: Partial<WizardState> = {}): WizardState {
   return {
@@ -27,6 +32,21 @@ function makeElement(overrides: Partial<ElementConfig>): ElementConfig {
     kind: 'container',
     isExternal: false,
     tags: [],
+    ...overrides,
+  };
+}
+
+function makeCandidate(overrides: Partial<Candidate> = {}): Candidate {
+  return {
+    id: 'cand-1',
+    source: 'a',
+    target: 'b',
+    type: 'http',
+    reasoning: '',
+    confidence: 'high',
+    status: 'pending',
+    override_name: null,
+    override_type: null,
     ...overrides,
   };
 }
@@ -145,6 +165,44 @@ describe('wizardReducer', () => {
       ]);
       expect(next.elements).toEqual([]);
       expect(next.selectedElementId).toBeNull();
+    });
+
+    it('pre-accepts high-confidence candidates so the reviewer only has mediums/lows left to decide', () => {
+      const state = baseState();
+      const next = wizardReducer(state, {
+        type: 'LOAD_REVIEW',
+        file: {
+          version: '1.0',
+          generated_at: '2026-01-01T00:00:00Z',
+          source_repos: ['a', 'b'],
+          systems: [],
+          candidates: [],
+        },
+        candidates: [
+          makeCandidate({ id: 'c1', confidence: 'high', status: 'pending' }),
+          makeCandidate({ id: 'c2', confidence: 'medium', status: 'pending' }),
+          makeCandidate({ id: 'c3', confidence: 'low', status: 'pending' }),
+        ],
+      });
+      expect(next.candidates.find((c) => c.id === 'c1')?.status).toBe('accepted');
+      expect(next.candidates.find((c) => c.id === 'c2')?.status).toBe('pending');
+      expect(next.candidates.find((c) => c.id === 'c3')?.status).toBe('pending');
+    });
+
+    it('leaves a high-confidence candidate that was already rejected alone (does not resurrect it)', () => {
+      const state = baseState();
+      const next = wizardReducer(state, {
+        type: 'LOAD_REVIEW',
+        file: {
+          version: '1.0',
+          generated_at: '2026-01-01T00:00:00Z',
+          source_repos: ['a', 'b'],
+          systems: [],
+          candidates: [],
+        },
+        candidates: [makeCandidate({ id: 'c1', confidence: 'high', status: 'rejected' })],
+      });
+      expect(next.candidates[0]?.status).toBe('rejected');
     });
   });
 
