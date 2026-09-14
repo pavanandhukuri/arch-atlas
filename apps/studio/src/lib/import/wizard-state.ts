@@ -26,10 +26,20 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
         name: sg.name,
         repoNames: sg.repositories,
       }));
+      // Pre-accept high-confidence candidates on load — the same outcome as
+      // clicking "Accept All High Confidence" in the Review step (same guard:
+      // only a still-pending one), just without making the reviewer do it by
+      // hand every time. Nothing is committed to a diagram until Finalize, and
+      // every one of these is still visible and reversible in Review before then.
+      const preAcceptedCandidates = action.candidates.map((c) =>
+        c.confidence === 'high' && c.status === 'pending'
+          ? { ...c, status: 'accepted' as const }
+          : c
+      );
       return {
         ...state,
         reviewFile: action.file,
-        candidates: action.candidates,
+        candidates: preAcceptedCandidates,
         parseError: null,
         systems: preloadedSystems,
         elements: [],
