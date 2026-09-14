@@ -46,7 +46,8 @@ function connectionSource(
 export function assembleReviewFile(
   graphs: RepositoryKnowledgeGraph[],
   connections: CrossRepositoryConnection[],
-  repoMetaByName?: Map<string, RepoMeta>
+  repoMetaByName?: Map<string, RepoMeta>,
+  systems: ReviewFile['systems'] = []
 ): ReviewFile {
   const candidates: Candidate[] = connections.map((connection, index) => {
     // 009: a gRPC-tagged `calls` connection surfaces as candidate type 'grpc'
@@ -78,10 +79,12 @@ export function assembleReviewFile(
     version: '1.0',
     generated_at: new Date().toISOString(),
     source_repos: graphs.map((g) => g.repository.name),
-    // No a-priori system grouping — the human reviewer assigns systems in
-    // Studio's Tag & Classify step (spec.md: this decision belongs to the
-    // reviewer, never auto-guessed — matches the retired pipeline's design).
-    systems: [],
+    // Grouping is still never auto-guessed from repo names/keywords — that
+    // judgment call belongs to a human. It can now come from two places: the
+    // human declaring it upfront in import.yaml's `systems` (resolved by
+    // runImport, passed in here), or — when they didn't — left empty for the
+    // human reviewer to assign in Studio's Tag & Classify step, same as before.
+    systems,
     candidates,
     repos,
   };

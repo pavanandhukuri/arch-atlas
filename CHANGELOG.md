@@ -4,6 +4,17 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Added — declare a system grouping in `import.yaml`
+
+- **`import.yaml` gained an optional `systems` block**: `[{ name, repositories: [...] }]`, carried
+  straight onto `architecture.review.yaml`'s `systems[]`. Studio's import wizard already pre-fills
+  its "Define Systems" step from that field — it just never had anything to read, since the
+  deterministic pipeline always wrote `systems: []` (grouping was reviewer-only, assigned by hand
+  in Studio every time). This doesn't change that principle — grouping is still never auto-guessed
+  from repo names or keywords — it just lets the person who already knows their workspace's shape
+  say so once, upfront, instead of repeating it on every re-import. A `repositories[]` entry that
+  doesn't match an imported repo's resolved name is warned about and dropped, not a hard failure.
+
 ### Added — deterministic correlation eval harness
 
 - **`apps/llm-importer/eval/` rebuilt.** The eval harness deleted with

@@ -229,6 +229,83 @@ describe('runImport — model-free core (010)', () => {
     expect(tech('service-b')).toBe('Java / Spring Boot');
   });
 
+  it('carries import.yaml\'s "systems" onto the review artifact, pre-grouping repos (Studio LOAD_REVIEW consumes this directly)', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('multimodal-app-sdk-go'));
+    await writeAnalysis(outputDir, makeAnalysis('multimodal-app-sdk-kmp'));
+    const config = makeConfig({
+      repositories: [
+        { path: '/multimodal-app-sdk-go', name: 'multimodal-app-sdk-go' },
+        { path: '/multimodal-app-sdk-kmp', name: 'multimodal-app-sdk-kmp' },
+      ],
+      systems: [
+        { name: 'UDS SDK', repositories: ['multimodal-app-sdk-go', 'multimodal-app-sdk-kmp'] },
+      ],
+    });
+
+    await runImport(config, OPTS);
+
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { systems: Array<{ name: string; repositories: string[] }> };
+    expect(review.systems).toEqual([
+      { name: 'UDS SDK', repositories: ['multimodal-app-sdk-go', 'multimodal-app-sdk-kmp'] },
+    ]);
+  });
+
+  it('resolves systems[].repositories against the path-derived name when a repo has no explicit "name"', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
+    const config = makeConfig({
+      repositories: [{ path: '/anything/service-a' }], // no `name` — derived from the path
+      systems: [{ name: 'Core', repositories: ['service-a'] }],
+    });
+
+    await runImport(config, OPTS);
+
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { systems: Array<{ name: string; repositories: string[] }> };
+    expect(review.systems).toEqual([{ name: 'Core', repositories: ['service-a'] }]);
+  });
+
+  it('warns and drops a systems[] entry that names a repo not among the imported repositories, without failing the import', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
+    const config = makeConfig({
+      systems: [{ name: 'Core', repositories: ['service-a', 'typo-d-service'] }],
+    });
+
+    await runImport(config, OPTS);
+
+    expect(errs.join('\n')).toMatch(
+      /\[warn\] system "Core": repository "typo-d-service" not found/
+    );
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { systems: Array<{ name: string; repositories: string[] }> };
+    expect(review.systems).toEqual([{ name: 'Core', repositories: ['service-a'] }]);
+  });
+
+  it('drops a systems[] entry entirely when none of its repositories resolved', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
+    const config = makeConfig({ systems: [{ name: 'Ghost', repositories: ['nope'] }] });
+
+    await runImport(config, OPTS);
+
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { systems: unknown[] };
+    expect(review.systems).toEqual([]);
+  });
+
+  it('leaves systems empty when import.yaml declares none (backward compatible)', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
+    await runImport(makeConfig(), OPTS);
+
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { systems: unknown[] };
+    expect(review.systems).toEqual([]);
+  });
+
   it('is deterministic — two runs produce an identical review modulo generated_at', async () => {
     await writeAnalysis(outputDir, makeAnalysis('service-a'));
     await writeAnalysis(outputDir, makeAnalysis('service-b'));
