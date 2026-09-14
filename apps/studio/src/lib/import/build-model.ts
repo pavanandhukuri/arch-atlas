@@ -21,9 +21,9 @@ const RELATIONSHIP_TYPE_MAP: Record<string, string> = {
 };
 
 /**
- * Arrow label shown on the diagram (Relationship.action). The renderer only
- * draws a label when `action` or `integrationMode` is set — candidates never
- * populate either by default, so connections rendered with no text at all.
+ * Fallback arrow label (Relationship.action) when a candidate's `reasoning`
+ * has no specific text to draw one from — a generic per-type verb. Candidate
+ * objects carry no `action` field of their own, only `type`/`reasoning`.
  */
 const RELATIONSHIP_ACTION_MAP: Record<string, string> = {
   database: 'Queries',
@@ -32,6 +32,43 @@ const RELATIONSHIP_ACTION_MAP: Record<string, string> = {
   queue: 'Publishes to',
   grpc: 'Calls',
 };
+
+/** Default Relationship.integrationMode from the candidate's coarse type,
+ * when the user hasn't overridden it in review. Named after (and worded to
+ * match) RelationshipEditor's own placeholder examples. */
+const INTEGRATION_MODE_MAP: Record<string, string> = {
+  database: 'SQL',
+  http: 'REST API',
+  kafka: 'Kafka',
+  queue: 'Message Queue',
+  grpc: 'gRPC',
+};
+
+/** `assembleReviewFile`'s fallback text when a connection carried no literal
+ * evidence — not worth surfacing as an arrow label. */
+const GENERIC_REASONING_RE = / relationship detected$/;
+const MAX_ACTION_LENGTH = 50;
+
+/**
+ * A short, specific arrow label. Candidates never carry their own title, only
+ * `reasoning` (the full evidence text, kept verbatim on Relationship.description)
+ * and the coarse `type` bucket — so this reads the first clause of `reasoning`
+ * when it says something real, truncated to a label-sized length, and only
+ * falls back to the generic per-type verb when there's nothing more specific.
+ * Never invents wording; only reads and truncates what the candidate already has.
+ */
+function deriveAction(candidate: Candidate): string {
+  const generic = RELATIONSHIP_ACTION_MAP[candidate.type] ?? candidate.type;
+  const reasoning = candidate.reasoning.trim();
+  if (!reasoning || GENERIC_REASONING_RE.test(reasoning)) return generic;
+
+  const firstClause = reasoning.split(/[;.]/, 1)[0]?.trim();
+  if (!firstClause) return generic;
+
+  return firstClause.length > MAX_ACTION_LENGTH
+    ? `${firstClause.slice(0, MAX_ACTION_LENGTH - 1).trimEnd()}…`
+    : firstClause;
+}
 
 /**
  * Build a name-to-element-id lookup from a list of elements and ElementConfigs.
@@ -175,13 +212,18 @@ export function buildModel(state: WizardState, title?: string): ArchitectureMode
     if (relSet.has(dedupKey)) continue;
     relSet.add(dedupKey);
 
+    const reasoning = candidate.reasoning.trim();
+
     const relationship: Relationship = {
       id: `rel-${candidate.id}`,
       sourceId,
       targetId,
       type: relType,
-      action: RELATIONSHIP_ACTION_MAP[candidate.type] ?? relType,
-      ...(candidate.override_type !== null && { integrationMode: candidate.override_type }),
+      action: deriveAction(candidate),
+      integrationMode:
+        candidate.override_type ?? INTEGRATION_MODE_MAP[candidate.type] ?? candidate.type,
+      ...(reasoning &&
+        !GENERIC_REASONING_RE.test(reasoning) && { description: candidate.reasoning }),
     };
     relationships.push(relationship);
   }

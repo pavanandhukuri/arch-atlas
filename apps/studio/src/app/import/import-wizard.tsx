@@ -89,7 +89,8 @@ export function ImportWizard() {
   useEffect(() => {
     if (state.step > 3 && state.elements.length === 0 && state.candidates.length > 0) {
       const sourceRepos = state.reviewFile?.source_repos ?? [];
-      const elements = classifyElements(state.candidates, sourceRepos, state.systems);
+      const repoMeta = state.reviewFile?.repos ?? [];
+      const elements = classifyElements(state.candidates, sourceRepos, state.systems, repoMeta);
       dispatch({ type: 'INIT_ELEMENTS', elements });
     }
   }, [

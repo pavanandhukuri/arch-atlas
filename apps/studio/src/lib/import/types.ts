@@ -18,12 +18,21 @@ export interface Candidate {
   override_type: string | null;
 }
 
+/** Per-repository metadata (008) the importer emits to pre-fill a container's
+ * Technology / Description when Tag & Classify auto-classifies it. */
+export interface RepoMeta {
+  name: string;
+  description?: string;
+  technology?: string;
+}
+
 export interface ReviewFile {
   version: string;
   generated_at: string;
   source_repos: string[];
   systems: Array<{ name: string; repositories: string[] }>;
   candidates: Candidate[];
+  repos?: RepoMeta[];
 }
 
 export interface SystemGroup {

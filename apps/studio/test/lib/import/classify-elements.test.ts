@@ -139,4 +139,37 @@ describe('classifyElements', () => {
     const elements = classifyElements(candidates, ['order-service', 'notification-service']);
     expect(elements.filter((e) => e.name === 'PostgreSQL')).toHaveLength(1);
   });
+
+  it("pre-fills technology and description for a repo container from the review file's repos[]", () => {
+    const candidates = [makeCandidate({ source: 'order-service', target: 'PostgreSQL' })];
+    const repoMeta = [
+      { name: 'order-service', description: 'Owns orders', technology: 'Go / Gin' },
+    ];
+    const elements = classifyElements(candidates, ['order-service'], [], repoMeta);
+    const repo = elements.find((e) => e.name === 'order-service');
+    expect(repo).toMatchObject({
+      kind: 'container',
+      containerSubtype: 'backend-service',
+      technology: 'Go / Gin',
+      description: 'Owns orders',
+    });
+  });
+
+  it('leaves technology/description unset for an element with no matching repo metadata', () => {
+    const candidates = [
+      makeCandidate({ source: 'order-service', target: 'PostgreSQL', type: 'database' }),
+    ];
+    const repoMeta = [{ name: 'order-service', technology: 'Go' }];
+    const elements = classifyElements(candidates, ['order-service'], [], repoMeta);
+    const db = elements.find((e) => e.name === 'PostgreSQL');
+    expect(db?.technology).toBeUndefined();
+    expect(db?.description).toBeUndefined();
+  });
+
+  it('defaults to no repo metadata when none is passed (backward compatible)', () => {
+    const candidates = [makeCandidate({ source: 'order-service', target: 'PostgreSQL' })];
+    const elements = classifyElements(candidates, ['order-service']);
+    const repo = elements.find((e) => e.name === 'order-service');
+    expect(repo?.technology).toBeUndefined();
+  });
 });

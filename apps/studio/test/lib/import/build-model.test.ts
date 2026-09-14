@@ -26,7 +26,10 @@ function candidate(
 ): Candidate {
   return {
     type: 'http',
-    reasoning: 'x',
+    // empty by default: exercises the "nothing specific to say" fallback path
+    // in deriveAction/description. Tests that care about a real evidence
+    // string pass their own `reasoning`.
+    reasoning: '',
     confidence: 'high',
     status: 'accepted',
     override_name: null,
@@ -203,6 +206,105 @@ describe('buildModel', () => {
       type: 'calls',
       action: 'Calls',
     });
+  });
+
+  it('uses the first clause of a specific reasoning as the arrow label instead of the generic verb', () => {
+    const candidates = [
+      candidate({
+        id: 'c1',
+        source: 'a',
+        target: 'b',
+        type: 'http',
+        reasoning: 'sends welcome notifications',
+      }),
+    ];
+    const state: WizardState = { ...emptyState, candidates };
+
+    const model = buildModel(state);
+
+    expect(model.relationships[0]?.action).toBe('sends welcome notifications');
+  });
+
+  it('stops at the first clause when reasoning has several, semicolon-joined pieces of evidence', () => {
+    const candidates = [
+      candidate({
+        id: 'c1',
+        source: 'a',
+        target: 'b',
+        reasoning: 'proxies /api/users/* to user-service; probes GET /health',
+      }),
+    ];
+    const state: WizardState = { ...emptyState, candidates };
+
+    const model = buildModel(state);
+
+    expect(model.relationships[0]?.action).toBe('proxies /api/users/* to user-service');
+  });
+
+  it('truncates a long reasoning clause for the arrow label', () => {
+    const long = 'a'.repeat(80);
+    const candidates = [candidate({ id: 'c1', source: 'a', target: 'b', reasoning: long })];
+    const state: WizardState = { ...emptyState, candidates };
+
+    const model = buildModel(state);
+
+    expect(model.relationships[0]?.action).toBe(`${'a'.repeat(49)}…`);
+  });
+
+  it('falls back to the generic per-type verb when reasoning is the assembler\'s "relationship detected" filler', () => {
+    const candidates = [
+      candidate({
+        id: 'c1',
+        source: 'a',
+        target: 'b',
+        type: 'grpc',
+        reasoning: 'calls relationship detected',
+      }),
+    ];
+    const state: WizardState = { ...emptyState, candidates };
+
+    const model = buildModel(state);
+
+    expect(model.relationships[0]?.action).toBe('Calls');
+    expect(model.relationships[0]?.description).toBeUndefined();
+  });
+
+  it('carries a specific reasoning onto the relationship description verbatim', () => {
+    const candidates = [
+      candidate({
+        id: 'c1',
+        source: 'a',
+        target: 'b',
+        reasoning: 'proxies /api/users/* to user-service',
+      }),
+    ];
+    const state: WizardState = { ...emptyState, candidates };
+
+    const model = buildModel(state);
+
+    expect(model.relationships[0]?.description).toBe('proxies /api/users/* to user-service');
+  });
+
+  it('leaves description unset when reasoning is empty', () => {
+    const candidates = [candidate({ id: 'c1', source: 'a', target: 'b', reasoning: '' })];
+    const state: WizardState = { ...emptyState, candidates };
+
+    const model = buildModel(state);
+
+    expect(model.relationships[0]?.description).toBeUndefined();
+  });
+
+  it('defaults integrationMode from the candidate type when there is no override', () => {
+    const candidates = [
+      candidate({ id: 'c1', source: 'a', target: 'b', type: 'grpc' }),
+      candidate({ id: 'c2', source: 'a', target: 'c', type: 'kafka' }),
+    ];
+    const state: WizardState = { ...emptyState, candidates };
+
+    const model = buildModel(state);
+
+    expect(model.relationships.find((r) => r.targetId === 'c')?.integrationMode).toBe('Kafka');
+    expect(model.relationships.find((r) => r.targetId === 'b')?.integrationMode).toBe('gRPC');
   });
 
   it('excludes candidates that are not accepted', () => {

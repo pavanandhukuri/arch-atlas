@@ -236,6 +236,66 @@ candidates:
     );
   });
 
+  it('parses repos[] into RepoMeta (008: pre-fills Tag & Classify technology/description)', () => {
+    const yaml = `
+version: '1.0'
+generated_at: '2026-08-01T00:00:00.000Z'
+source_repos: [user-service]
+candidates: []
+repos:
+  - name: user-service
+    description: Owns user accounts
+    technology: TypeScript / Express
+`;
+    const { file } = parseReviewYaml(yaml);
+    expect(file.repos).toEqual([
+      {
+        name: 'user-service',
+        description: 'Owns user accounts',
+        technology: 'TypeScript / Express',
+      },
+    ]);
+  });
+
+  it('omits "repos" entirely when the field is absent (backward compatible)', () => {
+    const yaml = `
+version: '1.0'
+generated_at: '2026-08-01T00:00:00.000Z'
+source_repos: []
+candidates: []
+`;
+    const { file } = parseReviewYaml(yaml);
+    expect(file.repos).toBeUndefined();
+  });
+
+  it('skips a malformed repos[] entry rather than failing the whole parse', () => {
+    const yaml = `
+version: '1.0'
+generated_at: '2026-08-01T00:00:00.000Z'
+source_repos: [a]
+candidates: []
+repos:
+  - technology: 'no name, dropped'
+  - name: a
+    technology: 'Go'
+`;
+    const { file } = parseReviewYaml(yaml);
+    expect(file.repos).toEqual([{ name: 'a', technology: 'Go' }]);
+  });
+
+  it('accepts a repos[] entry with neither description nor technology', () => {
+    const yaml = `
+version: '1.0'
+generated_at: '2026-08-01T00:00:00.000Z'
+source_repos: [a]
+candidates: []
+repos:
+  - name: a
+`;
+    const { file } = parseReviewYaml(yaml);
+    expect(file.repos).toEqual([{ name: 'a' }]);
+  });
+
   it('normalizes non-string override_name/override_type to null', () => {
     const yaml = `
 version: '1.0'
