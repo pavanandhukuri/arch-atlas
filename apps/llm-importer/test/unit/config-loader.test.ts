@@ -91,6 +91,38 @@ describe('loadConfig', () => {
     await expect(loadConfig(path)).rejects.toThrow(ConfigValidationError);
   });
 
+  it('parses an optional "systems" block declaring a repo grouping', async () => {
+    const config = JSON.stringify({
+      version: '2.0',
+      output: { directory: './out' },
+      repositories: [
+        { path: './repo-a', name: 'repo-a' },
+        { path: './repo-b', name: 'repo-b' },
+      ],
+      systems: [{ name: 'Core Platform', repositories: ['repo-a', 'repo-b'] }],
+    });
+    const path = await writeConfigFile('with-systems.json', config);
+    const parsed = await loadConfig(path);
+    expect(parsed.systems).toEqual([{ name: 'Core Platform', repositories: ['repo-a', 'repo-b'] }]);
+  });
+
+  it('leaves "systems" undefined when the config omits it (backward compatible)', async () => {
+    const path = await writeConfigFile('no-systems.json', VALID_JSON);
+    const parsed = await loadConfig(path);
+    expect(parsed.systems).toBeUndefined();
+  });
+
+  it('rejects a systems[] entry with an empty repositories list', async () => {
+    const config = JSON.stringify({
+      version: '2.0',
+      output: { directory: './out' },
+      repositories: [{ path: './repo-a' }],
+      systems: [{ name: 'Empty', repositories: [] }],
+    });
+    const path = await writeConfigFile('empty-system.json', config);
+    await expect(loadConfig(path)).rejects.toThrow(ConfigValidationError);
+  });
+
   it('rejects an unsupported file extension', async () => {
     const path = await writeConfigFile('config.txt', VALID_JSON);
     await expect(loadConfig(path)).rejects.toThrow(/Unsupported config file extension/);

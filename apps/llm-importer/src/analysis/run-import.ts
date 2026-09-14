@@ -4,7 +4,7 @@ import type { ImportConfig } from '../config/config.schema.js';
 import { ensureOutputDir, tryReadAnalysis } from './analysis-store.js';
 import { toCorrelationGraph } from './to-correlation-graph.js';
 import type { RepoAnalysis } from './repo-analysis.schema.js';
-import type { RepoMeta } from '../review/review-file.js';
+import type { RepoMeta, ReviewFile } from '../review/review-file.js';
 import type { RepositoryKnowledgeGraph } from '../graph/schema.js';
 import { correlateDeterministically } from '../correlate/deterministic-correlator.js';
 import { readExtraConnections } from '../correlate/extra-connections.js';
@@ -60,6 +60,33 @@ function repoName(entry: ImportConfig['repositories'][number]): string {
   return entry.name ?? entry.path.split('/').filter(Boolean).pop() ?? entry.path;
 }
 
+/**
+ * `import.yaml`'s `systems`, reconciled against the repos that actually
+ * resolved this run — a typo'd or filtered-out repository is warned about and
+ * dropped from that system rather than failing the whole import (same
+ * tolerance as a missing/invalid analysis artifact).
+ */
+function resolveSystems(
+  config: ImportConfig,
+  resolvedNames: ReadonlySet<string>
+): ReviewFile['systems'] {
+  if (!config.systems) return [];
+  const systems: ReviewFile['systems'] = [];
+  for (const sys of config.systems) {
+    const repositories = sys.repositories.filter((name) => {
+      const known = resolvedNames.has(name);
+      if (!known) {
+        log(
+          `[warn] system "${sys.name}": repository "${name}" not found among the imported repositories — skipped`
+        );
+      }
+      return known;
+    });
+    if (repositories.length > 0) systems.push({ name: sys.name, repositories });
+  }
+  return systems;
+}
+
 export async function runImport(config: ImportConfig, options: RunImportOptions): Promise<void> {
   const outputDir = resolve(options.outputDirOverride ?? config.output.directory);
   await ensureOutputDir(outputDir);
@@ -110,7 +137,8 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
     [...analysesByName.values()].map((a) => [a.repository.name, toRepoMeta(a)])
   );
 
-  const review = assembleReviewFile(graphs, [...connections, ...extra], repoMetaByName);
+  const systems = resolveSystems(config, new Set(analysesByName.keys()));
+  const review = assembleReviewFile(graphs, [...connections, ...extra], repoMetaByName, systems);
   const reviewPath = join(outputDir, 'architecture.review.yaml');
   await writeFile(reviewPath, JSON.stringify(review, null, 2), 'utf8');
   log(`\n✓ Review artifact written to ${reviewPath}`);
