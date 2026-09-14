@@ -5,6 +5,7 @@ import type {
   CandidateType,
   CandidateConfidence,
   CandidateStatus,
+  RepoMeta,
 } from './types';
 
 const VALID_TYPES: CandidateType[] = ['database', 'http', 'kafka', 'queue', 'grpc'];
@@ -55,6 +56,23 @@ export function parseReviewYaml(text: string): { file: ReviewFile; candidates: C
       if (!isString(s['name'])) continue;
       const repos = isArray(s['repositories']) ? s['repositories'].filter(isString) : [];
       parsedSystems.push({ name: s['name'], repositories: repos });
+    }
+  }
+
+  // 008: optional per-repo metadata (description/technology) the importer emits
+  // to pre-fill Tag & Classify. Best-effort like `systems` above — a malformed
+  // entry is skipped, not a reason to fail the whole import.
+  const parsedRepos: RepoMeta[] = [];
+  if (isArray(obj['repos'])) {
+    for (const r of obj['repos']) {
+      if (!r || typeof r !== 'object') continue;
+      const meta = r as Record<string, unknown>;
+      if (!isString(meta['name'])) continue;
+      parsedRepos.push({
+        name: meta['name'],
+        ...(isString(meta['description']) && { description: meta['description'] }),
+        ...(isString(meta['technology']) && { technology: meta['technology'] }),
+      });
     }
   }
 
@@ -111,6 +129,7 @@ export function parseReviewYaml(text: string): { file: ReviewFile; candidates: C
     source_repos: sourceRepos,
     systems: parsedSystems,
     candidates,
+    ...(parsedRepos.length > 0 && { repos: parsedRepos }),
   };
 
   return { file, candidates };
