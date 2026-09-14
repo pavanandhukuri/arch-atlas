@@ -9,14 +9,21 @@ import type { RepositoryKnowledgeGraph } from '../graph/schema.js';
 import { correlateDeterministically } from '../correlate/deterministic-correlator.js';
 import { readExtraConnections } from '../correlate/extra-connections.js';
 import { assembleReviewFile } from '../review/assemble-review.js';
-import { buildDiagram } from '../export/diagram-builder.js';
 
 /**
  * 010-harness-neutral-importer: the `import` command is deterministic and
  * model-free. It reads one `{repo}.analysis.json` per configured repository
  * (produced by an external analysis producer), runs the unchanged cross-repo
  * correlation, merges the optional `architecture.extra-connections.json`, and
- * writes the review artifact + diagram. No model call, no network request.
+ * writes the review artifact. No model call, no network request.
+ *
+ * `import` writes ONLY `architecture.review.yaml` — every candidate `pending`,
+ * for a human to review in Studio's import wizard. It does not also write a
+ * `.arch.json`: Studio's wizard needs only the review artifact, and a diagram
+ * built straight from unreviewed candidates would have zero relationships
+ * (nothing is ever auto-accepted here) — a skeleton nobody asked for and
+ * nobody used. Studio produces the real `.arch.json`, with relationships,
+ * once a human has actually reviewed the candidates.
  */
 
 export interface RunImportOptions {
@@ -46,7 +53,7 @@ function techLabel(analysis: RepoAnalysis): string {
   return lang ?? framework ?? analysis.frameworks[0] ?? 'unknown';
 }
 
-/** 008 US3: per-repo metadata carried onto the review artifact + diagram. */
+/** 008 US3: per-repo metadata carried onto the review artifact's `repos[]`. */
 function toRepoMeta(analysis: RepoAnalysis): RepoMeta {
   const tech = techLabel(analysis);
   return {
@@ -142,11 +149,5 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
   const reviewPath = join(outputDir, 'architecture.review.yaml');
   await writeFile(reviewPath, JSON.stringify(review, null, 2), 'utf8');
   log(`\n✓ Review artifact written to ${reviewPath}`);
-
-  const diagramTitle =
-    config.output.diagramFileName.replace(/\.arch\.json$/, '') || 'Imported Architecture';
-  const diagram = buildDiagram(review, diagramTitle, repoMetaByName);
-  const diagramPath = join(outputDir, config.output.diagramFileName);
-  await writeFile(diagramPath, JSON.stringify(diagram, null, 2), 'utf8');
-  log(`✓ Diagram written to ${diagramPath}`);
+  log(`  Upload it to Studio's import wizard to review candidates and build the diagram.`);
 }

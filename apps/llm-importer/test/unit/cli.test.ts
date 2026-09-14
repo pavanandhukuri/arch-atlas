@@ -17,7 +17,7 @@ const { ConfigValidationError } = await import('../../src/config/loader.js');
 
 const VALID_CONFIG = {
   version: '2.0' as const,
-  output: { directory: './out', diagramFileName: 'architecture.arch.json' },
+  output: { directory: './out' },
   repositories: [{ path: './repo-a', name: 'repo-a' }],
 };
 

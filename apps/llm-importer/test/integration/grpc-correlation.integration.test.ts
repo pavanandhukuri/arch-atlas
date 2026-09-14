@@ -6,7 +6,6 @@ import { toCorrelationGraph } from '../../src/analysis/to-correlation-graph.js';
 import { RepoAnalysisSchema } from '../../src/analysis/repo-analysis.schema.js';
 import { correlateDeterministically } from '../../src/correlate/deterministic-correlator.js';
 import { assembleReviewFile } from '../../src/review/assemble-review.js';
-import { buildDiagram } from '../../src/export/diagram-builder.js';
 import type { RepositoryKnowledgeGraph } from '../../src/graph/schema.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -51,7 +50,7 @@ describe('gRPC cross-repo correlation over the storefront / catalog-service fixt
     expect(JSON.stringify(again.connections)).toBe(JSON.stringify(connections));
   });
 
-  it('surfaces the connection as a grpc candidate and a calls relationship (US3)', async () => {
+  it('surfaces the connection as a grpc candidate (US3)', async () => {
     const graphs = [await fixtureGraph('storefront'), await fixtureGraph('catalog-service')];
     const { connections } = correlateDeterministically(graphs);
 
@@ -60,13 +59,5 @@ describe('gRPC cross-repo correlation over the storefront / catalog-service fixt
       (c) => c.source === 'storefront' && c.target === 'catalog-service'
     );
     expect(cand?.type).toBe('grpc');
-
-    // Accept it and build the diagram — grpc maps to a `calls` relationship.
-    review.candidates = review.candidates.map((c) => ({ ...c, status: 'accepted' as const }));
-    const model = buildDiagram(review, 'gRPC fixture');
-    const rel = model.relationships.find(
-      (r) => r.sourceId === 'storefront' && r.targetId === 'catalog-service'
-    );
-    expect(rel?.type).toBe('calls');
   });
 });

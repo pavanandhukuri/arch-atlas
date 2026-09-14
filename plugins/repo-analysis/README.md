@@ -11,8 +11,8 @@ The procedure lives in [`AGENTS.md`](./AGENTS.md), following the open
 GitHub Copilot, OpenAI Codex, Windsurf, Gemini CLI, Aider, Jules, Zed, Devin, and more. Point any
 AGENTS.md-aware agent at your workspace's `import.yaml` and it runs the whole pipeline itself —
 `gather-context`, analyze every listed repository, then `import` — ending with
-`architecture.review.yaml` / `architecture.arch.json` ready to upload into Studio's import
-wizard. No separate deterministic steps for you to run by hand. (It'll follow the same analysis
+`architecture.review.yaml` ready to upload into Studio's import wizard. No separate deterministic
+steps for you to run by hand. (It'll follow the same analysis
 steps for a single repo path or a `{repo}.context.json` bundle too, if that's all you hand it —
 `import` needs the whole workspace, so that step only runs when you point it at `import.yaml`.)
 
@@ -77,11 +77,11 @@ follow the procedure.
      every repo in one pass.
    - Analyzes each bundle, producing `./architecture-output/{repo}.analysis.json`.
    - `import import.yaml` (deterministic, offline) — correlates the analyses and writes
-     `./architecture-output/architecture.review.yaml` + `architecture.arch.json`.
+     `./architecture-output/architecture.review.yaml`.
 
    One request, and the workspace ends up with a review file ready to upload into Studio's
    import wizard. A repo whose `{repo}.analysis.json` turned out missing or malformed is named
-   and skipped by the `import` step — the rest still produce a diagram.
+   and skipped by the `import` step — the rest still make it into the review.
 
    (You can still hand it a single repo path or one `{repo}.context.json` bundle directly if
    you only want to (re-)analyze one repository — `import` only runs for a whole-workspace

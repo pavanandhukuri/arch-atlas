@@ -32,7 +32,7 @@ function makeAnalysis(name: string, over: Partial<RepoAnalysis> = {}): RepoAnaly
 function makeConfig(over: Partial<ImportConfig> = {}): ImportConfig {
   return {
     version: '2.0',
-    output: { directory: outputDir, diagramFileName: 'architecture.arch.json' },
+    output: { directory: outputDir },
     repositories: [{ path: '/service-a', name: 'service-a' }],
     ...over,
   };
@@ -56,7 +56,7 @@ afterEach(async () => {
 });
 
 describe('runImport — model-free core (010)', () => {
-  it('builds review + diagram from existing {repo}.analysis.json artifacts, no network', async () => {
+  it('builds the review artifact from existing {repo}.analysis.json artifacts, no network', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     await writeAnalysis(outputDir, makeAnalysis('service-a'));
 
@@ -66,12 +66,14 @@ describe('runImport — model-free core (010)', () => {
       await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
     ) as { source_repos: string[] };
     expect(review.source_repos).toEqual(['service-a']);
-    const diagram = JSON.parse(
-      await readFile(join(outputDir, 'architecture.arch.json'), 'utf8')
-    ) as Record<string, unknown>;
-    expect(diagram).toHaveProperty('schemaVersion');
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+
+  it('writes no architecture.arch.json — only Studio, after review, builds one with real relationships', async () => {
+    await writeAnalysis(outputDir, makeAnalysis('service-a'));
+    await runImport(makeConfig(), OPTS);
+    await expect(readFile(join(outputDir, 'architecture.arch.json'), 'utf8')).rejects.toThrow();
   });
 
   it('names and skips a missing artifact, continues with the rest (FR-003)', async () => {
@@ -86,10 +88,10 @@ describe('runImport — model-free core (010)', () => {
     await runImport(config, OPTS);
 
     expect(errs.join('\n')).toMatch(/\[skip\] service-b: no analysis artifact/);
-    const diagram = JSON.parse(
-      await readFile(join(outputDir, 'architecture.arch.json'), 'utf8')
-    ) as { elements: Array<{ name: string }> };
-    expect(diagram.elements.some((e) => e.name === 'service-a')).toBe(true);
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { source_repos: string[] };
+    expect(review.source_repos).toEqual(['service-a']);
   });
 
   it('names and skips a malformed artifact (FR-003)', async () => {
@@ -110,10 +112,10 @@ describe('runImport — model-free core (010)', () => {
     expect(errs.join('\n')).toMatch(/\[skip\] service-b: invalid analysis artifact/);
   });
 
-  it('prints a message and writes no diagram when there are zero valid artifacts', async () => {
+  it('prints a message and writes no review artifact when there are zero valid artifacts', async () => {
     await runImport(makeConfig(), OPTS);
     expect(errs.join('\n')).toMatch(/No valid analysis artifacts found/);
-    await expect(readFile(join(outputDir, 'architecture.arch.json'), 'utf8')).rejects.toThrow();
+    await expect(readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')).rejects.toThrow();
   });
 
   it('respects the --repos filter (FR-016)', async () => {
@@ -181,7 +183,7 @@ describe('runImport — model-free core (010)', () => {
     await expect(runImport(makeConfig(), OPTS)).rejects.toThrow();
   });
 
-  it('carries description + technology onto container elements (008 US3)', async () => {
+  it("carries description + technology onto the review artifact's repos[] (008 US3)", async () => {
     await writeAnalysis(
       outputDir,
       makeAnalysis('service-a', {
@@ -191,12 +193,12 @@ describe('runImport — model-free core (010)', () => {
       })
     );
     await runImport(makeConfig(), OPTS);
-    const diagram = JSON.parse(
-      await readFile(join(outputDir, 'architecture.arch.json'), 'utf8')
-    ) as { elements: Array<{ name: string; description?: string; technology?: string }> };
-    const el = diagram.elements.find((e) => e.name === 'service-a');
-    expect(el?.description).toBe('the accounts service');
-    expect(el?.technology).toBe('TypeScript / NestJS');
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { repos: Array<{ name: string; description?: string; technology?: string }> };
+    const meta = review.repos.find((r) => r.name === 'service-a');
+    expect(meta?.description).toBe('the accounts service');
+    expect(meta?.technology).toBe('TypeScript / NestJS');
   });
 
   it('technology label: language headline + first non-noise framework, else language alone', async () => {

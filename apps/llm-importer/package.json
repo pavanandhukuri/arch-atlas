@@ -1,6 +1,6 @@
 {
   "name": "@archatlas/llm-importer",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Deterministic, model-free multi-repository architecture importer for arch-atlas",
   "keywords": [
     "architecture",

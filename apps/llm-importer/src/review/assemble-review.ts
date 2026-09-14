@@ -51,9 +51,8 @@ export function assembleReviewFile(
 ): ReviewFile {
   const candidates: Candidate[] = connections.map((connection, index) => {
     // 009: a gRPC-tagged `calls` connection surfaces as candidate type 'grpc'
-    // (already a valid CandidateType; diagram-builder maps grpc → 'calls').
-    // Connections from every other pass carry no `transport`, so their mapping
-    // is unchanged.
+    // (already a valid CandidateType). Connections from every other pass carry
+    // no `transport`, so their mapping is unchanged.
     const candidateType =
       connection.type === 'calls' && connection.transport === 'grpc'
         ? 'grpc'
