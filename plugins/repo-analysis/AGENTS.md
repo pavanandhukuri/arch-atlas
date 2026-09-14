@@ -11,7 +11,8 @@ The arch-atlas importer core makes no model call itself and has no opinion on th
 ## What this does
 
 The importer core is deterministic and model-free: it reads `{repo}.analysis.json` files
-already sitting on disk and correlates them into a cross-repository diagram. It never talks
+already sitting on disk and correlates them into a review artifact of candidate cross-repository
+connections, for a human to confirm in Studio. It never talks
 to a model. Producing those `{repo}.analysis.json` files — reading a repository and
 characterizing what it is, what it exposes, and what it depends on — is the one step in the
 pipeline that benefits from a model, and this file is the procedure for doing that step with
@@ -43,9 +44,8 @@ One of:
   repository listed in the config in one pass. Then work through the Procedure below once per
   bundle it produced, writing every `{repoName}.analysis.json`, and finish by running
   `import <import.yaml>` yourself (Procedure step 4) — a single request to run this procedure
-  against a workspace should end with `architecture.review.yaml` and `architecture.arch.json`
-  sitting in `output.directory`, ready to upload into Studio's import wizard. No separate
-  developer step in between.
+  against a workspace should end with `architecture.review.yaml` sitting in `output.directory`,
+  ready to upload into Studio's import wizard. No separate developer step in between.
 - **A single repository path** — run the same command with `--repos <name>` to produce just
   `{outDir}/{name}.context.json`, then proceed as below for that one bundle.
 - **A `{repo}.context.json`** context bundle — read it directly. **Do not** open any other
@@ -104,9 +104,10 @@ repo with confidence.
    `npx --yes @archatlas/llm-importer@latest import <import.yaml>` **yourself** (still
    deterministic, no model call — six evidence passes over the raw source plus a name-mention
    fallback). It's safe to always run this last: a repository with no or a malformed analysis
-   artifact is named and skipped, the rest still produce a diagram. Report back the
-   `architecture.review.yaml` / `architecture.arch.json` paths it wrote — that's the deliverable
-   for a workspace request, not just the analysis artifacts.
+   artifact is named and skipped, the rest still make it into the review. Report back the
+   `architecture.review.yaml` path it wrote — that's the deliverable for a workspace request
+   (upload it to Studio's import wizard to review candidates and build the diagram), not just
+   the analysis artifacts.
 
 ## Validate
 

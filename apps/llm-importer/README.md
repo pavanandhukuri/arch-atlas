@@ -49,12 +49,15 @@ repo → gather-context (bounded, deterministic, secret-paths excluded)  → {re
        → correlate            (deterministic evidence passes over raw source)
        → (+ optional architecture.extra-connections.json from a producer's fallback pass)
        → assemble-review      → architecture.review.yaml
-       → build-diagram        → architecture.arch.json
 ```
 
 `archatlas` has two subcommands: `gather-context <config>` (write the bundles) and
-`import <config>` (build the diagram from `{repo}.analysis.json` artifacts). Neither contacts a
-model or the network.
+`import <config>` (correlate `{repo}.analysis.json` artifacts into `architecture.review.yaml`).
+Neither contacts a model or the network. `import` writes only the review artifact — every
+candidate `pending` — for a human to review in Studio's import wizard; it does **not** also write
+a `.arch.json`. A diagram built straight from unreviewed candidates would have no relationships
+(nothing here is ever auto-accepted), so Studio builds the real `.arch.json`, with relationships,
+once a human has actually reviewed them.
 
 `src/correlate/evidence/` and `src/correlate/evidence-passes.ts` are a **port** — owned
 and maintained here — of the deterministic cross-repository linker core from the author's

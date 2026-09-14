@@ -4,6 +4,23 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Removed — `import` no longer writes `architecture.arch.json`
+
+- **`import` now writes only `architecture.review.yaml`.** The `.arch.json` it used to also
+  write was a skeleton, not a diagram: `buildDiagram` only ever turns a candidate into a
+  relationship when its status is `accepted`, and nothing produced by `import` is ever
+  auto-accepted — so that file had every system/container positioned but **zero** connecting
+  lines, on every single import. Studio's wizard only ever needed `architecture.review.yaml`
+  (its optional "existing `architecture.arch.json`" upload is for merging a _new_ import into an
+  **already-finalized** diagram from a previous round — not this one). Studio itself builds the
+  real `.arch.json`, with relationships, once a human has actually reviewed the candidates.
+- `output.diagramFileName` is dropped from `import.yaml`'s schema — backward compatible, an
+  existing config that still sets it is silently ignored rather than read (same treatment as the
+  `localModel`/`analysis` blocks dropped when `analysis-runner-local` was removed).
+- `src/export/diagram-builder.ts` (`buildDiagram`) is deleted — it was never part of the
+  package's public API (`src/index.ts`), so this isn't a breaking export change, just dead code
+  with its call site gone.
+
 ### Added — declare a system grouping in `import.yaml`
 
 - **`import.yaml` gained an optional `systems` block**: `[{ name, repositories: [...] }]`, carried

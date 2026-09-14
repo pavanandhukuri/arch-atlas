@@ -10,8 +10,8 @@ import { runImport } from '../../src/analysis/run-import.js';
 /**
  * 010 proof gate (FR-001 / SC-001 / SC-006): a full `import` run over the
  * committed `test/fixtures/analyses/*.json` — as if some producer had made them —
- * with NO model and NO network. Downstream correlation, review assembly and
- * `.arch.json` export run for real against the fixture source on disk.
+ * with NO model and NO network. Downstream correlation and review assembly
+ * run for real against the fixture source on disk.
  */
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');
@@ -38,7 +38,7 @@ async function seedAnalyses(only?: readonly string[]): Promise<void> {
 function config(over: Partial<ImportConfig> = {}): ImportConfig {
   return {
     version: '2.0',
-    output: { directory: outputDir, diagramFileName: 'architecture.arch.json' },
+    output: { directory: outputDir },
     repositories: REPOS.map((name) => ({ name, path: join(FIXTURES, 'repos', name) })),
     ...over,
   };
@@ -52,7 +52,7 @@ afterEach(async () => {
 });
 
 describe('model-free import pipeline', () => {
-  it('produces the review + diagram with the known cross-repo edges and makes no network call', async () => {
+  it('produces the review artifact with the known cross-repo edges and makes no network call', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     await seedAnalyses();
 
@@ -93,20 +93,17 @@ describe('model-free import pipeline', () => {
     `);
 
     expect(review.repos.find((r) => r.name === 'audit-service')?.technology).toBe('Go / kafka-go');
+    expect(review.repos.find((r) => r.name === 'gateway')?.technology).toBe('TypeScript / Express');
 
-    const diagram = JSON.parse(
-      await readFile(join(outputDir, 'architecture.arch.json'), 'utf8')
-    ) as { schemaVersion: string; elements: Array<{ name: string; technology?: string }> };
-    expect(diagram.schemaVersion).toBe('1.0.0');
-    expect(diagram.elements.find((e) => e.name === 'gateway')?.technology).toBe(
-      'TypeScript / Express'
-    );
+    // no architecture.arch.json — that's built by Studio, after a human has
+    // actually reviewed the candidates above.
+    await expect(readFile(join(outputDir, 'architecture.arch.json'), 'utf8')).rejects.toThrow();
 
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
 
-  it('skips one missing + one corrupt artifact and still builds the diagram (FR-003)', async () => {
+  it('skips one missing + one corrupt artifact and still builds the review artifact (FR-003)', async () => {
     await seedAnalyses(['user-service', 'gateway']);
     await writeFile(
       join(outputDir, 'audit-service.analysis.json'),
@@ -124,9 +121,9 @@ describe('model-free import pipeline', () => {
 
     expect(errs.join('\n')).toMatch(/\[skip\] notification-service: no analysis artifact/);
     expect(errs.join('\n')).toMatch(/\[skip\] audit-service: invalid analysis artifact/);
-    const diagram = JSON.parse(
-      await readFile(join(outputDir, 'architecture.arch.json'), 'utf8')
-    ) as { elements: Array<{ name: string }> };
-    expect(diagram.elements.map((e) => e.name).sort()).toContain('user-service');
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { source_repos: string[] };
+    expect(review.source_repos).toContain('user-service');
   });
 });

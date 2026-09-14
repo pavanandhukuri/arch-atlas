@@ -9,7 +9,6 @@ export const CONFIG_VERSION = '2.0';
 
 export const OutputConfigSchema = z.object({
   directory: z.string().min(1),
-  diagramFileName: z.string().min(1).default('architecture.arch.json'),
 });
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 

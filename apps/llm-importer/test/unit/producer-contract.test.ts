@@ -63,7 +63,7 @@ const ORDERS = {
 function config(): ImportConfig {
   return {
     version: '2.0',
-    output: { directory: outputDir, diagramFileName: 'architecture.arch.json' },
+    output: { directory: outputDir },
     repositories: [
       { path: '/repos/gateway', name: 'gateway' },
       { path: '/repos/orders-service', name: 'orders-service' },

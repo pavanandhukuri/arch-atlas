@@ -1,6 +1,6 @@
 ---
 name: import
-description: Run the arch-atlas repo importer end-to-end for a workspace's import.yaml — gathers context, analyzes every listed repository, and correlates them into architecture.review.yaml / architecture.arch.json, ready for Studio's import wizard. Also handles a single repository or a context bundle. Use when the user wants to run the arch-atlas repo importer with Claude Code.
+description: Run the arch-atlas repo importer end-to-end for a workspace's import.yaml — gathers context, analyzes every listed repository, and correlates them into architecture.review.yaml, ready for Studio's import wizard. Also handles a single repository or a context bundle. Use when the user wants to run the arch-atlas repo importer with Claude Code.
 ---
 
 # repo-analysis: import (Claude Code)
