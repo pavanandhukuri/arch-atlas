@@ -11,6 +11,7 @@ import {
   getParentLevel,
   deriveViewRelationships,
 } from '../../services/diagram-navigation';
+import { placeExternalElements } from '../../services/external-placement';
 
 export interface DiagramViewerProps {
   model: ArchitectureModel | null;
@@ -81,19 +82,14 @@ export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerPr
     const visibleIds = new Set(visibleElements.map((e) => e.id));
     const boundaryNodes = view.layout.nodes.filter((n) => visibleIds.has(n.elementId));
 
-    // Place external elements to the left of the boundary box. Not clamped to >= 0:
-    // that squashed them on top of the boundary whenever it started near the left
-    // edge. The canvas frames all content on load, so negative x is fine.
-    const minX = boundaryNodes.length > 0 ? Math.min(...boundaryNodes.map((n) => n.x)) : 300;
-    const defaultExternalX = minX - 280; // 200 wide + 80 gap
-
-    const externalNodes = externalElements.map((el, i) => ({
-      elementId: el.id,
-      x: defaultExternalX,
-      y: 50 + i * 180,
-      w: 200 as number | undefined,
-      h: 130 as number | undefined,
-    }));
+    // Externals follow the flow: callers into the boundary on its left, things it
+    // calls out to on its right, level with what they connect to. The canvas frames
+    // all content on load, so their x may lie outside the boundary's own extent.
+    const externalNodes = placeExternalElements(
+      externalElements,
+      viewRelationships.derivedRelationships,
+      boundaryNodes
+    );
 
     return {
       ...view,
@@ -102,7 +98,7 @@ export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerPr
         nodes: [...boundaryNodes, ...externalNodes],
       },
     };
-  }, [view, visibleElements, externalElements]);
+  }, [view, visibleElements, externalElements, viewRelationships]);
 
   const boundaryElementIds = useMemo(
     () => (focusedElementId ? visibleElements.map((e) => e.id) : []),

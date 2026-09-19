@@ -12,3 +12,5 @@ export type { UseZoomResult } from './hooks/useZoom';
 
 export type { DiagramLevel } from './services/diagram-navigation';
 export { deriveViewRelationships } from './services/diagram-navigation';
+export { placeExternalElements } from './services/external-placement';
+export type { PlacedNode, BoundaryNode } from './services/external-placement';

@@ -7,6 +7,7 @@ import {
   ZoomControls,
   useZoom,
   deriveViewRelationships,
+  placeExternalElements,
 } from '@archatlas/viewer-components';
 import type { Renderer } from '@archatlas/renderer';
 import { ElementEditor, RelationshipEditor } from '@/components/model-editor';
@@ -735,17 +736,18 @@ export default function StudioPage() {
   const externalElementIdsRef = useRef<string[]>(externalElementIds);
   externalElementIdsRef.current = externalElementIds;
 
-  // Compute the default left-of-boundary X for external elements that have no position yet.
-  // We do this in React so the renderer receives correct initial positions.
-  const defaultExternalX = (() => {
-    if (!currentView || externalElements.length === 0) return 50;
-    const boundaryNodes = boundaryElementIds
-      .map((id) => currentView.layout.nodes.find((n) => n.elementId === id))
-      .filter(Boolean);
-    if (boundaryNodes.length === 0) return 50;
-    const minX = Math.min(...boundaryNodes.map((n) => n!.x));
-    return minX - 280; // 200 wide + 80 gap
-  })();
+  // Default positions for external elements the user hasn't dragged yet: callers
+  // on the left of the boundary, things it calls on the right, level with what
+  // they connect to (computed here so the renderer receives correct positions).
+  const defaultExternalNodes = currentView
+    ? placeExternalElements(
+        externalElements,
+        viewRelationships,
+        boundaryElementIds
+          .map((id) => currentView.layout.nodes.find((n) => n.elementId === id))
+          .filter((n): n is NonNullable<typeof n> => n !== undefined)
+      )
+    : [];
 
   const filteredView = currentView
     ? {
@@ -757,16 +759,10 @@ export default function StudioPage() {
             ...currentView.layout.nodes.filter((node) =>
               visibleElements.some((elem) => elem.id === node.elementId)
             ),
-            // External elements use their dedicated externalPositions (or a stacked default)
-            ...externalElements.map((el, i) => {
-              const stored = externalPositions[el.id];
-              return {
-                elementId: el.id,
-                x: stored?.x ?? defaultExternalX,
-                y: stored?.y ?? 50 + i * 180,
-                w: 200,
-                h: 130,
-              };
+            // External elements: a position the user dragged them to, else the flow-based default
+            ...defaultExternalNodes.map((node) => {
+              const stored = externalPositions[node.elementId];
+              return stored ? { ...node, x: stored.x, y: stored.y } : node;
             }),
           ],
         },

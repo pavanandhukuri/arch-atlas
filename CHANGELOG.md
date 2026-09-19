@@ -22,6 +22,12 @@ All notable user-facing changes SHOULD be documented in this file.
   slight pinch compounded to a huge jump. Zoom now scales with the actual movement, is finer for
   pinch, and zooms toward the cursor instead of the top-left corner. One mouse-wheel notch is
   still one 1.2× step.
+- **External systems are placed by the flow, not all stacked on the left.** On a system-context
+  view, an external that calls _into_ the system sits on its left, one the system calls _out to_
+  (a database, an identity provider, a third-party API) on its right, each level with the
+  elements it connects to and nudged apart so they don't overlap. One that does both goes to the
+  side with more relationships; one with no visible relationship keeps the old default (left). A
+  position you've dragged an external to is still respected.
 - **Tidier auto-layout.** New layouts are relationship-aware instead of a 3-column grid in
   declaration order: a caller sits left of what it calls, fan-outs share a column, connected
   elements are ordered to reduce crossing arrows, unconnected ones are tucked to the side, and
