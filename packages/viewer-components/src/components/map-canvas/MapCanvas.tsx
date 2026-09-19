@@ -17,6 +17,15 @@ interface MapCanvasProps {
   boundaryElementIds?: string[];
   externalElementIds?: string[];
   boundaryLabel?: string;
+  /**
+   * Frame all content in the canvas whenever this value changes (compared by
+   * identity) — e.g. a different diagram was loaded, or the view drilled
+   * into/out of a system. Unset = never auto-fit. Ordinary edits to the same
+   * diagram must NOT change it, or the viewport would jump under the user.
+   */
+  fitKey?: unknown;
+  /** Called with the applied zoom after an automatic fit, to sync a zoom display. */
+  onViewportFit?: (zoom: number) => void;
 }
 
 export function MapCanvas({
@@ -34,9 +43,14 @@ export function MapCanvas({
   boundaryElementIds,
   externalElementIds,
   boundaryLabel,
+  fitKey,
+  onViewportFit,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
+  const lastFitKeyRef = useRef<unknown>(undefined);
+  const onViewportFitRef = useRef(onViewportFit);
+  onViewportFitRef.current = onViewportFit;
 
   const onElementClickRef = useRef(onElementClick);
   const onElementDoubleClickRef = useRef(onElementDoubleClick);
@@ -109,6 +123,15 @@ export function MapCanvas({
       boundaryLabel,
     });
   }, [model, view, boundaryElementIds, externalElementIds, boundaryLabel]);
+
+  // Declared AFTER the layout effect on purpose: effects run in order, so the new
+  // layout is drawn before we measure it.
+  useEffect(() => {
+    const renderer = rendererRef.current;
+    if (!renderer || fitKey === undefined || lastFitKeyRef.current === fitKey) return;
+    lastFitKeyRef.current = fitKey;
+    onViewportFitRef.current?.(renderer.fitToContent());
+  }, [fitKey, model, view]);
 
   return (
     <div

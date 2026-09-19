@@ -73,7 +73,7 @@ export default function StudioPage() {
     clientLastKnown: string | number | null;
   } | null>(null);
   const { handle, setHandle, clearHandle } = useStorageSession();
-  const { zoomLevel, zoomIn, zoomOut, fitToView, attachToRenderer } = useZoom();
+  const { zoomLevel, zoomIn, zoomOut, fitToView, syncZoomLevel, attachToRenderer } = useZoom();
   const studioCanvasRef = useRef<HTMLElement>(null);
   const studioRendererRef = useRef<Renderer | null>(null);
   // Guards the pending-import / startup-prompt decision against Strict Mode's dev double-invoke.
@@ -93,6 +93,13 @@ export default function StudioPage() {
   const [currentLevel, setCurrentLevel] = useState<DiagramLevel>(levelParam || 'landscape');
   const [focusedElementId, setFocusedElementId] = useState<string | null>(focusParam || null);
   const [, startTransition] = useTransition();
+
+  // Frame the diagram (externals included) when a different diagram loads or the
+  // view drills in/out — but NOT on ordinary edits/drags, which would make the
+  // viewport jump under the user. A diagram's identity is its title + creation
+  // stamp, which edits never change.
+  const diagramIdentity = model ? `${model.metadata.title}|${model.metadata.createdAt ?? ''}` : '';
+  const fitKey = useMemo(() => ({}), [diagramIdentity, focusedElementId]);
 
   const updateURL = useCallback(
     (level: DiagramLevel, focusId: string | null) => {
@@ -1050,6 +1057,8 @@ export default function StudioPage() {
               externalElementIds={externalElementIds}
               boundaryLabel={boundaryLabel}
               onRendererMount={onStudioRendererMount}
+              fitKey={fitKey}
+              onViewportFit={syncZoomLevel}
             />
           )}
           {canvasModel && (

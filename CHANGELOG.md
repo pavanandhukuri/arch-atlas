@@ -4,6 +4,31 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Fixed — diagram viewport & interaction polish (Studio and the import preview)
+
+- **External systems no longer start hidden.** They're placed to the left of the system
+  boundary, at a negative x that the canvas never scrolled to (and the standalone viewer clamped
+  them onto the boundary instead). The canvas now frames all diagram content — externals
+  included — when a diagram loads and when you drill into / out of a system. "Fit to View"
+  (and Ctrl/Cmd+0) does the same; before, it only reset to the origin, so it could never recover
+  them.
+- **Dragging no longer sticks or loses the drop.** A drag followed the pointer only while it was
+  over the element itself, so a fast drag outran the box and froze it, and releasing outside it
+  discarded the new position. The pointer is now tracked for the whole drag (and captured, so it
+  survives leaving the canvas), a drop always commits, and a click's few pixels of wobble no
+  longer counts as a drag. Panning got the same release-outside-the-canvas fix.
+- **Pinch / scroll zoom is proportional.** Every wheel event applied a fixed ×1.2 regardless of
+  how far the wheel or fingers moved, and a trackpad pinch is dozens of tiny wheel events — so a
+  slight pinch compounded to a huge jump. Zoom now scales with the actual movement, is finer for
+  pinch, and zooms toward the cursor instead of the top-left corner. One mouse-wheel notch is
+  still one 1.2× step.
+- **Tidier auto-layout.** New layouts are relationship-aware instead of a 3-column grid in
+  declaration order: a caller sits left of what it calls, fan-outs share a column, connected
+  elements are ordered to reduce crossing arrows, unconnected ones are tucked to the side, and
+  each system's containers are laid out by their own relationships. Deterministic. It applies to
+  diagrams laid out from now on (an import, or adding an element) — a saved diagram keeps the
+  positions it already has.
+
 ### Removed — `import` no longer writes `architecture.arch.json`
 
 - **`import` now writes only `architecture.review.yaml`.** The `.arch.json` it used to also

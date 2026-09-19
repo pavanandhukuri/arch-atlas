@@ -20,7 +20,7 @@ export interface DiagramViewerProps {
 }
 
 export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerProps) {
-  const { zoomLevel, zoomIn, zoomOut, fitToView, attachToRenderer } = useZoom();
+  const { zoomLevel, zoomIn, zoomOut, fitToView, syncZoomLevel, attachToRenderer } = useZoom();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
 
@@ -37,6 +37,11 @@ export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerPr
     if (!model) return [];
     return getVisibleElements(model, currentLevel, focusedElementId);
   }, [model, currentLevel, focusedElementId]);
+
+  // A new identity whenever a different diagram loads or the view drills in/out —
+  // MapCanvas re-frames the content on each change, so externals placed left of
+  // the boundary (and anything else off-origin) are always brought into view.
+  const fitKey = useMemo(() => ({}), [model, focusedElementId]);
 
   // Relationships whose endpoints aren't both visible at the current level (e.g. two
   // containers in different systems, viewed at the landscape level) need to be bubbled
@@ -76,9 +81,11 @@ export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerPr
     const visibleIds = new Set(visibleElements.map((e) => e.id));
     const boundaryNodes = view.layout.nodes.filter((n) => visibleIds.has(n.elementId));
 
-    // Place external elements to the left of the boundary box
+    // Place external elements to the left of the boundary box. Not clamped to >= 0:
+    // that squashed them on top of the boundary whenever it started near the left
+    // edge. The canvas frames all content on load, so negative x is fine.
     const minX = boundaryNodes.length > 0 ? Math.min(...boundaryNodes.map((n) => n.x)) : 300;
-    const defaultExternalX = Math.max(0, minX - 280);
+    const defaultExternalX = minX - 280; // 200 wide + 80 gap
 
     const externalNodes = externalElements.map((el, i) => ({
       elementId: el.id,
@@ -250,6 +257,8 @@ export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerPr
         boundaryElementIds={boundaryElementIds}
         externalElementIds={externalElementIds}
         boundaryLabel={boundaryLabel}
+        fitKey={fitKey}
+        onViewportFit={syncZoomLevel}
       />
       <ZoomControls
         zoomLevel={zoomLevel}
