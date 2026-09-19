@@ -21,6 +21,12 @@ const MAX_PER_COLUMN = 6;
 
 type Pair = readonly [string, string];
 
+// Map lookups that can't miss for the ids used here, but `noUncheckedIndexedAccess`
+// makes every `.get()` possibly-undefined. Kept as two helpers instead of a
+// fallback at each call site.
+const num = (m: Map<string, number>, k: string): number => m.get(k) ?? 0;
+const list = (m: Map<string, string[]>, k: string): string[] => m.get(k) ?? [];
+
 /**
  * Layered ("who calls whom") layout, kept deliberately simple and fully
  * deterministic — no randomness, no iteration to convergence, no dependency on
@@ -209,13 +215,13 @@ function breakCycles(ids: string[], edges: Pair[], order: Map<string, number>): 
   const out = new Map<string, string[]>();
   for (const id of ids) out.set(id, []);
   for (const [a, b] of edges) out.get(a)?.push(b);
-  for (const list of out.values()) list.sort((x, y) => (order.get(x) ?? 0) - (order.get(y) ?? 0));
+  for (const list of out.values()) list.sort((x, y) => num(order, x) - num(order, y));
 
   const state = new Map<string, 1 | 2>(); // 1 = on the DFS stack, 2 = finished
   const back = new Set<string>();
   const visit = (id: string): void => {
     state.set(id, 1);
-    for (const next of out.get(id) ?? []) {
+    for (const next of list(out, id)) {
       const s = state.get(next);
       if (s === 1) back.add(`${id}\u0000${next}`);
       else if (s === undefined) visit(next);
@@ -240,24 +246,24 @@ function assignLayers(ids: string[], dag: Pair[], order: Map<string, number>): M
   for (const [a, b] of dag) {
     preds.get(b)?.push(a);
     succs.get(a)?.push(b);
-    indeg.set(b, (indeg.get(b) ?? 0) + 1);
+    indeg.set(b, num(indeg, b) + 1);
   }
 
   const layer = new Map<string, number>();
   // Kahn's algorithm, always taking the earliest-declared ready node → deterministic.
   const ready = ids.filter((id) => indeg.get(id) === 0);
-  ready.sort((x, y) => (order.get(x) ?? 0) - (order.get(y) ?? 0));
+  ready.sort((x, y) => num(order, x) - num(order, y));
   while (ready.length > 0) {
     const id = ready.shift() as string;
     let l = 0;
-    for (const p of preds.get(id) ?? []) l = Math.max(l, (layer.get(p) ?? 0) + 1);
+    for (const p of list(preds, id)) l = Math.max(l, num(layer, p) + 1);
     layer.set(id, l);
-    for (const s of succs.get(id) ?? []) {
-      const d = (indeg.get(s) ?? 0) - 1;
+    for (const s of list(succs, id)) {
+      const d = num(indeg, s) - 1;
       indeg.set(s, d);
       if (d === 0) {
         ready.push(s);
-        ready.sort((x, y) => (order.get(x) ?? 0) - (order.get(y) ?? 0));
+        ready.sort((x, y) => num(order, x) - num(order, y));
       }
     }
   }
@@ -271,10 +277,10 @@ function orderLayers(
   layerOf: Map<string, number>,
   order: Map<string, number>
 ): string[][] {
-  const depth = Math.max(0, ...ids.map((id) => layerOf.get(id) ?? 0));
+  const depth = Math.max(0, ...ids.map((id) => num(layerOf, id)));
   const layers: string[][] = Array.from({ length: depth + 1 }, () => []);
-  for (const id of [...ids].sort((x, y) => (order.get(x) ?? 0) - (order.get(y) ?? 0))) {
-    layers[layerOf.get(id) ?? 0]?.push(id);
+  for (const id of [...ids].sort((x, y) => num(order, x) - num(order, y))) {
+    layers[num(layerOf, id)]?.push(id);
   }
 
   const preds = new Map<string, string[]>();
@@ -300,16 +306,16 @@ function orderLayers(
       if (!layer) continue;
       const bary = new Map<string, number>();
       for (const id of layer) {
-        const ns = neighbours.get(id) ?? [];
+        const ns = list(neighbours, id);
         bary.set(
           id,
           ns.length === 0
-            ? (position.get(id) ?? 0)
-            : ns.reduce((sum, n) => sum + (position.get(n) ?? 0), 0) / ns.length
+            ? num(position, id)
+            : ns.reduce((sum, n) => sum + num(position, n), 0) / ns.length
         );
       }
       // Array.prototype.sort is stable, so equal barycentres keep their current order.
-      layer.sort((x, y) => (bary.get(x) ?? 0) - (bary.get(y) ?? 0));
+      layer.sort((x, y) => num(bary, x) - num(bary, y));
       layer.forEach((id, i) => position.set(id, i));
     }
   };

@@ -317,3 +317,41 @@ describe('position preservation', () => {
     );
   });
 });
+
+describe('edge cases', () => {
+  it('treats duplicate relationships between the same pair as one edge', () => {
+    const m = modelOf(
+      [el('a'), el('b')],
+      [rel('a', 'b', 'r1'), rel('a', 'b', 'r2'), rel('a', 'b', 'r3')]
+    );
+    expect(nodeIn(layoutOf(m).nodes, 'a').x).toBeLessThan(nodeIn(layoutOf(m).nodes, 'b').x);
+    expect(layoutOf(m).nodes).toHaveLength(2);
+  });
+
+  it('a sink in the middle of the graph (no callees, shallower than the deepest layer) is placed', () => {
+    // a -> b -> c is 3 deep; a -> dead-end is a sink at layer 1
+    const m = modelOf(
+      [el('a'), el('b'), el('c'), el('dead')],
+      [rel('a', 'b'), rel('b', 'c'), rel('a', 'dead')]
+    );
+    const out = layoutOf(m).nodes;
+    expect(nodeIn(out, 'dead').x).toBe(nodeIn(out, 'b').x); // same layer
+    expectNoOverlaps(out);
+  });
+
+  it('an existing node with no height still lets new elements be placed below it', () => {
+    const noHeight = viewWith([{ elementId: 'a', x: 10, y: 20 }]);
+    const out = computeLayout(modelOf([el('a'), el('b')]), noHeight, OPTS).nodes;
+    expect(nodeIn(out, 'a')).toEqual({ elementId: 'a', x: 10, y: 20 });
+    expect(nodeIn(out, 'b').y).toBeGreaterThan(20 + 80); // default height 80
+  });
+
+  it('ignores duplicate nodes for one element in the incoming view (first wins)', () => {
+    const dup = viewWith([
+      { elementId: 'a', x: 1, y: 2, w: 120, h: 80 },
+      { elementId: 'a', x: 999, y: 999, w: 120, h: 80 },
+    ]);
+    const out = computeLayout(modelOf([el('a')]), dup, OPTS).nodes;
+    expect(out).toEqual([{ elementId: 'a', x: 1, y: 2, w: 120, h: 80 }]);
+  });
+});
