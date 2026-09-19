@@ -38,6 +38,11 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  // `next dev` and `next build` used to share `.next`, so running a production
+  // build (e.g. `turbo run build`) while the dev server was up overwrote its
+  // output and the page loaded with every stylesheet 404ing. Dev gets its own
+  // directory; production (and Vercel) still uses the default `.next`.
+  distDir: isDev ? '.next-dev' : '.next',
   reactStrictMode: true,
   transpilePackages: [
     '@archatlas/core-model',

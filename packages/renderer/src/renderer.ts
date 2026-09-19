@@ -9,6 +9,61 @@ import { Application, Graphics, Text, Container, Rectangle, settings } from 'pix
 export const ZOOM_MIN = 0.1;
 export const ZOOM_MAX = 4.0;
 
+/** Screen-space pixels the pointer must travel before a press becomes an element drag. */
+export const DRAG_THRESHOLD_PX = 3;
+
+export interface StageTransform {
+  x: number;
+  y: number;
+  scale: number;
+}
+
+export interface Bounds {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * New stage transform for zooming to `newScale` while keeping the content point
+ * currently under screen point (px, py) exactly where it is — i.e. zoom toward
+ * the cursor instead of toward the stage origin. `newScale` is clamped to
+ * [ZOOM_MIN, ZOOM_MAX].
+ */
+export function zoomAroundPoint(
+  t: StageTransform,
+  px: number,
+  py: number,
+  newScale: number
+): StageTransform {
+  const scale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, newScale));
+  const ratio = scale / t.scale;
+  return { x: px - (px - t.x) * ratio, y: py - (py - t.y) * ratio, scale };
+}
+
+/**
+ * The stage transform that frames `bounds` (in stage coordinates, which may be
+ * negative) centred inside a `viewport`, with `padding` screen pixels of margin.
+ * Never zooms in past `maxScale` (default 1 — a small diagram is centred, not
+ * blown up) or out past ZOOM_MIN.
+ */
+export function computeFitTransform(
+  bounds: Bounds,
+  viewport: { width: number; height: number },
+  { padding = 48, maxScale = 1 }: { padding?: number; maxScale?: number } = {}
+): StageTransform {
+  const availW = Math.max(1, viewport.width - padding * 2);
+  const availH = Math.max(1, viewport.height - padding * 2);
+  const fit = Math.min(availW / Math.max(1, bounds.w), availH / Math.max(1, bounds.h));
+  const scale = Math.min(maxScale, Math.max(ZOOM_MIN, fit));
+  return {
+    scale,
+    x: (viewport.width - bounds.w * scale) / 2 - bounds.x * scale,
+    y: (viewport.height - bounds.h * scale) / 2 - bounds.y * scale,
+  };
+}
+
 export interface RendererOptions {
   background?: number;
   antialias?: boolean;
@@ -19,6 +74,17 @@ export interface RendererOptions {
 export interface Renderer {
   destroy: () => void;
   setZoom: (zoom: number) => void;
+  /**
+   * Zoom to `zoom`, keeping the content under `anchor` (client/page coordinates,
+   * e.g. a wheel event's clientX/clientY) fixed. Without an anchor the centre of
+   * the canvas stays fixed. Returns the applied (clamped) zoom.
+   */
+  zoomTo: (zoom: number, anchor?: { clientX: number; clientY: number }) => number;
+  /**
+   * Frame everything currently drawn — externals, boundary and any off-origin
+   * content — inside the canvas. Returns the applied zoom.
+   */
+  fitToContent: () => number;
   pan: (dx: number, dy: number) => void;
   onDrillDown: (callback: (elementId: string) => void) => void;
   onClick: (callback: (elementId: string) => void) => void;
@@ -239,6 +305,8 @@ export function createRenderer(
     previewMouseX = newMouseX;
     previewMouseY = newMouseY;
 
+    activeElementDrag?.move(newMouseX, newMouseY);
+
     // Manual hit testing during connection drag — convert to stage-local coords
     if (isDraggingConnection) {
       const stageMouseX = newMouseX - stage.x;
@@ -273,6 +341,12 @@ export function createRenderer(
       }
     }
 
+    // Finish an element drag (commits the drop position), wherever it ended.
+    if (activeElementDrag) {
+      activeElementDrag.end(true);
+      activeElementDrag = null;
+    }
+
     // Reset drag/pan state
     isDraggingConnection = false;
     isPanning = false;
@@ -282,8 +356,27 @@ export function createRenderer(
     renderConnectionPreview();
   };
 
+  // The browser aborted the gesture (e.g. a system dialog stole the pointer):
+  // abandon the drag without committing, and redraw so the box snaps back.
+  const handlePointerCancel = (_event: Event) => {
+    if (activeElementDrag) {
+      activeElementDrag.end(false);
+      activeElementDrag = null;
+      renderElements(
+        lastModel,
+        lastView,
+        lastBoundaryElementIds,
+        lastExternalElementIds,
+        lastBoundaryLabel
+      );
+    }
+    isPanning = false;
+    (app.view as HTMLCanvasElement).style.cursor = '';
+  };
+
   (app.view as HTMLCanvasElement).addEventListener('pointermove', handlePointerMove);
   (app.view as HTMLCanvasElement).addEventListener('pointerup', handlePointerUp);
+  (app.view as HTMLCanvasElement).addEventListener('pointercancel', handlePointerCancel);
 
   // Draw grid background
   const gridGraphics = new Graphics();
@@ -314,7 +407,7 @@ export function createRenderer(
   background.drawRect(-3000, -3000, 8000, 8000);
   background.endFill();
   background.eventMode = 'static';
-  background.on('pointerdown', () => {
+  background.on('pointerdown', (event: any) => {
     // Clear all selection when clicking on empty canvas
     const hadSelection = selectedRelationshipId || selectedElementId;
     selectedRelationshipId = null;
@@ -333,6 +426,15 @@ export function createRenderer(
     if (!isDraggingConnection) {
       isPanning = true;
       (app.view as HTMLCanvasElement).style.cursor = 'grabbing';
+      // Don't leave the pan "stuck on" if the button is released off-canvas.
+      const original = event?.data?.originalEvent as PointerEvent | undefined;
+      if (typeof original?.pointerId === 'number') {
+        try {
+          (app.view as HTMLCanvasElement).setPointerCapture(original.pointerId);
+        } catch {
+          // best-effort
+        }
+      }
     }
   });
   stage.addChildAt(background, 0); // Add at very bottom, below grid
@@ -349,6 +451,12 @@ export function createRenderer(
   let connectionPreviewElementId: string | null = null;
   let isDraggingConnection = false;
   let isPanning = false;
+  // The element drag currently in progress, if any. Fed by the canvas-level
+  // pointer listeners so it keeps tracking however fast/far the pointer moves.
+  let activeElementDrag: {
+    move: (mouseX: number, mouseY: number) => void;
+    end: (commit: boolean) => void;
+  } | null = null;
   let dragConnectionSourceId: string | null = null;
   let previewMouseX = 0;
   let previewMouseY = 0;
@@ -691,6 +799,13 @@ export function createRenderer(
       let hasDragged = false;
       let dragStartX = 0;
       let dragStartY = 0;
+      let pressX = 0;
+      let pressY = 0;
+      // Where the box was last dragged to — what a drop commits. Kept here rather
+      // than read back from `elementGraphics` at release: if anything re-rendered
+      // mid-drag, that lookup would return a fresh box at its OLD position.
+      let dragLastX = 0;
+      let dragLastY = 0;
       let isHoveringBox = false;
       const handleHoverStates = {
         top: false,
@@ -809,11 +924,58 @@ export function createRenderer(
         updateAllHandlesVisibility();
       });
 
+      // Element drag. The press starts it here, but the pointer is then tracked
+      // by the canvas-level pointermove/pointerup listeners (see
+      // `activeElementDrag`), NOT by per-box listeners: Pixi only delivers a
+      // box's `pointermove` while the pointer is over that box, so a fast drag
+      // that outran the box froze it mid-air, and letting go outside it fired
+      // `pointerupoutside`, which discarded the drop.
+      const applyDragPosition = (mouseX: number, mouseY: number): void => {
+        const stageX = (mouseX - stage.x) / stage.scale.x;
+        const stageY = (mouseY - stage.y) / stage.scale.y;
+        const newX = stageX - dragStartX;
+        const newY = stageY - dragStartY;
+        dragLastX = newX;
+        dragLastY = newY;
+
+        // Update visual position only (don't update model yet)
+        box.x = newX - node.x;
+        box.y = newY - node.y;
+
+        const graphics = elementGraphics.get(node.elementId);
+        if (graphics) {
+          graphics.x = newX;
+          graphics.y = newY;
+          graphics.textContainer.x = newX;
+          graphics.textContainer.y = newY;
+          if (graphics.handles) {
+            graphics.handles.top.x = newX + width / 2;
+            graphics.handles.top.y = newY;
+            graphics.handles.right.x = newX + width;
+            graphics.handles.right.y = newY + height / 2;
+            graphics.handles.bottom.x = newX + width / 2;
+            graphics.handles.bottom.y = newY + height;
+            graphics.handles.left.x = newX;
+            graphics.handles.left.y = newY + height / 2;
+            graphics.handles.topLeft.x = newX;
+            graphics.handles.topLeft.y = newY;
+            graphics.handles.topRight.x = newX + width;
+            graphics.handles.topRight.y = newY;
+            graphics.handles.bottomLeft.x = newX;
+            graphics.handles.bottomLeft.y = newY + height;
+            graphics.handles.bottomRight.x = newX + width;
+            graphics.handles.bottomRight.y = newY + height;
+          }
+        }
+      };
+
       if (!options.readOnly)
         box.on('pointerdown', (event: any) => {
           isDragging = true;
           hasDragged = false;
           const position = event.data.global;
+          pressX = position.x;
+          pressY = position.y;
           const stageX = (position.x - stage.x) / stage.scale.x;
           const stageY = (position.y - stage.y) / stage.scale.y;
           dragStartX = stageX - node.x;
@@ -824,24 +986,39 @@ export function createRenderer(
             selectedElementId = node.elementId;
             renderSelection();
           }
-        });
 
-      if (!options.readOnly)
-        box.on('pointerup', () => {
-          if (isDragging && hasDragged) {
-            const graphics = elementGraphics.get(node.elementId);
-            if (graphics && dragCallbacks.length > 0) {
-              dragCallbacks.forEach((callback) => callback(node.elementId, graphics.x, graphics.y));
+          // Keep receiving move/up events even if the pointer leaves the canvas.
+          const original = event.data.originalEvent as PointerEvent | undefined;
+          if (typeof original?.pointerId === 'number') {
+            try {
+              (app.view as HTMLCanvasElement).setPointerCapture(original.pointerId);
+            } catch {
+              // synthetic / already-released pointer — capture is best-effort
             }
           }
-          isDragging = false;
-          hasDragged = false;
-        });
 
-      if (!options.readOnly)
-        box.on('pointerupoutside', () => {
-          isDragging = false;
-          hasDragged = false;
+          activeElementDrag = {
+            move: (mouseX: number, mouseY: number) => {
+              if (!isDragging) return;
+              // Ignore the small wobble of a plain click; only a deliberate
+              // move becomes a drag (and suppresses the click).
+              if (!hasDragged && Math.hypot(mouseX - pressX, mouseY - pressY) < DRAG_THRESHOLD_PX) {
+                return;
+              }
+              hasDragged = true;
+              applyDragPosition(mouseX, mouseY);
+            },
+            end: (commit: boolean) => {
+              if (commit && isDragging && hasDragged) {
+                dragCallbacks.forEach((callback) => callback(node.elementId, dragLastX, dragLastY));
+              }
+              isDragging = false;
+              // `hasDragged` is deliberately left set: Pixi dispatches `click`
+              // right after pointerup, and must still see that this press was a
+              // drag so it doesn't also open the element for editing. The next
+              // pointerdown resets it.
+            },
+          };
         });
 
       // Handle single-click and double-click with proper flicker prevention.
@@ -914,48 +1091,6 @@ export function createRenderer(
           }
         }
       });
-
-      if (!options.readOnly)
-        box.on('pointermove', (event: any) => {
-          if (isDragging) {
-            hasDragged = true;
-            const position = event.data.global;
-            const stageX = (position.x - stage.x) / stage.scale.x;
-            const stageY = (position.y - stage.y) / stage.scale.y;
-            const newX = stageX - dragStartX;
-            const newY = stageY - dragStartY;
-
-            // Update visual position only (don't update model yet)
-            box.x = newX - node.x;
-            box.y = newY - node.y;
-
-            const graphics = elementGraphics.get(node.elementId);
-            if (graphics) {
-              graphics.x = newX;
-              graphics.y = newY;
-              graphics.textContainer.x = newX;
-              graphics.textContainer.y = newY;
-              if (graphics.handles) {
-                graphics.handles.top.x = newX + width / 2;
-                graphics.handles.top.y = newY;
-                graphics.handles.right.x = newX + width;
-                graphics.handles.right.y = newY + height / 2;
-                graphics.handles.bottom.x = newX + width / 2;
-                graphics.handles.bottom.y = newY + height;
-                graphics.handles.left.x = newX;
-                graphics.handles.left.y = newY + height / 2;
-                graphics.handles.topLeft.x = newX;
-                graphics.handles.topLeft.y = newY;
-                graphics.handles.topRight.x = newX + width;
-                graphics.handles.topRight.y = newY;
-                graphics.handles.bottomLeft.x = newX;
-                graphics.handles.bottomLeft.y = newY + height;
-                graphics.handles.bottomRight.x = newX + width;
-                graphics.handles.bottomRight.y = newY + height;
-              }
-            }
-          }
-        });
 
       // Build C4-style text container with name, type tag, and description
       const textContainer = new Container();
@@ -1132,10 +1267,50 @@ export function createRenderer(
     destroy: () => {
       (app.view as HTMLCanvasElement).removeEventListener('pointermove', handlePointerMove);
       (app.view as HTMLCanvasElement).removeEventListener('pointerup', handlePointerUp);
+      (app.view as HTMLCanvasElement).removeEventListener('pointercancel', handlePointerCancel);
       app.destroy(true, { children: true, texture: true });
     },
     setZoom: (zoom: number) => {
       stage.scale.set(zoom);
+    },
+    zoomTo: (zoom: number, anchor?: { clientX: number; clientY: number }) => {
+      const canvas = app.view as HTMLCanvasElement;
+      const rect = canvas.getBoundingClientRect();
+      const px = anchor ? anchor.clientX - rect.left : app.screen.width / 2;
+      const py = anchor ? anchor.clientY - rect.top : app.screen.height / 2;
+      const next = zoomAroundPoint({ x: stage.x, y: stage.y, scale: stage.scale.x }, px, py, zoom);
+      stage.scale.set(next.scale);
+      stage.x = next.x;
+      stage.y = next.y;
+      return next.scale;
+    },
+    fitToContent: () => {
+      // Bounds of everything drawn, in stage coordinates (may be negative —
+      // e.g. external systems placed to the left of the boundary).
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const g of elementGraphics.values()) {
+        minX = Math.min(minX, g.x);
+        minY = Math.min(minY, g.y);
+        maxX = Math.max(maxX, g.x + g.w);
+        maxY = Math.max(maxY, g.y + g.h);
+      }
+      if (!Number.isFinite(minX)) {
+        stage.scale.set(1);
+        stage.x = 0;
+        stage.y = 0;
+        return 1;
+      }
+      const fit = computeFitTransform(
+        { x: minX, y: minY, w: maxX - minX, h: maxY - minY },
+        { width: app.screen.width, height: app.screen.height }
+      );
+      stage.scale.set(fit.scale);
+      stage.x = fit.x;
+      stage.y = fit.y;
+      return fit.scale;
     },
     pan: (x: number, y: number) => {
       // Every caller (useZoom's fitToView / Cmd+0) passes (0, 0) meaning

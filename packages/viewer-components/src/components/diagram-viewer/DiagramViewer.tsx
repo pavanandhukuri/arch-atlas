@@ -11,6 +11,7 @@ import {
   getParentLevel,
   deriveViewRelationships,
 } from '../../services/diagram-navigation';
+import { placeExternalElements } from '../../services/external-placement';
 
 export interface DiagramViewerProps {
   model: ArchitectureModel | null;
@@ -20,7 +21,7 @@ export interface DiagramViewerProps {
 }
 
 export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerProps) {
-  const { zoomLevel, zoomIn, zoomOut, fitToView, attachToRenderer } = useZoom();
+  const { zoomLevel, zoomIn, zoomOut, fitToView, syncZoomLevel, attachToRenderer } = useZoom();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<Renderer | null>(null);
 
@@ -37,6 +38,11 @@ export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerPr
     if (!model) return [];
     return getVisibleElements(model, currentLevel, focusedElementId);
   }, [model, currentLevel, focusedElementId]);
+
+  // A new identity whenever a different diagram loads or the view drills in/out —
+  // MapCanvas re-frames the content on each change, so externals placed left of
+  // the boundary (and anything else off-origin) are always brought into view.
+  const fitKey = useMemo(() => ({}), [model, focusedElementId]);
 
   // Relationships whose endpoints aren't both visible at the current level (e.g. two
   // containers in different systems, viewed at the landscape level) need to be bubbled
@@ -76,17 +82,14 @@ export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerPr
     const visibleIds = new Set(visibleElements.map((e) => e.id));
     const boundaryNodes = view.layout.nodes.filter((n) => visibleIds.has(n.elementId));
 
-    // Place external elements to the left of the boundary box
-    const minX = boundaryNodes.length > 0 ? Math.min(...boundaryNodes.map((n) => n.x)) : 300;
-    const defaultExternalX = Math.max(0, minX - 280);
-
-    const externalNodes = externalElements.map((el, i) => ({
-      elementId: el.id,
-      x: defaultExternalX,
-      y: 50 + i * 180,
-      w: 200 as number | undefined,
-      h: 130 as number | undefined,
-    }));
+    // Externals follow the flow: callers into the boundary on its left, things it
+    // calls out to on its right, level with what they connect to. The canvas frames
+    // all content on load, so their x may lie outside the boundary's own extent.
+    const externalNodes = placeExternalElements(
+      externalElements,
+      viewRelationships.derivedRelationships,
+      boundaryNodes
+    );
 
     return {
       ...view,
@@ -95,7 +98,7 @@ export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerPr
         nodes: [...boundaryNodes, ...externalNodes],
       },
     };
-  }, [view, visibleElements, externalElements]);
+  }, [view, visibleElements, externalElements, viewRelationships]);
 
   const boundaryElementIds = useMemo(
     () => (focusedElementId ? visibleElements.map((e) => e.id) : []),
@@ -250,6 +253,8 @@ export function DiagramViewer({ model, view, isLoading, error }: DiagramViewerPr
         boundaryElementIds={boundaryElementIds}
         externalElementIds={externalElementIds}
         boundaryLabel={boundaryLabel}
+        fitKey={fitKey}
+        onViewportFit={syncZoomLevel}
       />
       <ZoomControls
         zoomLevel={zoomLevel}

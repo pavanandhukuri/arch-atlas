@@ -7,6 +7,7 @@ import {
   ZoomControls,
   useZoom,
   deriveViewRelationships,
+  placeExternalElements,
 } from '@archatlas/viewer-components';
 import type { Renderer } from '@archatlas/renderer';
 import { ElementEditor, RelationshipEditor } from '@/components/model-editor';
@@ -73,7 +74,7 @@ export default function StudioPage() {
     clientLastKnown: string | number | null;
   } | null>(null);
   const { handle, setHandle, clearHandle } = useStorageSession();
-  const { zoomLevel, zoomIn, zoomOut, fitToView, attachToRenderer } = useZoom();
+  const { zoomLevel, zoomIn, zoomOut, fitToView, syncZoomLevel, attachToRenderer } = useZoom();
   const studioCanvasRef = useRef<HTMLElement>(null);
   const studioRendererRef = useRef<Renderer | null>(null);
   // Guards the pending-import / startup-prompt decision against Strict Mode's dev double-invoke.
@@ -84,8 +85,10 @@ export default function StudioPage() {
   // Separate positions for external (system-level) elements so they don't share
   // coordinates with the element's position in the landscape/main view.
   // Keyed by elementId. Cleared whenever the user navigates to a new view.
-  const [externalPositions, setExternalPositions] = useState<
-    Record<string, { x: number; y: number }>
+  // Keyed by view (level + focused element) so drilling in and out keeps them;
+  // reset only when a different diagram is loaded.
+  const [externalPositionsByView, setExternalPositionsByView] = useState<
+    Record<string, Record<string, { x: number; y: number }>>
   >({});
 
   const levelParam = searchParams.get('level') as DiagramLevel | null;
@@ -93,6 +96,20 @@ export default function StudioPage() {
   const [currentLevel, setCurrentLevel] = useState<DiagramLevel>(levelParam || 'landscape');
   const [focusedElementId, setFocusedElementId] = useState<string | null>(focusParam || null);
   const [, startTransition] = useTransition();
+
+  // Frame the diagram (externals included) when a different diagram loads or the
+  // view drills in/out — but NOT on ordinary edits/drags, which would make the
+  // viewport jump under the user. A diagram's identity is its title + creation
+  // stamp, which edits never change.
+  const diagramIdentity = model ? `${model.metadata.title}|${model.metadata.createdAt ?? ''}` : '';
+  const fitKey = useMemo(() => ({}), [diagramIdentity, focusedElementId]);
+
+  const externalViewKey = `${currentLevel}|${focusedElementId ?? ''}`;
+  const externalPositions = externalPositionsByView[externalViewKey] ?? {};
+  // A different diagram (new import / opened file) must not inherit the old one's drags.
+  useEffect(() => {
+    setExternalPositionsByView({});
+  }, [diagramIdentity]);
 
   const updateURL = useCallback(
     (level: DiagramLevel, focusId: string | null) => {
@@ -110,7 +127,6 @@ export default function StudioPage() {
     (level: DiagramLevel, focusId: string | null = null) => {
       setCurrentLevel(level);
       setFocusedElementId(focusId);
-      setExternalPositions({}); // external coords are per-view
       setEditingElement(null);
       setSelectedRelationshipId(null);
       setPendingNewRelationship(null);
@@ -727,18 +743,21 @@ export default function StudioPage() {
   // Keep a stable ref so handleElementDrag can check without a stale closure
   const externalElementIdsRef = useRef<string[]>(externalElementIds);
   externalElementIdsRef.current = externalElementIds;
+  const externalViewKeyRef = useRef(externalViewKey);
+  externalViewKeyRef.current = externalViewKey;
 
-  // Compute the default left-of-boundary X for external elements that have no position yet.
-  // We do this in React so the renderer receives correct initial positions.
-  const defaultExternalX = (() => {
-    if (!currentView || externalElements.length === 0) return 50;
-    const boundaryNodes = boundaryElementIds
-      .map((id) => currentView.layout.nodes.find((n) => n.elementId === id))
-      .filter(Boolean);
-    if (boundaryNodes.length === 0) return 50;
-    const minX = Math.min(...boundaryNodes.map((n) => n!.x));
-    return minX - 280; // 200 wide + 80 gap
-  })();
+  // Default positions for external elements the user hasn't dragged yet: callers
+  // on the left of the boundary, things it calls on the right, level with what
+  // they connect to (computed here so the renderer receives correct positions).
+  const defaultExternalNodes = currentView
+    ? placeExternalElements(
+        externalElements,
+        viewRelationships,
+        boundaryElementIds
+          .map((id) => currentView.layout.nodes.find((n) => n.elementId === id))
+          .filter((n): n is NonNullable<typeof n> => n !== undefined)
+      )
+    : [];
 
   const filteredView = currentView
     ? {
@@ -750,16 +769,10 @@ export default function StudioPage() {
             ...currentView.layout.nodes.filter((node) =>
               visibleElements.some((elem) => elem.id === node.elementId)
             ),
-            // External elements use their dedicated externalPositions (or a stacked default)
-            ...externalElements.map((el, i) => {
-              const stored = externalPositions[el.id];
-              return {
-                elementId: el.id,
-                x: stored?.x ?? defaultExternalX,
-                y: stored?.y ?? 50 + i * 180,
-                w: 200,
-                h: 130,
-              };
+            // External elements: a position the user dragged them to, else the flow-based default
+            ...defaultExternalNodes.map((node) => {
+              const stored = externalPositions[node.elementId];
+              return stored ? { ...node, x: stored.x, y: stored.y } : node;
             }),
           ],
         },
@@ -769,7 +782,13 @@ export default function StudioPage() {
   const handleElementDrag = useCallback((elementId: string, x: number, y: number) => {
     if (externalElementIdsRef.current.includes(elementId)) {
       // Store in separate externalPositions — does NOT touch the main layout
-      setExternalPositions((prev) => ({ ...prev, [elementId]: { x, y } }));
+      setExternalPositionsByView((prev) => ({
+        ...prev,
+        [externalViewKeyRef.current]: {
+          ...prev[externalViewKeyRef.current],
+          [elementId]: { x, y },
+        },
+      }));
       return;
     }
     // Regular element — update the main layout
@@ -1050,6 +1069,8 @@ export default function StudioPage() {
               externalElementIds={externalElementIds}
               boundaryLabel={boundaryLabel}
               onRendererMount={onStudioRendererMount}
+              fitKey={fitKey}
+              onViewportFit={syncZoomLevel}
             />
           )}
           {canvasModel && (
