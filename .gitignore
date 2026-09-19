@@ -18,6 +18,7 @@ build/
 # Build outputs
 .turbo/
 .next/
+.next-dev/
 coverage/
 
 # Editor artifacts
