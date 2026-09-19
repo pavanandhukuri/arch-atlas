@@ -97,9 +97,12 @@ pnpm --filter @archatlas/studio dev          # http://localhost:3000/import
 3. **Tag & Classify** — each service shows its technology (`Java / Spring Boot`, `Go`, …) and a
    one-line description. Mark Keycloak, Stripe, SendGrid, Amazon S3, PostgreSQL and Kafka as
    external systems.
-4. **Review Candidates** — `high`-confidence connections are already accepted. Look at the rest;
-   each has the evidence that produced it (for example `api-gateway/main.go:59 references
-/api/books matching catalog-service's route`).
+4. **Review Candidates** — the 5 `high`-confidence connections (of 20) are already accepted; the
+   other 15 are `medium` — every proposal about an external system is capped there on purpose,
+   since it comes from the analysis rather than from literal evidence in the source. Each card
+   shows what produced it (for example `api-gateway/main.go:59 references /api/books matching
+catalog-service's route`). Accept the good ones with one click each and reject the two
+   [false positives below](#two-candidates-to-reject).
 5. **Finalize** → open the **Bookshop** system context: the five services inside the boundary,
    the external systems above and below, each arrow labelled with what it does and how (REST API,
    Kafka, SQL).
@@ -121,18 +124,18 @@ importer proposes rather than decides. (These two are pinned in the
 
 A ~2 minute recording that shows the whole loop. Use a clean terminal and a browser at 1440×900.
 
-| #   | Where    | Do                                                              | Show                                                                       |
-| --- | -------- | --------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| 1   | Terminal | `cd examples/bookshop && ls repos architecture-output`          | Five repos, five languages; the committed analyses                         |
-| 2   | Terminal | `npx --yes @archatlas/llm-importer@latest import import.yaml`   | The passes finding connections; `20 connection(s) found`; the written file |
-| 3   | Terminal | `pnpm --filter @archatlas/studio dev` (already running is fine) | —                                                                          |
-| 4   | Browser  | Open `localhost:3000/import`, upload `architecture.review.yaml` | Load Files                                                                 |
-| 5   | Browser  | Next: **Define Systems**                                        | "Bookshop" pre-filled — declared in `import.yaml`                          |
-| 6   | Browser  | Next: **Tag & Classify**, click ✏️ on `catalog-service`         | Technology + description pre-filled; mark Keycloak/Stripe/S3… external     |
-| 7   | Browser  | Next: **Review Candidates**                                     | High-confidence already accepted; click a card to show its evidence        |
-| 8   | Browser  | Reject the two `bookshop-web →` false positives                 | The human-in-the-loop moment                                               |
-| 9   | Browser  | **Finalize**, open the system context                           | Externals above/below, labelled arrows                                     |
-| 10  | Browser  | Drag a box, pinch/scroll to zoom, ⌘0 to fit                     | It stays where you put it                                                  |
+| #   | Where    | Do                                                              | Show                                                                                                               |
+| --- | -------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 1   | Terminal | `cd examples/bookshop && ls repos architecture-output`          | Five repos, five languages; the committed analyses                                                                 |
+| 2   | Terminal | `npx --yes @archatlas/llm-importer@latest import import.yaml`   | The passes finding connections; `20 connection(s) found`; the written file                                         |
+| 3   | Terminal | `pnpm --filter @archatlas/studio dev` (already running is fine) | —                                                                                                                  |
+| 4   | Browser  | Open `localhost:3000/import`, upload `architecture.review.yaml` | Load Files                                                                                                         |
+| 5   | Browser  | Next: **Define Systems**                                        | "Bookshop" pre-filled — declared in `import.yaml`                                                                  |
+| 6   | Browser  | Next: **Tag & Classify**, click ✏️ on `catalog-service`         | Technology + description pre-filled; mark Keycloak/Stripe/S3… external                                             |
+| 7   | Browser  | Next: **Review Candidates**                                     | 5 of 20 already accepted; open a card to show its evidence, then accept the `medium` ones (cut/speed up this part) |
+| 8   | Browser  | Reject the two `bookshop-web →` false positives                 | The human-in-the-loop moment                                                                                       |
+| 9   | Browser  | **Finalize**, open the system context                           | Externals above/below, labelled arrows                                                                             |
+| 10  | Browser  | Drag a box, pinch/scroll to zoom, ⌘0 to fit                     | It stays where you put it                                                                                          |
 
 Tips: pause ~1s on steps 2, 7 and 9; keep the cursor still while a page loads. Export as a GIF
 (≤ 10 MB) or MP4 and save it as `docs/media/bookshop-demo.gif`, then enable the image in the
