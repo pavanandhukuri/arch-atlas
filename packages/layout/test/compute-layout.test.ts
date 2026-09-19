@@ -235,3 +235,85 @@ describe('relationship-aware layout', () => {
     expect(Math.min(...nodes.map((n) => n.x))).toBe(80);
   });
 });
+
+// ── existing positions are preserved; only missing ones are assigned ─────────
+
+const viewWith = (nodes: LayoutState['nodes']): View => ({
+  ...EMPTY_VIEW,
+  layout: { algorithm: 'x', nodes, edges: [] },
+});
+
+const nodeIn = (nodes: LayoutState['nodes'], id: string) => {
+  const n = nodes.find((x) => x.elementId === id);
+  if (!n) throw new Error(`no node for ${id}`);
+  return n;
+};
+
+describe('position preservation', () => {
+  const dragged = [
+    { elementId: 'a', x: 1234, y: 567, w: 120, h: 80 },
+    { elementId: 'b', x: -40, y: 900, w: 120, h: 80 },
+  ];
+
+  it('keeps every existing node exactly where it is when an element is added', () => {
+    const m = modelOf([el('a'), el('b'), el('c')], [rel('a', 'b')]);
+    const out = computeLayout(m, viewWith(dragged), OPTS).nodes;
+    expect(out.find((n) => n.elementId === 'a')).toEqual(dragged[0]);
+    expect(out.find((n) => n.elementId === 'b')).toEqual(dragged[1]);
+  });
+
+  it('still keeps them after new RELATIONSHIPS that would have re-flowed a fresh layout', () => {
+    // a fresh layout would put b left of a for this edge; the user's positions win
+    const m = modelOf([el('a'), el('b')], [rel('b', 'a')]);
+    const out = computeLayout(m, viewWith(dragged), OPTS).nodes;
+    expect(out.map((n) => [n.elementId, n.x, n.y])).toEqual([
+      ['a', 1234, 567],
+      ['b', -40, 900],
+    ]);
+  });
+
+  it('places only the missing element, below everything already placed and never on top of it', () => {
+    const m = modelOf([el('a'), el('b'), el('c')]);
+    const out = computeLayout(m, viewWith(dragged), OPTS).nodes;
+    expect(nodeIn(out, 'c').y).toBeGreaterThan(900 + 80); // below b's bottom edge
+    expectNoOverlaps(out);
+  });
+
+  it('lays out several new elements by their own relationships, as a block', () => {
+    const m = modelOf([el('a'), el('b'), el('n1'), el('n2')], [rel('n1', 'n2')]);
+    const out = computeLayout(m, viewWith(dragged), OPTS).nodes;
+    expect(nodeIn(out, 'n1').x).toBeLessThan(nodeIn(out, 'n2').x); // flow still applies among the new ones
+    expectNoOverlaps(out);
+  });
+
+  it('drops the node of an element that no longer exists in the model', () => {
+    const m = modelOf([el('a')]);
+    const out = computeLayout(m, viewWith(dragged), OPTS).nodes;
+    expect(out.map((n) => n.elementId)).toEqual(['a']);
+  });
+
+  it("keeps an existing node's own size and other fields untouched", () => {
+    const custom = [{ elementId: 'a', x: 5, y: 6, w: 333, h: 44, collapsed: true }];
+    const out = computeLayout(modelOf([el('a'), el('b')]), viewWith(custom), OPTS).nodes;
+    expect(out.find((n) => n.elementId === 'a')).toEqual(custom[0]);
+  });
+
+  it('with every element already positioned, computes nothing new', () => {
+    const m = modelOf([el('a'), el('b')], [rel('a', 'b')]);
+    expect(computeLayout(m, viewWith(dragged), OPTS).nodes).toEqual(dragged);
+  });
+
+  it('an empty view still gives a full from-scratch layout (imports, previews)', () => {
+    const m = modelOf([el('a'), el('b')], [rel('a', 'b')]);
+    const out = computeLayout(m, EMPTY_VIEW, OPTS).nodes;
+    expect(out).toHaveLength(2);
+    expect(nodeIn(out, 'a').x).toBeLessThan(nodeIn(out, 'b').x);
+  });
+
+  it('is deterministic when preserving', () => {
+    const m = modelOf([el('a'), el('b'), el('c'), el('d')], [rel('c', 'd')]);
+    expect(computeLayout(m, viewWith(dragged), OPTS)).toEqual(
+      computeLayout(m, viewWith(dragged), OPTS)
+    );
+  });
+});

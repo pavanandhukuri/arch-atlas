@@ -801,6 +801,11 @@ export function createRenderer(
       let dragStartY = 0;
       let pressX = 0;
       let pressY = 0;
+      // Where the box was last dragged to — what a drop commits. Kept here rather
+      // than read back from `elementGraphics` at release: if anything re-rendered
+      // mid-drag, that lookup would return a fresh box at its OLD position.
+      let dragLastX = 0;
+      let dragLastY = 0;
       let isHoveringBox = false;
       const handleHoverStates = {
         top: false,
@@ -930,6 +935,8 @@ export function createRenderer(
         const stageY = (mouseY - stage.y) / stage.scale.y;
         const newX = stageX - dragStartX;
         const newY = stageY - dragStartY;
+        dragLastX = newX;
+        dragLastY = newY;
 
         // Update visual position only (don't update model yet)
         box.x = newX - node.x;
@@ -1003,12 +1010,7 @@ export function createRenderer(
             },
             end: (commit: boolean) => {
               if (commit && isDragging && hasDragged) {
-                const graphics = elementGraphics.get(node.elementId);
-                if (graphics && dragCallbacks.length > 0) {
-                  dragCallbacks.forEach((callback) =>
-                    callback(node.elementId, graphics.x, graphics.y)
-                  );
-                }
+                dragCallbacks.forEach((callback) => callback(node.elementId, dragLastX, dragLastY));
               }
               isDragging = false;
               // `hasDragged` is deliberately left set: Pixi dispatches `click`

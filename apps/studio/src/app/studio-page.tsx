@@ -85,8 +85,10 @@ export default function StudioPage() {
   // Separate positions for external (system-level) elements so they don't share
   // coordinates with the element's position in the landscape/main view.
   // Keyed by elementId. Cleared whenever the user navigates to a new view.
-  const [externalPositions, setExternalPositions] = useState<
-    Record<string, { x: number; y: number }>
+  // Keyed by view (level + focused element) so drilling in and out keeps them;
+  // reset only when a different diagram is loaded.
+  const [externalPositionsByView, setExternalPositionsByView] = useState<
+    Record<string, Record<string, { x: number; y: number }>>
   >({});
 
   const levelParam = searchParams.get('level') as DiagramLevel | null;
@@ -101,6 +103,13 @@ export default function StudioPage() {
   // stamp, which edits never change.
   const diagramIdentity = model ? `${model.metadata.title}|${model.metadata.createdAt ?? ''}` : '';
   const fitKey = useMemo(() => ({}), [diagramIdentity, focusedElementId]);
+
+  const externalViewKey = `${currentLevel}|${focusedElementId ?? ''}`;
+  const externalPositions = externalPositionsByView[externalViewKey] ?? {};
+  // A different diagram (new import / opened file) must not inherit the old one's drags.
+  useEffect(() => {
+    setExternalPositionsByView({});
+  }, [diagramIdentity]);
 
   const updateURL = useCallback(
     (level: DiagramLevel, focusId: string | null) => {
@@ -118,7 +127,6 @@ export default function StudioPage() {
     (level: DiagramLevel, focusId: string | null = null) => {
       setCurrentLevel(level);
       setFocusedElementId(focusId);
-      setExternalPositions({}); // external coords are per-view
       setEditingElement(null);
       setSelectedRelationshipId(null);
       setPendingNewRelationship(null);
@@ -735,6 +743,8 @@ export default function StudioPage() {
   // Keep a stable ref so handleElementDrag can check without a stale closure
   const externalElementIdsRef = useRef<string[]>(externalElementIds);
   externalElementIdsRef.current = externalElementIds;
+  const externalViewKeyRef = useRef(externalViewKey);
+  externalViewKeyRef.current = externalViewKey;
 
   // Default positions for external elements the user hasn't dragged yet: callers
   // on the left of the boundary, things it calls on the right, level with what
@@ -772,7 +782,13 @@ export default function StudioPage() {
   const handleElementDrag = useCallback((elementId: string, x: number, y: number) => {
     if (externalElementIdsRef.current.includes(elementId)) {
       // Store in separate externalPositions — does NOT touch the main layout
-      setExternalPositions((prev) => ({ ...prev, [elementId]: { x, y } }));
+      setExternalPositionsByView((prev) => ({
+        ...prev,
+        [externalViewKeyRef.current]: {
+          ...prev[externalViewKeyRef.current],
+          [elementId]: { x, y },
+        },
+      }));
       return;
     }
     // Regular element — update the main layout

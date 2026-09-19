@@ -1,6 +1,12 @@
 // Deterministic layout computation
 
-import type { ArchitectureModel, Element, View, LayoutState } from '@archatlas/core-model';
+import type {
+  ArchitectureModel,
+  Element,
+  LayoutNode,
+  View,
+  LayoutState,
+} from '@archatlas/core-model';
 
 export interface LayoutOptions {
   algorithm: string;
@@ -32,10 +38,16 @@ type Pair = readonly [string, string];
  *    to cut down on crossing arrows.
  *  - Elements with no relationship inside the group go in a plain grid to the
  *    right, out of the way of the connected part.
+ *
+ * Positions are only ever ASSIGNED, never overwritten: any element that already
+ * has a node in `view.layout.nodes` keeps it exactly (a user's drags survive
+ * adding an element, merging an import, …). Only elements without a position are
+ * laid out — as their own block starting below the existing content, so they
+ * can't land on top of a fixed node. Give an empty view for a from-scratch layout.
  */
 export function computeLayout(
   model: ArchitectureModel,
-  _view: View,
+  view: View,
   options: LayoutOptions
 ): LayoutState {
   const spacing = options.spacing ?? 150;
@@ -47,25 +59,40 @@ export function computeLayout(
   const elements = model.elements;
   const byId = new Map(elements.map((e) => [e.id, e]));
 
-  // Group elements by parent, groups in first-appearance order.
+  // Positions that already exist are kept as-is; only the rest are computed.
+  const existing = new Map<string, LayoutNode>();
+  for (const n of view.layout.nodes) {
+    if (byId.has(n.elementId) && !existing.has(n.elementId)) existing.set(n.elementId, n);
+  }
+  const missing = elements.filter((e) => !existing.has(e.id));
+
+  // Group the missing elements by parent, groups in first-appearance order.
   const groups = new Map<string, Element[]>();
-  for (const el of elements) {
+  for (const el of missing) {
     const key = el.parentId ?? '';
     const g = groups.get(key);
     if (g) g.push(el);
     else groups.set(key, [el]);
   }
 
-  const nodes: LayoutState['nodes'] = [];
+  // Where the new block starts: the top-left corner when nothing is fixed yet,
+  // otherwise aligned with — and just below — everything already placed.
+  let originX = padding;
   let yOffset = padding;
+  if (existing.size > 0) {
+    const fixed = [...existing.values()];
+    originX = Math.min(...fixed.map((n) => n.x));
+    yOffset = Math.max(...fixed.map((n) => n.y + (n.h ?? NODE_H))) + rowPitch;
+  }
 
+  const computed = new Map<string, LayoutNode>();
   for (const members of groups.values()) {
     const placed = layoutGroup(members, model, byId);
     let maxBottom = 0;
     for (const p of placed) {
-      nodes.push({
+      computed.set(p.id, {
         elementId: p.id,
-        x: padding + p.col * colPitch,
+        x: originX + p.col * colPitch,
         y: yOffset + p.row * rowPitch,
         w: NODE_W,
         h: NODE_H,
@@ -74,6 +101,12 @@ export function computeLayout(
     }
     yOffset += maxBottom + rowPitch;
   }
+
+  // One node per element, in model order.
+  const nodes: LayoutState['nodes'] = elements.flatMap((e) => {
+    const node = existing.get(e.id) ?? computed.get(e.id);
+    return node ? [node] : [];
+  });
 
   // Find relationships between elements
   const elementIds = new Set(elements.map((e) => e.id));

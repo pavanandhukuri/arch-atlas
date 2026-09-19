@@ -18,34 +18,39 @@ export interface BoundaryNode {
 
 const EXTERNAL_W = 200;
 const EXTERNAL_H = 130;
-/** Clear space between the boundary's nodes and the externals beside them. */
-const SIDE_GAP = 80;
-/** Minimum vertical clear space between two externals stacked on the same side. */
-const STACK_GAP = 40;
+/**
+ * Clear vertical space between the outermost boundary node and an external:
+ * the boundary rectangle is drawn 24px outside its nodes, and the rest is air
+ * for the arrows and their labels.
+ */
+const VERTICAL_GAP = 84;
+/** Minimum horizontal clear space between two externals in the same row. */
+const ROW_GAP = 40;
 const DEFAULT_BOUNDARY_W = 120;
 const DEFAULT_BOUNDARY_H = 80;
 
 /**
  * Where to put the external systems around a system-context boundary.
  *
- * They used to be one column to the left of the boundary in list order,
- * whatever they connected to. Now they follow the flow of the diagram, which
- * also reads left-to-right (callers on the left of what they call):
+ * Each external goes ABOVE or BELOW the boundary, directly over the element it
+ * connects to — so its arrow is short and doesn't have to cross the rest of the
+ * diagram to get there (the old one-column-on-the-left placement did):
  *
- *  - an external that calls INTO the boundary (it is the relationship's source)
- *    goes on the LEFT — a user, an upstream system;
- *  - an external the boundary calls OUT to (it is the target) goes on the RIGHT
- *    — a database, an identity provider, a third-party API;
- *  - an external that does both goes to whichever side has more relationships,
- *    the left on a tie.
+ *  - Horizontally it is centred over the first element it connects to: the
+ *    left-most one, since the diagram flows left to right and that is where
+ *    the interaction starts.
+ *  - It goes on TOP if the elements it connects to sit in the upper half of the
+ *    boundary, on the BOTTOM if in the lower half (their average height decides,
+ *    the bottom on a tie). That spreads externals across both sides in step with
+ *    the elements they belong to.
+ *  - Externals in the same row are ordered by that anchor and nudged apart so
+ *    none overlap.
  *
- * Vertically each sits level with the boundary elements it connects to, then
- * externals sharing a side are nudged apart so they don't overlap. An external
- * with no relationship to a visible element keeps the old default (left).
- * Deterministic: everything is ordered by target height, then by input order.
+ * An external with no relationship to a visible element goes on top, over the
+ * boundary's left edge. Deterministic: ties break by input order.
  *
  * `relationships` are the view's direct + derived relationships; only those
- * between an external and a visible element matter here.
+ * between an external and a visible element matter here (in either direction).
  */
 export function placeExternalElements(
   externals: readonly Element[],
@@ -54,58 +59,63 @@ export function placeExternalElements(
 ): PlacedNode[] {
   if (externals.length === 0) return [];
 
+  const width = (n: BoundaryNode): number => n.w ?? DEFAULT_BOUNDARY_W;
+  const height = (n: BoundaryNode): number => n.h ?? DEFAULT_BOUNDARY_H;
+
   const boundaryById = new Map(boundaryNodes.map((n) => [n.elementId, n]));
   const minX = boundaryNodes.length > 0 ? Math.min(...boundaryNodes.map((n) => n.x)) : 300;
-  const maxRight =
+  const minY = boundaryNodes.length > 0 ? Math.min(...boundaryNodes.map((n) => n.y)) : 100;
+  const maxBottom =
     boundaryNodes.length > 0
-      ? Math.max(...boundaryNodes.map((n) => n.x + (n.w ?? DEFAULT_BOUNDARY_W)))
-      : minX + DEFAULT_BOUNDARY_W;
-  const leftX = minX - SIDE_GAP - EXTERNAL_W;
-  const rightX = maxRight + SIDE_GAP;
+      ? Math.max(...boundaryNodes.map((n) => n.y + height(n)))
+      : minY + DEFAULT_BOUNDARY_H;
+  const midY = (minY + maxBottom) / 2;
 
   interface Want {
     el: Element;
     index: number;
-    side: 'left' | 'right';
-    targetY: number;
+    side: 'top' | 'bottom';
+    /** Left edge the external would like: centred over its first connected element. */
+    desiredX: number;
   }
 
   const wants: Want[] = externals.map((el, index) => {
-    let calls = 0; // the external is the source: it calls into the boundary
-    let called = 0; // the external is the target: the boundary calls it
-    const ys: number[] = [];
+    const connected: BoundaryNode[] = [];
     for (const rel of relationships) {
       const otherId =
         rel.sourceId === el.id ? rel.targetId : rel.targetId === el.id ? rel.sourceId : null;
-      if (otherId === null) continue;
-      const other = boundaryById.get(otherId);
-      if (!other) continue;
-      if (rel.sourceId === el.id) calls++;
-      else called++;
-      ys.push(other.y + (other.h ?? DEFAULT_BOUNDARY_H) / 2);
+      const other = otherId === null ? undefined : boundaryById.get(otherId);
+      if (other && !connected.includes(other)) connected.push(other);
     }
-    const side = called > calls ? 'right' : 'left';
-    const centreY =
-      ys.length > 0 ? ys.reduce((a, b) => a + b, 0) / ys.length : 50 + index * (EXTERNAL_H + 50);
-    return { el, index, side, targetY: centreY - EXTERNAL_H / 2 };
+
+    if (connected.length === 0) {
+      return { el, index, side: 'top', desiredX: minX };
+    }
+
+    // "First" = furthest left (the flow starts there), then highest, then by id.
+    const first = [...connected].sort(
+      (a, b) => a.x - b.x || a.y - b.y || a.elementId.localeCompare(b.elementId)
+    )[0] as BoundaryNode;
+    const meanY = connected.reduce((sum, n) => sum + n.y + height(n) / 2, 0) / connected.length;
+    return {
+      el,
+      index,
+      side: meanY < midY ? 'top' : 'bottom',
+      desiredX: first.x + width(first) / 2 - EXTERNAL_W / 2,
+    };
   });
 
   const placed = new Map<string, PlacedNode>();
-  for (const side of ['left', 'right'] as const) {
-    const column = wants
+  for (const side of ['top', 'bottom'] as const) {
+    const row = wants
       .filter((w) => w.side === side)
-      .sort((a, b) => a.targetY - b.targetY || a.index - b.index);
-    let nextFreeY = -Infinity;
-    for (const w of column) {
-      const y = Math.max(w.targetY, nextFreeY);
-      nextFreeY = y + EXTERNAL_H + STACK_GAP;
-      placed.set(w.el.id, {
-        elementId: w.el.id,
-        x: side === 'left' ? leftX : rightX,
-        y,
-        w: EXTERNAL_W,
-        h: EXTERNAL_H,
-      });
+      .sort((a, b) => a.desiredX - b.desiredX || a.index - b.index);
+    const y = side === 'top' ? minY - VERTICAL_GAP - EXTERNAL_H : maxBottom + VERTICAL_GAP;
+    let nextFreeX = -Infinity;
+    for (const w of row) {
+      const x = Math.max(w.desiredX, nextFreeX);
+      nextFreeX = x + EXTERNAL_W + ROW_GAP;
+      placed.set(w.el.id, { elementId: w.el.id, x, y, w: EXTERNAL_W, h: EXTERNAL_H });
     }
   }
 
