@@ -1,0 +1,45 @@
+# Bookshop demo workspace — five small services in five languages.
+#
+# Run from THIS directory (repository paths below are relative to where you run it):
+#   npx --yes @archatlas/llm-importer@latest import import.yaml
+#
+# The analyses in ./architecture-output were produced once by a coding agent following
+# plugins/repo-analysis/AGENTS.md; committing them lets the deterministic `import` step run
+# offline, with no agent and no model. To regenerate them yourself, point your coding agent at
+# this file and ask it to import the workspace.
+
+version: '2.0'
+
+output:
+  directory: ./architecture-output
+
+# One system holding all five repos — declared here instead of re-assigning it in Studio.
+systems:
+  - name: Bookshop
+    repositories:
+      - bookshop-web
+      - api-gateway
+      - catalog-service
+      - order-service
+      - notification-service
+
+repositories:
+  - name: bookshop-web
+    path: ./repos/bookshop-web
+    description: React storefront
+
+  - name: api-gateway
+    path: ./repos/api-gateway
+    description: Go reverse proxy and Keycloak auth gate
+
+  - name: catalog-service
+    path: ./repos/catalog-service
+    description: Spring Boot book catalogue
+
+  - name: order-service
+    path: ./repos/order-service
+    description: Express order placement service
+
+  - name: notification-service
+    path: ./repos/notification-service
+    description: FastAPI email worker

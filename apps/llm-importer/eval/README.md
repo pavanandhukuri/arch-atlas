@@ -99,8 +99,10 @@ eval/golden/<name>/
 }
 ```
 
-Analyses resolve from `golden/<name>/analyses/` if that dir exists, otherwise from `../analyses`
-relative to `workspace.local` (how `fixtures` reuses `test/fixtures/analyses` with no copy).
+Analyses resolve from, in order: the config's `analyses:` path (relative to the config file) if
+set — how `bookshop` reads the committed analyses of the public [`examples/bookshop`](../../../examples/bookshop)
+demo in place — else `golden/<name>/analyses/` if that dir exists, else `../analyses` relative to
+`workspace.local` (how `fixtures` reuses `test/fixtures/analyses` with no copy).
 Every `connections[].from` / `.to` must be a `repos` key or an `externalSystems` entry — the
 loader rejects anything else with exit 2.
 

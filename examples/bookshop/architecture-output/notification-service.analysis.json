@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-09-20T09:00:00.000Z",
+  "repository": {
+    "name": "notification-service",
+    "path": "repos/notification-service",
+    "description": "Order confirmation emails"
+  },
+  "description": "A FastAPI worker that consumes order.placed events from Kafka, looks up the book title in the catalog-service and emails the customer an order confirmation through SendGrid.",
+  "languages": ["Python"],
+  "frameworks": ["FastAPI", "aiokafka", "httpx", "SendGrid"],
+  "served": {
+    "httpRoutes": [
+      {
+        "method": "GET",
+        "path": "/healthz",
+        "filePath": "app/main.py"
+      }
+    ],
+    "grpcServices": [],
+    "topics": [
+      {
+        "name": "order.placed",
+        "direction": "consume",
+        "filePath": "app/main.py"
+      }
+    ],
+    "datastores": []
+  },
+  "outbound": [
+    {
+      "target": "Kafka",
+      "verb": "subscribes",
+      "detail": "consumes order.placed events to trigger confirmation emails",
+      "confidence": 0.9
+    },
+    {
+      "target": "catalog-service",
+      "verb": "calls",
+      "detail": "fetches the book title with GET /books/{isbn} for the email body",
+      "confidence": 0.9
+    },
+    {
+      "target": "SendGrid",
+      "verb": "calls",
+      "detail": "sends the order confirmation email through the SendGrid API",
+      "confidence": 0.9
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

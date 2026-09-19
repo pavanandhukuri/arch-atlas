@@ -27,6 +27,7 @@ export const EvalConfigSchema: z.ZodType<EvalConfig> = z.object({
     /** Path, relative to the config file, to a directory of repo trees. */
     local: z.string().min(1),
   }),
+  analyses: z.string().min(1).optional(),
   repos: z
     .array(
       z.object({

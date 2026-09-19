@@ -4,6 +4,32 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Added — a public demo workspace: `examples/bookshop`
+
+- **`examples/bookshop`** is a five-service polyglot workspace (Go, Java/Spring Boot,
+  TypeScript ×2, Python/FastAPI) for trying the importer and Studio end to end — and for the
+  README to show, without needing a private codebase. The services talk over HTTP and Kafka and
+  call out to Keycloak, Stripe, Amazon S3 and SendGrid. Its analyses are committed, so
+  `npx @archatlas/llm-importer@latest import import.yaml` runs offline with no agent or model; the
+  README has the architecture, a click-by-click Studio walkthrough, and a recording script. It is
+  also the eval's second golden set (`bookshop`: connection recall 1.0 / precision 0.88 — the two
+  misses are the storefront's `/api/*` literals also matching the catalog and order routes, pinned
+  on purpose), and golden sets can now name where their committed analyses live (`analyses:`).
+- The root README's importer text was stale (it still said `import` writes
+  `architecture.arch.json`); corrected.
+
+### Fixed — `import` trusted a stale path recorded inside the analysis
+
+- The source-level evidence passes read each repo from the `repository.path` **recorded in its
+  `{repo}.analysis.json`**, and silently fell back to intent-only matching if that path didn't
+  exist — as it doesn't for an analysis produced on another machine, in CI, or committed as a
+  sample. `import` now reads the repo from the path in `import.yaml` (resolved against the working
+  directory, like `gather-context`), falling back to the recorded one, and **warns** when neither
+  exists instead of quietly losing every source-derived connection.
+- **Object stores are no longer "SQL".** A `reads_from` / `writes_to` verb bucketed every target as
+  `database`, so Studio labelled an Amazon S3 (or Google Cloud Storage / MinIO) connection with the
+  SQL integration mode. They are now `http` (REST API).
+
 ### Fixed — diagram viewport & interaction polish (Studio and the import preview)
 
 - **External systems no longer start hidden.** They're placed to the left of the system

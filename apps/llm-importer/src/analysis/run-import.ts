@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { ImportConfig } from '../config/config.schema.js';
@@ -63,6 +64,34 @@ function toRepoMeta(analysis: RepoAnalysis): RepoMeta {
   };
 }
 
+function isDirectory(p: string): boolean {
+  try {
+    return statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Where the repo's source is read from for the source-level evidence passes.
+ * The config says where the repo lives NOW; the path recorded inside an
+ * analysis artifact is where it lived when the producer ran — a different
+ * machine, a CI checkout, or a committed sample. Trusting the recorded path
+ * alone made those silently lose every source-derived connection (the passes
+ * fall back to intent-only matching when the path doesn't exist), so the
+ * configured path wins whenever it exists. Resolved against the working
+ * directory, like `gather-context` does.
+ */
+function sourceRoot(
+  entry: ImportConfig['repositories'][number],
+  analysis: RepoAnalysis
+): { path: string; found: boolean } {
+  const configured = resolve(entry.path);
+  if (isDirectory(configured)) return { path: configured, found: true };
+  const recorded = analysis.repository.path;
+  return { path: recorded, found: isDirectory(recorded) };
+}
+
 function repoName(entry: ImportConfig['repositories'][number]): string {
   return entry.name ?? entry.path.split('/').filter(Boolean).pop() ?? entry.path;
 }
@@ -115,6 +144,14 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
           : `invalid analysis artifact — ${result.detail ?? 'schema mismatch'}`;
       log(`[skip] ${name}: ${why}`);
       continue;
+    }
+    const root = sourceRoot(entry, result.analysis);
+    result.analysis.repository.path = root.path;
+    if (!root.found) {
+      log(
+        `[warn] ${name}: source not found at ${resolve(entry.path)} — ` +
+          `source-level evidence skipped, only the analysis's own outbound intents are used`
+      );
     }
     analysesByName.set(result.analysis.repository.name, result.analysis);
     graphs.push(toCorrelationGraph(result.analysis));

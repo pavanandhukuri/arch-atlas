@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-09-20T09:00:00.000Z",
+  "repository": {
+    "name": "bookshop-web",
+    "path": "repos/bookshop-web",
+    "description": "Storefront single-page app"
+  },
+  "description": "A React single-page storefront. It signs users in with Keycloak and lists books, shows details and places orders by calling the API gateway's /api/books and /api/orders endpoints.",
+  "languages": ["TypeScript"],
+  "frameworks": ["React", "Vite", "keycloak-js"],
+  "served": {
+    "httpRoutes": [],
+    "grpcServices": [],
+    "topics": [],
+    "datastores": []
+  },
+  "outbound": [
+    {
+      "target": "api-gateway",
+      "verb": "calls",
+      "detail": "lists books and places orders through the gateway's /api/books and /api/orders endpoints, sending the Keycloak bearer token",
+      "confidence": 0.95
+    },
+    {
+      "target": "Keycloak",
+      "verb": "depends_on",
+      "detail": "signs users in against the bookshop realm using keycloak-js",
+      "confidence": 0.9
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

@@ -1,0 +1,61 @@
+{
+  "repos": {
+    "bookshop-web": {
+      "role": "React storefront; signs in with Keycloak and talks only to the API gateway",
+      "languages": ["TypeScript"],
+      "frameworks": ["React", "Vite", "keycloak-js"],
+      "served": {},
+      "outbound": ["api-gateway", "Keycloak"]
+    },
+    "api-gateway": {
+      "role": "Go reverse proxy; validates Keycloak JWTs, proxies /api/books and /api/orders",
+      "languages": ["Go"],
+      "frameworks": ["net/http", "jwx"],
+      "served": { "httpRoutes": ["/api/books/", "/api/orders/", "/healthz"] },
+      "outbound": ["catalog-service", "order-service", "Keycloak"]
+    },
+    "catalog-service": {
+      "role": "Spring Boot book catalogue backed by PostgreSQL, cover images in S3",
+      "languages": ["Java"],
+      "frameworks": ["Spring Boot", "Spring Data JPA"],
+      "served": { "httpRoutes": ["/books", "/books/{isbn}"], "datastores": ["books"] },
+      "outbound": ["PostgreSQL", "Amazon S3"]
+    },
+    "order-service": {
+      "role": "Express service that prices, charges, stores and announces orders",
+      "languages": ["TypeScript"],
+      "frameworks": ["Express", "KafkaJS", "Stripe"],
+      "served": {
+        "httpRoutes": ["/orders", "/orders/:id"],
+        "topics": ["order.placed:pub"],
+        "datastores": ["orders"]
+      },
+      "outbound": ["catalog-service", "Stripe", "PostgreSQL", "Kafka"]
+    },
+    "notification-service": {
+      "role": "FastAPI worker that emails order confirmations from order.placed events",
+      "languages": ["Python"],
+      "frameworks": ["FastAPI", "aiokafka", "SendGrid"],
+      "served": { "httpRoutes": ["/healthz"], "topics": ["order.placed:sub"] },
+      "outbound": ["Kafka", "catalog-service", "SendGrid"]
+    }
+  },
+  "connections": [
+    { "from": "bookshop-web", "to": "api-gateway", "kind": "http" },
+    { "from": "bookshop-web", "to": "Keycloak", "kind": "auth" },
+    { "from": "api-gateway", "to": "catalog-service", "kind": "http" },
+    { "from": "api-gateway", "to": "order-service", "kind": "http" },
+    { "from": "api-gateway", "to": "Keycloak", "kind": "auth" },
+    { "from": "order-service", "to": "catalog-service", "kind": "http" },
+    { "from": "order-service", "to": "PostgreSQL", "kind": "sql" },
+    { "from": "order-service", "to": "Kafka", "kind": "event" },
+    { "from": "order-service", "to": "Stripe", "kind": "http" },
+    { "from": "order-service", "to": "notification-service", "kind": "event" },
+    { "from": "catalog-service", "to": "PostgreSQL", "kind": "sql" },
+    { "from": "catalog-service", "to": "Amazon S3", "kind": "blob" },
+    { "from": "notification-service", "to": "Kafka", "kind": "event" },
+    { "from": "notification-service", "to": "catalog-service", "kind": "http" },
+    { "from": "notification-service", "to": "SendGrid", "kind": "http" }
+  ],
+  "externalSystems": ["Keycloak", "PostgreSQL", "Kafka", "Stripe", "Amazon S3", "SendGrid"]
+}

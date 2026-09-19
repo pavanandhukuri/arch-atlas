@@ -40,7 +40,8 @@ export function listGoldenSets(): string[] {
  * committed with the set), else `../analyses` relative to the source trees (the
  * `fixtures` convention — reuse `test/fixtures/analyses`, no duplication).
  */
-function analysesDirFor(goldenDir: string, workspaceDir: string): string {
+function analysesDirFor(goldenDir: string, workspaceDir: string, explicit?: string): string {
+  if (explicit) return resolve(goldenDir, explicit);
   const local = join(goldenDir, 'analyses');
   return existsSync(local) ? local : resolve(workspaceDir, '..', 'analyses');
 }
@@ -57,7 +58,7 @@ export function loadGoldenSet(name: string): LoadedGoldenSet {
     JSON.parse(readFileSync(join(goldenDir, 'ground-truth.json'), 'utf8'))
   );
 
-  const analysesDir = analysesDirFor(goldenDir, workspaceDir);
+  const analysesDir = analysesDirFor(goldenDir, workspaceDir, config.analyses);
   const analyses = config.repos.map((repo) => {
     const file = join(analysesDir, `${repo.name}.analysis.json`);
     if (!existsSync(file))

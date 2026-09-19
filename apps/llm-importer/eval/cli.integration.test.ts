@@ -54,11 +54,32 @@ describe('eval/run.ts CLI', () => {
 });
 
 describe('eval/extract.ts CLI', () => {
-  it('scores the committed analyses and exits 0', async () => {
-    const { code, stdout } = await run(EXTRACT, []);
+  it("scores a golden set's committed analyses and exits 0", async () => {
+    const { code, stdout } = await run(EXTRACT, ['--set', 'fixtures']);
     expect(code).toBe(0);
     expect(stdout).toContain('extraction: fixtures');
     expect(stdout).toContain('aggregate (mean over repos)');
+  });
+
+  it('scores the bookshop demo workspace too, one block per repo', async () => {
+    const { code, stdout } = await run(EXTRACT, ['--set', 'bookshop']);
+    expect(code).toBe(0);
+    expect(stdout).toContain('extraction: bookshop');
+    for (const repo of [
+      'bookshop-web',
+      'api-gateway',
+      'catalog-service',
+      'order-service',
+      'notification-service',
+    ]) {
+      expect(stdout).toContain(repo);
+    }
+  });
+
+  it('with no --set, defaults to the first golden set (alphabetically)', async () => {
+    const { code, stdout } = await run(EXTRACT, []);
+    expect(code).toBe(0);
+    expect(stdout).toContain('extraction: bookshop');
   });
 
   it('an unknown golden set is reported but still exits 0 (advisory)', async () => {

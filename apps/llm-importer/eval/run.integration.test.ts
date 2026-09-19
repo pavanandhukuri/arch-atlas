@@ -69,3 +69,48 @@ describe('correlation eval — fixtures golden set', () => {
     expect(diff.ok).toBe(true);
   });
 });
+
+describe('correlation eval — bookshop golden set (the public demo workspace)', () => {
+  const { config, groundTruth, analyses, workspaceDir } = loadGoldenSet('bookshop');
+  const repoNames = config.repos.map((r) => r.name);
+  const { connections } = correlateDeterministically(analyses.map(toCorrelationGraph));
+
+  it('loads the demo workspace in place — its committed analyses, no copies', () => {
+    expect(listGoldenSets()).toContain('bookshop');
+    expect(workspaceDir).toMatch(/examples\/bookshop\/repos$/);
+    expect(analyses.map((a) => a.repository.name).sort()).toEqual([...repoNames].sort());
+    // the analyses record a placeholder path; the loader re-points each at the real source tree
+    for (const a of analyses) expect(a.repository.path).toContain(`repos/${a.repository.name}`);
+  });
+
+  it('recovers every true connection; the only misses are the two known SPA→service false positives', () => {
+    const s = scoreConnections(connections, groundTruth);
+    expect(s.recall).toBe(1);
+    expect(s.fn).toBe(0);
+    // The web app only talks to the gateway, but its `/api/books` and `/api/orders` literals also
+    // match the catalog / order routes through gateway-prefix matching. Pinned so a fix (or a
+    // regression) is a deliberate baseline change.
+    const edges = new Set(connections.map((c) => `${c.sourceRepo} -> ${c.targetRepo}`));
+    expect(edges.has('bookshop-web -> catalog-service')).toBe(true);
+    expect(edges.has('bookshop-web -> order-service')).toBe(true);
+    expect(s.fp).toBe(2);
+  });
+
+  it('recovers all six external systems', () => {
+    const s = scoreExternalSystems(connections, groundTruth.externalSystems, repoNames);
+    expect(s.tp).toBe(6);
+    expect(s.recall).toBe(1);
+    expect(s.precision).toBe(1);
+  });
+
+  it('finds the source-level evidence, not just the analysis intents (Kafka topic + gateway routes)', () => {
+    const bySource = (source: string, target: string) =>
+      connections.filter((c) => c.sourceRepo === source && c.targetRepo === target);
+    expect(
+      bySource('order-service', 'notification-service').some((c) => c.foundBy === 'evidence')
+    ).toBe(true);
+    expect(bySource('api-gateway', 'catalog-service').some((c) => c.foundBy === 'evidence')).toBe(
+      true
+    );
+  });
+});

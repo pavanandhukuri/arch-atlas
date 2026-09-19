@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-09-20T09:00:00.000Z",
+  "repository": {
+    "name": "order-service",
+    "path": "repos/order-service",
+    "description": "Order placement service"
+  },
+  "description": "An Express + TypeScript service that places and tracks orders. For each POST /orders it prices the book via the catalog-service, charges the card with Stripe, stores the order in PostgreSQL and publishes an order.placed event to Kafka.",
+  "languages": ["TypeScript"],
+  "frameworks": ["Express", "KafkaJS", "node-postgres", "Stripe"],
+  "served": {
+    "httpRoutes": [
+      {
+        "method": "POST",
+        "path": "/orders",
+        "filePath": "src/server.ts"
+      },
+      {
+        "method": "GET",
+        "path": "/orders/:id",
+        "filePath": "src/server.ts"
+      }
+    ],
+    "grpcServices": [],
+    "topics": [
+      {
+        "name": "order.placed",
+        "direction": "publish",
+        "filePath": "src/server.ts"
+      }
+    ],
+    "datastores": [
+      {
+        "name": "orders",
+        "kind": "relational"
+      }
+    ]
+  },
+  "outbound": [
+    {
+      "target": "catalog-service",
+      "verb": "calls",
+      "detail": "looks up a book's unit price with GET /books/{isbn} before charging",
+      "confidence": 0.95
+    },
+    {
+      "target": "Stripe",
+      "verb": "calls",
+      "detail": "charges the customer's card by creating a Stripe payment intent",
+      "confidence": 0.9
+    },
+    {
+      "target": "PostgreSQL",
+      "verb": "writes_to",
+      "detail": "stores each order in the orders table",
+      "confidence": 0.9
+    },
+    {
+      "target": "Kafka",
+      "verb": "publishes",
+      "detail": "publishes an order.placed event for every order",
+      "confidence": 0.9
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

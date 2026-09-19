@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-09-20T09:00:00.000Z",
+  "repository": {
+    "name": "catalog-service",
+    "path": "repos/catalog-service",
+    "description": "Book catalogue service"
+  },
+  "description": "A Spring Boot service that owns the book catalogue. It serves GET /books and GET /books/{isbn}, keeps books in PostgreSQL and returns presigned Amazon S3 URLs for cover images.",
+  "languages": ["Java"],
+  "frameworks": ["Spring Boot", "Spring Data JPA", "AWS SDK for Java"],
+  "served": {
+    "httpRoutes": [
+      {
+        "method": "GET",
+        "path": "/books",
+        "filePath": "src/main/java/demo/catalog/BookController.java"
+      },
+      {
+        "method": "GET",
+        "path": "/books/{isbn}",
+        "filePath": "src/main/java/demo/catalog/BookController.java"
+      }
+    ],
+    "grpcServices": [],
+    "topics": [],
+    "datastores": [
+      {
+        "name": "books",
+        "kind": "relational"
+      }
+    ]
+  },
+  "outbound": [
+    {
+      "target": "PostgreSQL",
+      "verb": "reads_from",
+      "detail": "reads the book catalogue through Spring Data JPA",
+      "confidence": 0.9
+    },
+    {
+      "target": "Amazon S3",
+      "verb": "reads_from",
+      "detail": "generates presigned S3 URLs for book cover images in the bookshop-covers bucket",
+      "confidence": 0.9
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}
