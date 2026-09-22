@@ -99,8 +99,12 @@ Use `"analysisStatus": "partial"` if the bundle was empty or you could not chara
 repo with confidence.
 
 4. If you were handed a whole workspace (`import.yaml`), repeat steps 1-3 for every context
-   bundle `gather-context` wrote — don't stop after the first repository. Once every repository
-   has a `{repoName}.analysis.json`, run
+   bundle `gather-context` wrote — don't stop after the first repository, and don't skip a
+   repository because `{outDir}/{repoName}.analysis.json` already exists there. Write a fresh
+   one for every bundle regardless: a prior file being present and schema-valid (e.g. a sample
+   workspace's committed analyses) is not evidence the repo has already been analyzed **by you,
+   now** — it means nothing, since you have no way to tell whether it's current. Once every
+   repository has a `{repoName}.analysis.json`, run
    `npx --yes @archatlas/llm-importer@latest import <import.yaml>` **yourself** (still
    deterministic, no model call — six evidence passes over the raw source plus a name-mention
    fallback). It's safe to always run this last: a repository with no or a malformed analysis
