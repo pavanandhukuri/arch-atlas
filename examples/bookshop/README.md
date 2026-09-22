@@ -3,7 +3,8 @@
 Five small services in five languages, written so the importer has something real to find: HTTP
 routes, a Kafka event, a database, and calls out to Keycloak, Stripe, Amazon S3 and SendGrid.
 It is what the [main README](../../README.md#try-it-the-bookshop-demo) walks through, and it is
-also the importer's second [eval golden set](../../apps/llm-importer/eval/README.md).
+also the importer's [eval golden set](../../apps/llm-importer/eval/README.md) — the benchmark for
+correlation quality, not a throwaway fixture.
 
 ```mermaid
 flowchart LR
@@ -52,11 +53,11 @@ npx --yes @archatlas/llm-importer@latest import import.yaml
 [load] notification-service: Python / FastAPI
 
 Correlating across 5 repositories...
-    endpoint: 5 connection(s)
+    endpoint: 3 connection(s)
     compose: 3 connection(s)
     topic: 1 connection(s)
     external-systems: 6 connection(s)
-  Deterministic pass: 20 connection(s) found
+  Deterministic pass: 18 connection(s) found
 
 ✓ Review artifact written to …/architecture-output/architecture.review.yaml
 ```
@@ -97,46 +98,33 @@ pnpm --filter @archatlas/studio dev          # http://localhost:3000/import
 3. **Tag & Classify** — each service shows its technology (`Java / Spring Boot`, `Go`, …) and a
    one-line description. Mark Keycloak, Stripe, SendGrid, Amazon S3, PostgreSQL and Kafka as
    external systems.
-4. **Review Candidates** — the 5 `high`-confidence connections (of 20) are already accepted; the
-   other 15 are `medium` — every proposal about an external system is capped there on purpose,
+4. **Review Candidates** — the 5 `high`-confidence connections (of 18) are already accepted; the
+   other 13 are `medium` — every proposal about an external system is capped there on purpose,
    since it comes from the analysis rather than from literal evidence in the source. Each card
    shows what produced it (for example `api-gateway/main.go:59 references /api/books matching
-catalog-service's route`). Accept the good ones with one click each and reject the two
-   [false positives below](#two-candidates-to-reject).
+catalog-service's route`). Accept the rest with one click each — there are no false positives
+   to reject: the storefront's proposals stop at the gateway, not the backends behind it, exactly
+   like the code.
 5. **Finalize** → open the **Bookshop** system context: the five services inside the boundary,
    the external systems above and below, each arrow labelled with what it does and how (REST API,
    Kafka, SQL).
-
-### Two candidates to reject
-
-The importer is deterministic, not omniscient. The storefront only ever calls the gateway, but
-its `/api/books` and `/api/orders` literals also match the catalog and order routes (the gateway
-strips the `/api` prefix), so it proposes two extra connections:
-
-- `bookshop-web → catalog-service`
-- `bookshop-web → order-service`
-
-Reject both in **Review Candidates**. That is the review step doing its job — and the reason the
-importer proposes rather than decides. (These two are pinned in the
-[eval baseline](../../apps/llm-importer/eval/baseline.json) as known misses.)
 
 ## Recording script
 
 A ~2 minute recording that shows the whole loop. Use a clean terminal and a browser at 1440×900.
 
-| #   | Where    | Do                                                              | Show                                                                                                               |
-| --- | -------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| 1   | Terminal | `cd examples/bookshop && ls repos architecture-output`          | Five repos, five languages; the committed analyses                                                                 |
-| 2   | Terminal | `npx --yes @archatlas/llm-importer@latest import import.yaml`   | The passes finding connections; `20 connection(s) found`; the written file                                         |
-| 3   | Terminal | `pnpm --filter @archatlas/studio dev` (already running is fine) | —                                                                                                                  |
-| 4   | Browser  | Open `localhost:3000/import`, upload `architecture.review.yaml` | Load Files                                                                                                         |
-| 5   | Browser  | Next: **Define Systems**                                        | "Bookshop" pre-filled — declared in `import.yaml`                                                                  |
-| 6   | Browser  | Next: **Tag & Classify**, click ✏️ on `catalog-service`         | Technology + description pre-filled; mark Keycloak/Stripe/S3… external                                             |
-| 7   | Browser  | Next: **Review Candidates**                                     | 5 of 20 already accepted; open a card to show its evidence, then accept the `medium` ones (cut/speed up this part) |
-| 8   | Browser  | Reject the two `bookshop-web →` false positives                 | The human-in-the-loop moment                                                                                       |
-| 9   | Browser  | **Finalize**, open the system context                           | Externals above/below, labelled arrows                                                                             |
-| 10  | Browser  | Drag a box, pinch/scroll to zoom, ⌘0 to fit                     | It stays where you put it                                                                                          |
+| #   | Where    | Do                                                              | Show                                                                                                          |
+| --- | -------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 1   | Terminal | `cd examples/bookshop && ls repos architecture-output`          | Five repos, five languages; the committed analyses                                                            |
+| 2   | Terminal | `npx --yes @archatlas/llm-importer@latest import import.yaml`   | The passes finding connections; `18 connection(s) found`; the written file                                    |
+| 3   | Terminal | `pnpm --filter @archatlas/studio dev` (already running is fine) | —                                                                                                             |
+| 4   | Browser  | Open `localhost:3000/import`, upload `architecture.review.yaml` | Load Files                                                                                                    |
+| 5   | Browser  | Next: **Define Systems**                                        | "Bookshop" pre-filled — declared in `import.yaml`                                                             |
+| 6   | Browser  | Next: **Tag & Classify**, click ✏️ on `catalog-service`         | Technology + description pre-filled; mark Keycloak/Stripe/S3… external                                        |
+| 7   | Browser  | Next: **Review Candidates**                                     | 5 of 18 already accepted; open a card to show its evidence, then accept the `medium` ones — no rejects needed |
+| 8   | Browser  | **Finalize**, open the system context                           | Externals above/below, labelled arrows                                                                        |
+| 9   | Browser  | Drag a box, pinch/scroll to zoom, ⌘0 to fit                     | It stays where you put it                                                                                     |
 
-Tips: pause ~1s on steps 2, 7 and 9; keep the cursor still while a page loads. Export as a GIF
+Tips: pause ~1s on steps 2, 7 and 8; keep the cursor still while a page loads. Export as a GIF
 (≤ 10 MB) or MP4 and save it as `docs/media/bookshop-demo.gif`, then enable the image in the
 root README (the commented-out block under **Try it: the Bookshop demo**).

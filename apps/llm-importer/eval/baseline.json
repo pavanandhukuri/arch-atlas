@@ -1,21 +1,9 @@
 {
   "bookshop": {
     "connections": {
-      "precision": 0.8824,
-      "recall": 1,
-      "f1": 0.9375
-    },
-    "externalSystems": {
       "precision": 1,
       "recall": 1,
       "f1": 1
-    }
-  },
-  "fixtures": {
-    "connections": {
-      "precision": 0.875,
-      "recall": 1,
-      "f1": 0.9333
     },
     "externalSystems": {
       "precision": 1,

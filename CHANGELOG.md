@@ -11,12 +11,26 @@ All notable user-facing changes SHOULD be documented in this file.
   README to show, without needing a private codebase. The services talk over HTTP and Kafka and
   call out to Keycloak, Stripe, Amazon S3 and SendGrid. Its analyses are committed, so
   `npx @archatlas/llm-importer@latest import import.yaml` runs offline with no agent or model; the
-  README has the architecture, a click-by-click Studio walkthrough, and a recording script. It is
-  also the eval's second golden set (`bookshop`: connection recall 1.0 / precision 0.88 — the two
-  misses are the storefront's `/api/*` literals also matching the catalog and order routes, pinned
-  on purpose), and golden sets can now name where their committed analyses live (`analyses:`).
+  README has the architecture, a click-by-click Studio walkthrough, and a recording script.
+- It is also the eval's one golden set (`bookshop`: connection precision **and** recall 1.0 —
+  see "Fixed" below), replacing the old synthetic `fixtures` set entirely. Golden sets can now
+  name where their committed analyses live (`analyses:`), which is how `bookshop` reads the
+  demo's in place with no copy.
 - The root README's importer text was stale (it still said `import` writes
   `architecture.arch.json`); corrected.
+
+### Fixed — a caller's literal matched a downstream service THROUGH its gateway
+
+- `endpointPass` proposed a direct connection from a caller straight to a backend service even
+  when the caller only ever talks to a gateway in front of it — found building the Bookshop demo,
+  where the storefront's `/api/books` literal both _is_ the gateway's own registered route and,
+  via the separate gateway-prefix-suffix heuristic, also matched the catalog service's own
+  `/books` route. A caller's literal now uses only its single best-evidenced match: an exact route
+  match, or (new) a match against a repo's own **mount-point route** — `/api/books/` registered as
+  a whole-subtree prefix, the ordinary reverse-proxy/router convention — beats a coarser
+  gateway-prefix-suffix guess about a _different_ repo for the same literal, not merely outweighs
+  it. Fixes the Bookshop eval's two false positives; `eval/golden/bookshop` moves from
+  precision 0.88 to 1.0 with no recall cost.
 
 ### Fixed — `import` trusted a stale path recorded inside the analysis
 

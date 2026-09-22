@@ -93,6 +93,32 @@ export function isGatewayPrefixedVariant(
   return matches !== null && matches >= minConcrete;
 }
 
+/** Smallest a mount-point route can be and still count as one (see below) — a
+ * single segment like "/api/" is too generic: nearly every literal into any
+ * gateway would start with it, regardless of which backend it actually reaches. */
+const MIN_MOUNT_SEGMENTS = 2;
+
+/**
+ * True when `route` is a whole-subtree mount point that `literal` falls
+ * under — every one of `route`'s segments concretely equals `literal`'s
+ * corresponding LEADING segment, and `literal` has at least one more segment
+ * beyond it. Models the ordinary reverse-proxy / router convention of
+ * registering one route for an entire downstream subtree (Go's
+ * `http.ServeMux`, Express's `app.use(prefix, subRouter)`, an nginx
+ * `location` block) — so a caller's literal like "/api/books/42" is served by
+ * whoever registered "/api/books/", even though "/api/books/42" never
+ * appears as anyone's own literal route.
+ */
+export function routeIsPrefixOfLiteral(route: string, literal: string): boolean {
+  const routeSegs = route.split('/').filter(Boolean);
+  const literalSegs = literal.split('/').filter(Boolean);
+  if (routeSegs.length < MIN_MOUNT_SEGMENTS || literalSegs.length <= routeSegs.length) {
+    return false;
+  }
+  const matches = alignedConcreteMatches(routeSegs, literalSegs.slice(0, routeSegs.length));
+  return matches === routeSegs.length;
+}
+
 /** Wildcard-tolerant equality between two normalized paths, requiring at
  * least `minConcrete` concretely-equal aligned segments (see above). */
 export function pathsEqual(a: string, b: string, minConcrete = 1): boolean {
