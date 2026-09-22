@@ -127,9 +127,24 @@ describe('relationship-aware layout', () => {
     expect(new Set(['a', 'b', 'c'].map((id) => pos(m, id).y)).size).toBe(3);
   });
 
-  it('a node reached by two paths sits right of BOTH callers (longest path)', () => {
+  it('a node reached by two paths clusters with its closest caller (shortest path)', () => {
+    // c is reached directly from a AND via b; it sits with a's other direct
+    // dependent (b) rather than being pushed past it — b's own edge into c
+    // becomes a same-column/backward edge instead of dragging c rightward.
     const m = modelOf([el('a'), el('b'), el('c')], [rel('a', 'b'), rel('b', 'c'), rel('a', 'c')]);
-    expect(pos(m, 'c').x).toBeGreaterThan(pos(m, 'b').x);
+    expect(pos(m, 'c').x).toBe(pos(m, 'b').x);
+    expect(pos(m, 'c').y).not.toBe(pos(m, 'b').y);
+  });
+
+  it('a fan-out target that is ALSO called from deeper in the graph still shares the fan-out column', () => {
+    // the bookshop shape: gw -> a, gw -> b, a -> b (b is api-gateway's direct
+    // dependent AND also reached through a) — b must land next to a, not past it.
+    const m = modelOf(
+      [el('gw'), el('a'), el('b')],
+      [rel('gw', 'a'), rel('gw', 'b'), rel('a', 'b')]
+    );
+    expect(pos(m, 'a').x).toBe(pos(m, 'b').x);
+    expect(pos(m, 'a').x).toBeGreaterThan(pos(m, 'gw').x);
   });
 
   it('terminates on a cycle and still gives every node its own slot', () => {
