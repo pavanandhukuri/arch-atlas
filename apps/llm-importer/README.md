@@ -98,11 +98,13 @@ See `specs/010-harness-neutral-importer/quickstart.md` for end-to-end usage.
 
 ## Eval
 
-`eval/` holds a deterministic, offline correlation eval (a CI gate against a committed
-`baseline.json`) and an opt-in extraction eval. Dev-only — never in the published tarball. See
+`eval/` holds a deterministic, offline correlation eval — a local benchmark against a committed
+`baseline.json`, run against the [`examples/bookshop`](../../examples/bookshop) demo workspace —
+and an opt-in extraction eval. Dev-only — never in the published tarball. Its numbers are also
+pinned as regular tests (`eval/run.integration.test.ts`), which IS part of `pnpm test` / CI. See
 [`eval/README.md`](./eval/README.md).
 
 ```bash
 pnpm --filter @archatlas/llm-importer eval            # report
-pnpm --filter @archatlas/llm-importer eval -- --check # gate (what CI runs)
+pnpm --filter @archatlas/llm-importer eval -- --check # check against the baseline, locally
 ```

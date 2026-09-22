@@ -1,14 +1,15 @@
 # Importer eval harness
 
 Dev-only. Nothing here ships — `files: ["dist"]` keeps every byte of `eval/` out of the npm
-tarball. Two evals:
+tarball. Two evals, **neither runs in CI** — both are local benchmarks you run when you touch a
+correlation pass or the extraction procedure:
 
 | eval            | command                                              | model? | CI? |
 | --------------- | ---------------------------------------------------- | ------ | --- |
-| **correlation** | `pnpm --filter @archatlas/llm-importer eval`         | no     | yes |
+| **correlation** | `pnpm --filter @archatlas/llm-importer eval`         | no     | no  |
 | **extraction**  | `pnpm --filter @archatlas/llm-importer eval:extract` | yes    | no  |
 
-## Correlation eval (the CI gate)
+## Correlation eval
 
 Deterministic and offline: it loads a golden set's committed `{repo}.analysis.json` artifacts,
 runs the real `toCorrelationGraph` → `correlateDeterministically` pipeline against the repo
@@ -25,14 +26,17 @@ source on disk, and scores against `ground-truth.json`:
 
 ```bash
 pnpm --filter @archatlas/llm-importer eval                     # report every golden set
-pnpm --filter @archatlas/llm-importer eval -- --set fixtures   # just one
-pnpm --filter @archatlas/llm-importer eval -- --check          # gate against baseline.json
+pnpm --filter @archatlas/llm-importer eval -- --set bookshop   # just one
+pnpm --filter @archatlas/llm-importer eval -- --check          # check against baseline.json
 pnpm --filter @archatlas/llm-importer eval -- --update-baseline
 ```
 
 `--check` exit codes: `0` every metric within `0.02` of (or above) baseline · `1` a metric
 regressed (the offending `set.group.metric` is printed) · `2` `baseline.json` missing/invalid or
-a `ground-truth.json` is internally inconsistent.
+a `ground-truth.json` is internally inconsistent. Nothing calls `--check` in CI — run it yourself
+before and after a correlation-pass change, the way you'd re-run a benchmark.
+`eval/run.integration.test.ts` pins the same numbers as regular `pnpm test` assertions instead;
+that suite is what CI actually gates on (see below).
 
 ### Moving the baseline
 
@@ -53,7 +57,7 @@ pnpm --filter @archatlas/llm-importer eval -- --check   # → exit 1, externalSy
 ```
 
 `eval/run.integration.test.ts` pins this automatically (dropping `foundBy: 'external-outbound'`
-connections collapses external recall to 0).
+connections collapses external recall to 0) — that test IS what runs in CI.
 
 ## Extraction eval (local only)
 
@@ -62,13 +66,21 @@ Scores produced `{repo}.analysis.json` against per-repo ground truth — `langua
 `plugins/repo-analysis/AGENTS.md`. **Always exits 0. Never runs in CI.**
 
 ```bash
-pnpm --filter @archatlas/llm-importer eval:extract -- --set fixtures --out ./architecture-output
+pnpm --filter @archatlas/llm-importer eval:extract -- --set bookshop --out ./architecture-output
 ```
 
-With no `--out`, it scores the set's committed analyses (a sanity check on the fixtures
-themselves).
+With no `--out`, it scores the set's committed analyses (a sanity check on them, and — since
+there's currently one golden set — the default when `--set` is omitted).
 
-## Adding a golden set
+## The golden set
+
+**`bookshop`** — the public [`examples/bookshop`](../../../examples/bookshop) demo workspace,
+read in place via its `analyses:` config (no copy). Real polyglot code (Go, Java, TypeScript ×2,
+Python) across HTTP, Kafka and six external systems — the benchmark, not a disposable synthetic
+fixture. `pnpm test` runs it as `eval/run.integration.test.ts`; that suite, not this harness, is
+what CI actually gates on.
+
+### Adding another golden set
 
 ```
 eval/golden/<name>/
@@ -100,15 +112,15 @@ eval/golden/<name>/
 ```
 
 Analyses resolve from, in order: the config's `analyses:` path (relative to the config file) if
-set — how `bookshop` reads the committed analyses of the public [`examples/bookshop`](../../../examples/bookshop)
-demo in place — else `golden/<name>/analyses/` if that dir exists, else `../analyses` relative to
-`workspace.local` (how `fixtures` reuses `test/fixtures/analyses` with no copy).
-Every `connections[].from` / `.to` must be a `repos` key or an `externalSystems` entry — the
-loader rejects anything else with exit 2.
+set — how `bookshop` reads the demo's committed analyses in place — else `golden/<name>/analyses/`
+if that dir exists, else `../analyses` relative to `workspace.local`. Every `connections[].from` /
+`.to` must be a `repos` key or an `externalSystems` entry — the loader rejects anything else with
+exit 2.
 
-A public source workspace (e.g. `microservices-demo`) is referenced by URL + pinned SHA in a
-comment only — its analyses are produced once and committed; the source is never vendored or
-cloned in CI. Private code (uds-sdk) is never committed in any form.
+A public source workspace committed as its own repo tree (rather than referenced in place like
+`bookshop`) should be pinned by URL + SHA in a comment, analyses produced once and committed, the
+source never vendored or cloned in CI. Private code (uds-sdk) is never committed in any form.
 
 After adding a set: `eval -- --update-baseline --set <name>` and commit the new `baseline.json`
-block.
+block — and add a describe block to `eval/run.integration.test.ts` pinning its scores, since that
+test (not this harness on its own) is what CI gates on.

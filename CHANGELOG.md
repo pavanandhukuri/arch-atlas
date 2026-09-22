@@ -32,6 +32,15 @@ All notable user-facing changes SHOULD be documented in this file.
   it. Fixes the Bookshop eval's two false positives; `eval/golden/bookshop` moves from
   precision 0.88 to 1.0 with no recall cost.
 
+### Changed — the correlation eval no longer gates CI
+
+- `eval -- --check` never ran in CI to begin with in any released version — this removes the step
+  from `ci.yml` before it ever ships, and drops the disposable synthetic `fixtures` golden set now
+  that `bookshop` (real polyglot code) is the harness's one set. `eval/run.integration.test.ts`
+  pins the same numbers as ordinary `pnpm test` assertions and is what CI actually gates on; the
+  eval itself (`pnpm --filter @archatlas/llm-importer eval[ -- --check | --update-baseline]`)
+  stays a local benchmark for whoever's iterating on a correlation pass.
+
 ### Fixed — `import` trusted a stale path recorded inside the analysis
 
 - The source-level evidence passes read each repo from the `repository.path` **recorded in its
