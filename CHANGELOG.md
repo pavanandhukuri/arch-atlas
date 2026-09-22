@@ -4,6 +4,55 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Added — a public demo workspace: `examples/bookshop`
+
+- **`examples/bookshop`** is a five-service polyglot workspace (Go, Java/Spring Boot,
+  TypeScript ×2, Python/FastAPI) for trying the importer and Studio end to end — and for the
+  README to show, without needing a private codebase. The services talk over HTTP and Kafka and
+  call out to Keycloak, Stripe, Amazon S3 and SendGrid. Its analyses are committed, so
+  `npx @archatlas/llm-importer@latest import import.yaml` runs offline with no agent or model; the
+  README has the architecture, a click-by-click Studio walkthrough, and a recording script.
+- It is also the eval's one golden set (`bookshop`: connection precision **and** recall 1.0 —
+  see "Fixed" below), replacing the old synthetic `fixtures` set entirely. Golden sets can now
+  name where their committed analyses live (`analyses:`), which is how `bookshop` reads the
+  demo's in place with no copy.
+- The root README's importer text was stale (it still said `import` writes
+  `architecture.arch.json`); corrected.
+
+### Fixed — a caller's literal matched a downstream service THROUGH its gateway
+
+- `endpointPass` proposed a direct connection from a caller straight to a backend service even
+  when the caller only ever talks to a gateway in front of it — found building the Bookshop demo,
+  where the storefront's `/api/books` literal both _is_ the gateway's own registered route and,
+  via the separate gateway-prefix-suffix heuristic, also matched the catalog service's own
+  `/books` route. A caller's literal now uses only its single best-evidenced match: an exact route
+  match, or (new) a match against a repo's own **mount-point route** — `/api/books/` registered as
+  a whole-subtree prefix, the ordinary reverse-proxy/router convention — beats a coarser
+  gateway-prefix-suffix guess about a _different_ repo for the same literal, not merely outweighs
+  it. Fixes the Bookshop eval's two false positives; `eval/golden/bookshop` moves from
+  precision 0.88 to 1.0 with no recall cost.
+
+### Changed — the correlation eval no longer gates CI
+
+- `eval -- --check` never ran in CI to begin with in any released version — this removes the step
+  from `ci.yml` before it ever ships, and drops the disposable synthetic `fixtures` golden set now
+  that `bookshop` (real polyglot code) is the harness's one set. `eval/run.integration.test.ts`
+  pins the same numbers as ordinary `pnpm test` assertions and is what CI actually gates on; the
+  eval itself (`pnpm --filter @archatlas/llm-importer eval[ -- --check | --update-baseline]`)
+  stays a local benchmark for whoever's iterating on a correlation pass.
+
+### Fixed — `import` trusted a stale path recorded inside the analysis
+
+- The source-level evidence passes read each repo from the `repository.path` **recorded in its
+  `{repo}.analysis.json`**, and silently fell back to intent-only matching if that path didn't
+  exist — as it doesn't for an analysis produced on another machine, in CI, or committed as a
+  sample. `import` now reads the repo from the path in `import.yaml` (resolved against the working
+  directory, like `gather-context`), falling back to the recorded one, and **warns** when neither
+  exists instead of quietly losing every source-derived connection.
+- **Object stores are no longer "SQL".** A `reads_from` / `writes_to` verb bucketed every target as
+  `database`, so Studio labelled an Amazon S3 (or Google Cloud Storage / MinIO) connection with the
+  SQL integration mode. They are now `http` (REST API).
+
 ### Fixed — diagram viewport & interaction polish (Studio and the import preview)
 
 - **External systems no longer start hidden.** They're placed to the left of the system

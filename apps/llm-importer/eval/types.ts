@@ -53,6 +53,13 @@ export interface EvalConfig {
   name: string;
   /** Path (relative to the config file) to a directory containing the repo trees. */
   workspace: { local: string };
+  /**
+   * Path (relative to the config file) to the directory holding the committed
+   * `{repo}.analysis.json` files. Default: `analyses/` next to the config if it
+   * exists, else `../analyses` beside the repo trees. Set it to point at analyses
+   * that already live elsewhere (e.g. an `examples/` workspace) instead of copying them.
+   */
+  analyses?: string;
   repos: Array<{ name: string; path: string }>;
 }
 

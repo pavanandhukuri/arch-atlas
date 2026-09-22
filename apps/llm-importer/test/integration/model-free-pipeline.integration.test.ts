@@ -103,6 +103,51 @@ describe('model-free import pipeline', () => {
     fetchSpy.mockRestore();
   });
 
+  // A committed / CI / other-machine analysis records a repository.path that doesn't exist
+  // here. The configured path must win, or every source-derived connection vanishes silently.
+  it('finds source-level connections from the CONFIGURED repo path when the recorded one is stale', async () => {
+    for (const name of REPOS) {
+      // raw fixture artifact, `repository.path` left as the bogus "/fixtures/repos/<name>"
+      await writeFile(
+        join(outputDir, `${name}.analysis.json`),
+        await readFile(join(FIXTURES, 'analyses', `${name}.analysis.json`), 'utf8'),
+        'utf8'
+      );
+    }
+    const errs: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...a) => {
+      errs.push(a.map(String).join(' '));
+    });
+    await runImport(config(), { verbose: false });
+    spy.mockRestore();
+
+    const review = JSON.parse(
+      await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+    ) as { candidates: Array<{ source: string; target: string }> };
+    const edges = new Set(review.candidates.map((c) => `${c.source} -> ${c.target}`));
+    // only findable by reading audit-service's / user-service's real source (topic literals)
+    expect(edges.has('user-service -> audit-service')).toBe(true);
+    expect(errs.join('\n')).not.toMatch(/\[warn\].*source not found/);
+  });
+
+  it('warns — instead of silently degrading — when neither the configured nor the recorded path exists', async () => {
+    await writeFile(
+      join(outputDir, 'gateway.analysis.json'),
+      await readFile(join(FIXTURES, 'analyses', 'gateway.analysis.json'), 'utf8'),
+      'utf8'
+    );
+    const errs: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...a) => {
+      errs.push(a.map(String).join(' '));
+    });
+    await runImport(
+      config({ repositories: [{ name: 'gateway', path: join(FIXTURES, 'repos', 'no-such-dir') }] }),
+      { verbose: false }
+    );
+    spy.mockRestore();
+    expect(errs.join('\n')).toMatch(/\[warn\] gateway: source not found at .*no-such-dir/);
+  });
+
   it('skips one missing + one corrupt artifact and still builds the review artifact (FR-003)', async () => {
     await seedAnalyses(['user-service', 'gateway']);
     await writeFile(

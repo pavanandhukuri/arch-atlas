@@ -24,6 +24,19 @@ const EDGE_TYPE_TO_CANDIDATE_TYPE: Partial<Record<GraphEdgeType, Candidate['type
   deploys: 'http',
 };
 
+/**
+ * Object stores are reached over an HTTP API, but the graph verb for using one is
+ * `reads_from` / `writes_to` — which the mapping above buckets as 'database', so
+ * Studio would label an S3 connection with the "SQL" integration mode. These are
+ * candidate type 'http' regardless of the verb. Matched on the connection's
+ * target name (compose-derived `MinIO` and an analysis-derived `Amazon S3` alike).
+ */
+const HTTP_STORAGE_TARGETS: ReadonlySet<string> = new Set([
+  'amazon s3',
+  'google cloud storage',
+  'minio',
+]);
+
 function connectionSource(
   connection: CrossRepositoryConnection
 ):
@@ -56,7 +69,9 @@ export function assembleReviewFile(
     const candidateType =
       connection.type === 'calls' && connection.transport === 'grpc'
         ? 'grpc'
-        : (EDGE_TYPE_TO_CANDIDATE_TYPE[connection.type] ?? 'http');
+        : HTTP_STORAGE_TARGETS.has(connection.targetRepo.toLowerCase())
+          ? 'http'
+          : (EDGE_TYPE_TO_CANDIDATE_TYPE[connection.type] ?? 'http');
     return {
       id: `cand_${index + 1}`,
       source: connection.sourceRepo,

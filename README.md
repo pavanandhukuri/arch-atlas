@@ -39,6 +39,10 @@ packages/
   dsl/                — Plain-text DSL library for authoring/serializing models (parser + serializer;
                         not currently wired into a Studio UI — usable standalone or by other tooling)
 
+examples/
+  bookshop/           — A five-service polyglot demo workspace (Go, Java, TypeScript, Python) with an
+                        import.yaml and committed analyses: try the importer and Studio end to end
+
 plugins/
   repo-analysis/      — The repo-analysis producer: reads one repository (or its context bundle)
                         and writes {repo}.analysis.json. Canonical procedure is AGENTS.md (works
@@ -58,10 +62,9 @@ whole pipeline itself:
   import (correlate)            → deterministic evidence passes over the raw source
                                    (manifests, HTTP routes, gRPC, schemas, compose files, pub/sub topics)
                                  → architecture.review.yaml
-                                 → architecture.arch.json
 
 Studio's import wizard reads architecture.review.yaml and lets a human confirm/classify
-elements before finalizing the diagram.
+elements before building the diagram.
 ```
 
 One developer action — point an agent at `import.yaml` — produces a ready
@@ -101,6 +104,36 @@ cd arch-atlas
 pnpm install
 ```
 
+## Try it: the Bookshop demo
+
+[`examples/bookshop`](examples/bookshop) is a small workspace to try the whole loop on — five
+services in Go, Java, TypeScript and Python that talk over HTTP and Kafka and call out to
+Keycloak, Stripe, Amazon S3 and SendGrid. Its analyses are committed, so the importer runs
+**offline, with no model and no coding agent**:
+
+```bash
+cd examples/bookshop
+npx --yes @archatlas/llm-importer@latest import import.yaml   # → architecture-output/architecture.review.yaml
+```
+
+Then open it in Studio (`pnpm --filter @archatlas/studio dev` → `http://localhost:3000/import`),
+upload `architecture.review.yaml`, and confirm the proposed connections. The system grouping is
+pre-filled from `import.yaml`, high-confidence connections are pre-accepted, and each proposal
+shows the evidence behind it.
+
+<!--
+  TODO(recording): drop the screen recording at docs/media/bookshop-demo.gif, then replace this
+  comment with:
+
+  ![Importing the Bookshop workspace and reviewing it in Studio](docs/media/bookshop-demo.gif)
+
+  A shot-by-shot script is in examples/bookshop/README.md ("Recording script").
+-->
+
+See [`examples/bookshop/README.md`](examples/bookshop/README.md) for the architecture it
+implements, a click-by-click Studio walkthrough, and how to regenerate the analyses with your own
+coding agent.
+
 ## Running the apps
 
 ### Studio (diagram editor)
@@ -117,8 +150,8 @@ Opens at `http://localhost:3000`. Requires a Google account to save diagrams to 
 The importer CLI is published on npm — no checkout needed. Point a coding agent at your
 `import.yaml` running `plugins/repo-analysis` (any agent, any model): it runs
 `npx @archatlas/llm-importer@latest gather-context`, analyzes every listed repository, then
-`npx @archatlas/llm-importer@latest import`, writing `architecture.review.yaml` +
-`architecture.arch.json`.
+`npx @archatlas/llm-importer@latest import`, writing `architecture.review.yaml` — the proposed
+connections, for a human to confirm in Studio, which then builds the diagram.
 
 See `apps/llm-importer/README.md` for the full CLI reference and the producer contract.
 

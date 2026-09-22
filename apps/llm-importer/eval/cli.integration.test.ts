@@ -30,7 +30,7 @@ describe('eval/run.ts CLI', () => {
   it('reports every golden set and exits 0', async () => {
     const { code, stdout } = await run(RUN, []);
     expect(code).toBe(0);
-    expect(stdout).toContain('=== fixtures ===');
+    expect(stdout).toContain('=== bookshop ===');
     expect(stdout).toMatch(/connections[\s\S]*precision .* recall .* f1/);
   });
 
@@ -54,11 +54,26 @@ describe('eval/run.ts CLI', () => {
 });
 
 describe('eval/extract.ts CLI', () => {
-  it('scores the committed analyses and exits 0', async () => {
+  it("scores a golden set's committed analyses and exits 0, one block per repo", async () => {
+    const { code, stdout } = await run(EXTRACT, ['--set', 'bookshop']);
+    expect(code).toBe(0);
+    expect(stdout).toContain('extraction: bookshop');
+    expect(stdout).toContain('aggregate (mean over repos)');
+    for (const repo of [
+      'bookshop-web',
+      'api-gateway',
+      'catalog-service',
+      'order-service',
+      'notification-service',
+    ]) {
+      expect(stdout).toContain(repo);
+    }
+  });
+
+  it('with no --set, defaults to the first golden set (alphabetically)', async () => {
     const { code, stdout } = await run(EXTRACT, []);
     expect(code).toBe(0);
-    expect(stdout).toContain('extraction: fixtures');
-    expect(stdout).toContain('aggregate (mean over repos)');
+    expect(stdout).toContain('extraction: bookshop');
   });
 
   it('an unknown golden set is reported but still exits 0 (advisory)', async () => {
@@ -70,9 +85,9 @@ describe('eval/extract.ts CLI', () => {
   it('an empty --out dir skips every repo and exits 0', async () => {
     const empty = await mkdtemp(join(tmpdir(), 'eval-extract-'));
     try {
-      const { code, stderr } = await run(EXTRACT, ['--set', 'fixtures', '--out', empty]);
+      const { code, stderr } = await run(EXTRACT, ['--set', 'bookshop', '--out', empty]);
       expect(code).toBe(0);
-      expect(stderr).toMatch(/\[skip\] user-service: no analysis artifact/);
+      expect(stderr).toMatch(/\[skip\] bookshop-web: no analysis artifact/);
     } finally {
       await rm(empty, { recursive: true, force: true });
     }

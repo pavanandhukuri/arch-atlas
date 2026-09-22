@@ -1,0 +1,12 @@
+# The public Bookshop demo workspace (examples/bookshop): five small polyglot services.
+# Repo trees and the committed analyses are the demo's own — nothing is copied here.
+name: bookshop
+workspace:
+  local: ../../../../../examples/bookshop/repos
+analyses: ../../../../../examples/bookshop/architecture-output
+repos:
+  - { name: bookshop-web, path: bookshop-web }
+  - { name: api-gateway, path: api-gateway }
+  - { name: catalog-service, path: catalog-service }
+  - { name: order-service, path: order-service }
+  - { name: notification-service, path: notification-service }

@@ -6,6 +6,7 @@ import {
   isGatewayPrefixedVariant,
   parseEndpointRoute,
   pathsEqual,
+  routeIsPrefixOfLiteral,
   segmentCount,
   staticSegmentCount,
   THIRD_PARTY_PATH_RE,
@@ -189,8 +190,17 @@ interface CalleeRoute {
 }
 
 /** URL literals in one repo matched against endpoint routes (agent-extracted
- * nodes) in another — exact, then gateway-prefixed suffix, then raw
- * literal-vs-literal suffix as a low-confidence fallback. */
+ * nodes) in another, in priority tiers — exact path, then "literal falls
+ * under this repo's mount-point route" (routeIsPrefixOfLiteral), then
+ * gateway-prefixed suffix, then (below) raw literal-vs-literal suffix as a
+ * last-resort fallback. A literal uses only its HIGHEST populated tier, never
+ * several combined: once a literal's real destination is known — an exact
+ * route, or a mount point it falls under — a coarser tier's guess about a
+ * DIFFERENT repo for that SAME literal is very likely double-counting a hop
+ * the caller doesn't actually make directly. The textbook case: an SPA's
+ * literal "/api/books" both IS the gateway's own registered route AND
+ * gateway-prefix-suffix-matches the backend's "/books" — but the SPA only
+ * ever talks to the gateway, never the backend directly. */
 export const endpointPass: EvidencePass = ({ repos, graphsByName }) => {
   const notes: string[] = [];
   const connections: CrossRepositoryConnection[] = [];
@@ -207,8 +217,10 @@ export const endpointPass: EvidencePass = ({ repos, graphsByName }) => {
 
   for (const caller of repos) {
     for (const literal of caller.urlLiterals) {
-      // Endpoint-node matching, with multi-repo ambiguity demotion.
-      const matches: Array<{ callee: RepoEvidence; match: CalleeRoute; weight: number }> = [];
+      type Hit = { callee: RepoEvidence; match: CalleeRoute; weight: number };
+      const exact: Hit[] = [];
+      const prefix: Hit[] = [];
+      const suffix: Hit[] = [];
       for (const callee of repos) {
         if (callee === caller) continue;
         for (const calleeRoute of routesByRepo.get(callee.name) ?? []) {
@@ -231,12 +243,16 @@ export const endpointPass: EvidencePass = ({ repos, graphsByName }) => {
             const exactMethod = literal.method !== undefined && literal.method === route.method;
             let weight = exactMethod ? 0.85 : 0.7;
             if (literal.template) weight = Math.min(weight, 0.55);
-            matches.push({ callee, match: calleeRoute, weight });
+            exact.push({ callee, match: calleeRoute, weight });
+          } else if (routeIsPrefixOfLiteral(route.path, literal.path)) {
+            prefix.push({ callee, match: calleeRoute, weight: literal.template ? 0.5 : 0.65 });
           } else if (isGatewayPrefixedVariant(literal.path, route.path)) {
-            matches.push({ callee, match: calleeRoute, weight: literal.template ? 0.5 : 0.6 });
+            suffix.push({ callee, match: calleeRoute, weight: literal.template ? 0.5 : 0.6 });
           }
         }
       }
+      // Highest-populated tier only — see the pass doc comment above.
+      const matches = exact.length > 0 ? exact : prefix.length > 0 ? prefix : suffix;
       const matchedRepos = new Set(matches.map((m) => m.callee.name));
       for (const { callee, match, weight } of matches) {
         const demoted = matchedRepos.size > 1 ? Math.min(weight, 0.45) : weight;

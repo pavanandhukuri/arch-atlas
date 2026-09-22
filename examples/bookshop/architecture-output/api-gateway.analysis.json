@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-09-20T09:00:00.000Z",
+  "repository": {
+    "name": "api-gateway",
+    "path": "repos/api-gateway",
+    "description": "Public API gateway"
+  },
+  "description": "A Go reverse proxy that is the Bookshop's single public entry point. It verifies each request's Keycloak-issued JWT, then forwards /api/books/* to the catalog-service and /api/orders/* to the order-service.",
+  "languages": ["Go"],
+  "frameworks": ["net/http", "lestrrat-go/jwx"],
+  "served": {
+    "httpRoutes": [
+      {
+        "path": "/api/books/",
+        "filePath": "main.go"
+      },
+      {
+        "path": "/api/orders/",
+        "filePath": "main.go"
+      },
+      {
+        "method": "GET",
+        "path": "/healthz",
+        "filePath": "main.go"
+      }
+    ],
+    "grpcServices": [],
+    "topics": [],
+    "datastores": []
+  },
+  "outbound": [
+    {
+      "target": "catalog-service",
+      "verb": "calls",
+      "detail": "proxies /api/books/* to the catalog-service",
+      "confidence": 0.95
+    },
+    {
+      "target": "order-service",
+      "verb": "calls",
+      "detail": "proxies /api/orders/* to the order-service",
+      "confidence": 0.95
+    },
+    {
+      "target": "Keycloak",
+      "verb": "depends_on",
+      "detail": "fetches Keycloak's JWKS signing keys to validate the bearer token on every proxied request",
+      "confidence": 0.9
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

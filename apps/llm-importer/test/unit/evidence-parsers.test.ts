@@ -14,6 +14,7 @@ import {
   normalizeRoutePath,
   parseEndpointRoute,
   pathsEqual,
+  routeIsPrefixOfLiteral,
   staticSegmentCount,
 } from '../../src/correlate/evidence/parsers/routes.js';
 import { extractSchemaDigest, isSchemaish } from '../../src/correlate/evidence/parsers/schemas.js';
@@ -108,6 +109,34 @@ describe('route normalization and matching', () => {
     // minConcrete=2 for the literal-vs-literal fallback.
     expect(isGatewayPrefixedVariant('/api/notifications/v1/ws', '/v1/ws', 2)).toBe(true);
     expect(isGatewayPrefixedVariant('/api/x/v1/*', '/v1/*', 2)).toBe(false);
+  });
+
+  it('routeIsPrefixOfLiteral: a mount route matches anything filed under it', () => {
+    // the real case this exists for: a gateway registers one subtree route
+    // ("/api/books/") for a whole downstream service, not a route per path.
+    expect(routeIsPrefixOfLiteral('/api/books/', '/api/books/42')).toBe(true);
+    expect(routeIsPrefixOfLiteral('/api/books', '/api/books/*')).toBe(true);
+    expect(routeIsPrefixOfLiteral('/api/books/', '/api/books/42/reviews')).toBe(true);
+  });
+
+  it('routeIsPrefixOfLiteral requires the WHOLE route as a literal prefix, not a suffix or a partial hit', () => {
+    expect(routeIsPrefixOfLiteral('/api/books/', '/v1/api/books/42')).toBe(false); // route isn't the prefix
+    expect(routeIsPrefixOfLiteral('/api/orders/', '/api/books/42')).toBe(false); // wrong subtree
+    expect(routeIsPrefixOfLiteral('/api/books/extra/', '/api/books/42')).toBe(false); // route is longer
+  });
+
+  it("routeIsPrefixOfLiteral is false for equal-length paths (that is pathsEqual's job) and empty literal remainder", () => {
+    expect(routeIsPrefixOfLiteral('/api/books', '/api/books')).toBe(false);
+    expect(routeIsPrefixOfLiteral('/api/books/', '/api/books')).toBe(false);
+  });
+
+  it('routeIsPrefixOfLiteral rejects a too-generic single-segment mount', () => {
+    // "/api/" alone would match nearly every literal into any gateway — too weak to trust.
+    expect(routeIsPrefixOfLiteral('/api/', '/api/books/42')).toBe(false);
+  });
+
+  it('routeIsPrefixOfLiteral requires the whole route to align concretely — a wildcard in the route does not count', () => {
+    expect(routeIsPrefixOfLiteral('/api/*/', '/api/books/42')).toBe(false);
   });
 
   it('pathsEqual tolerates wildcards on either side', () => {
