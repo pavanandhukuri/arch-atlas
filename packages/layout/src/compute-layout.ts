@@ -37,9 +37,15 @@ const list = (m: Map<string, string[]>, k: string): string[] => m.get(k) ?? [];
  *    on screen at once. Groups are stacked vertically so no two nodes anywhere
  *    share a position.
  *  - Within a group, relationships (bubbled up to the group's members, exactly
- *    as the viewer does) decide the columns: a caller sits left of what it
- *    calls; a fan-out shares a column. Cycles are broken by ignoring the edge
- *    that closes them.
+ *    as the viewer does) decide the columns: a node sits one column right of
+ *    its CLOSEST caller (shortest path, not longest) — a fan-out shares a
+ *    column, and a node called from several callers at different depths
+ *    clusters with the nearest one instead of being pushed out to its
+ *    deepest caller. A caller further away then points sideways or backward
+ *    into that column rather than forcing the target rightward — traded
+ *    deliberately for keeping obviously-related nodes (like a gateway's
+ *    direct dependents) next to each other. Cycles are broken by ignoring
+ *    the edge that closes them.
  *  - Nodes in a column are ordered by the average position of their neighbours
  *    to cut down on crossing arrows.
  *  - Elements with no relationship inside the group go in a plain grid to the
@@ -233,7 +239,16 @@ function breakCycles(ids: string[], edges: Pair[], order: Map<string, number>): 
   return edges.filter(([a, b]) => !back.has(`${a}\u0000${b}`));
 }
 
-/** Longest-path layering: a node sits one layer to the right of its right-most caller. */
+/**
+ * Shortest-path layering: a node sits one layer to the right of its CLOSEST
+ * caller, not its furthest. By the time a node is dequeued (Kahn's
+ * algorithm), every predecessor's layer is already final, so this is exactly
+ * `1 + min(predecessor layers)`. A predecessor further away than that then
+ * points sideways (same layer) or backward into the node's column instead of
+ * dragging the node rightward — the deliberate trade for clustering a node
+ * with its nearest/most direct caller (e.g. a gateway's fan-out) even when
+ * some other caller reaches it through a longer path.
+ */
 function assignLayers(ids: string[], dag: Pair[], order: Map<string, number>): Map<string, number> {
   const preds = new Map<string, string[]>();
   const indeg = new Map<string, number>();
@@ -255,8 +270,8 @@ function assignLayers(ids: string[], dag: Pair[], order: Map<string, number>): M
   ready.sort((x, y) => num(order, x) - num(order, y));
   while (ready.length > 0) {
     const id = ready.shift() as string;
-    let l = 0;
-    for (const p of list(preds, id)) l = Math.max(l, num(layer, p) + 1);
+    const predLayers = list(preds, id).map((p) => num(layer, p));
+    const l = predLayers.length === 0 ? 0 : Math.min(...predLayers) + 1;
     layer.set(id, l);
     for (const s of list(succs, id)) {
       const d = num(indeg, s) - 1;

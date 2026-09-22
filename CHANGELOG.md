@@ -4,6 +4,20 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Changed — a shared dependency now clusters with its closest caller, not its deepest
+
+- The layered auto-layout (`@archatlas/layout`) used **longest-path** layering: a node with
+  callers at different depths always sat one column past its _deepest_ caller, so every edge
+  pointed strictly left-to-right with none backward. That pushed a commonly-shared node — e.g.
+  the Bookshop demo's `catalog-service`, called by `api-gateway` directly but also (through more
+  hops) by `order-service` and `notification-service` — three columns past the gateway instead of
+  sitting next to `order-service`, `api-gateway`'s other direct dependent.
+- Switched to **shortest-path** layering: a node now sits one column past its _closest_ caller,
+  so `api-gateway`'s two direct dependents cluster together immediately to its right, one above
+  the other, instead of the graph fanning out into a long staircase. A caller reaching the node
+  through a longer path now points sideways or backward into that column rather than dragging the
+  node rightward — a deliberate trade for keeping obviously-related nodes next to each other.
+
 ### Added — a public demo workspace: `examples/bookshop`
 
 - **`examples/bookshop`** is a five-service polyglot workspace (Go, Java/Spring Boot,
