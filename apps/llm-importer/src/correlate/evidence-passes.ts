@@ -4,6 +4,7 @@ import type { CrossRepositoryConnection } from './deterministic-correlator.js';
 import type { RepoEvidence, SchemaDigest } from './evidence/types.js';
 import {
   isGatewayPrefixedVariant,
+  mountBase,
   parseEndpointRoute,
   pathsEqual,
   routeIsPrefixOfLiteral,
@@ -230,7 +231,10 @@ export const endpointPass: EvidencePass = ({ repos, graphsByName }) => {
             route.method !== undefined &&
             literal.method !== route.method;
           if (methodsContradict) continue;
-          if (pathsEqual(literal.path, route.path)) {
+          // A glob-mounted route ("/api/books/*") also serves its bare base
+          // ("/api/books") and everything under it, like a trailing-slash mount.
+          const base = mountBase(route);
+          if (pathsEqual(literal.path, route.path) || (base && pathsEqual(literal.path, base))) {
             // A route with almost no static structure (e.g. '/product/*') is
             // matched by any literal sharing its one concrete word — too weak
             // to trust without a call-site signal on the literal (012).
@@ -244,7 +248,10 @@ export const endpointPass: EvidencePass = ({ repos, graphsByName }) => {
             let weight = exactMethod ? 0.85 : 0.7;
             if (literal.template) weight = Math.min(weight, 0.55);
             exact.push({ callee, match: calleeRoute, weight });
-          } else if (routeIsPrefixOfLiteral(route.path, literal.path)) {
+          } else if (
+            routeIsPrefixOfLiteral(route.path, literal.path) ||
+            (base && routeIsPrefixOfLiteral(base, literal.path))
+          ) {
             prefix.push({ callee, match: calleeRoute, weight: literal.template ? 0.5 : 0.65 });
           } else if (isGatewayPrefixedVariant(literal.path, route.path)) {
             suffix.push({ callee, match: calleeRoute, weight: literal.template ? 0.5 : 0.6 });

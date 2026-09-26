@@ -142,6 +142,27 @@ export const THIRD_PARTY_PATH_RE =
 export interface EndpointRoute {
   method?: string;
   path: string;
+  /** The route was written with a literal trailing glob (`/api/books/*`, `/api/books/**`) —
+   * a gateway/router mounting a whole subtree — as opposed to a single `{param}` segment,
+   * which normalizes to the same `/*` but serves only one path level. */
+  mount?: boolean;
+}
+
+const TRAILING_GLOB_RE = /\/\*{1,2}$/;
+
+function withMount(route: EndpointRoute, rawPath: string): EndpointRoute {
+  return TRAILING_GLOB_RE.test(rawPath.trim()) ? { ...route, mount: true } : route;
+}
+
+/**
+ * The path a glob-mounted route serves the whole subtree of (`/api/books/*` →
+ * `/api/books`), or null for a route that isn't a mount or whose base is too
+ * generic to trust (same floor as `routeIsPrefixOfLiteral`).
+ */
+export function mountBase(route: EndpointRoute): string | null {
+  if (!route.mount) return null;
+  const segs = route.path.split('/').filter(Boolean).slice(0, -1);
+  return segs.length >= MIN_MOUNT_SEGMENTS ? `/${segs.join('/')}` : null;
 }
 
 /**
@@ -155,10 +176,10 @@ export function parseEndpointRoute(node: GraphNode): EndpointRoute | null {
     const nameForm = /^([A-Z]+)[ -](\/.*)$/.exec(text.trim());
     if (nameForm?.[1] && nameForm[2] && HTTP_METHODS.has(nameForm[1])) {
       const path = normalizeRoutePath(nameForm[2]);
-      return path ? { method: nameForm[1], path } : null;
+      return path ? withMount({ method: nameForm[1], path }, nameForm[2]) : null;
     }
     const path = normalizeRoutePath(text);
-    return path ? { path } : null;
+    return path ? withMount({ path }, text) : null;
   };
 
   const fromName = tryParse(node.name);

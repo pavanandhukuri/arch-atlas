@@ -297,6 +297,72 @@ describe('endpointPass', () => {
   });
 });
 
+describe('endpointPass — gateway mounts written as a trailing glob', () => {
+  const gateway = (): RepoEvidence => {
+    const gw = emptyEvidence('api-gateway');
+    for (const path of ['/api/books/*', '/api/orders/*']) {
+      gw.endpointNodes.push({
+        id: `endpoint:main.go:${path}`,
+        type: 'endpoint',
+        name: path,
+        summary: '',
+      });
+    }
+    return gw;
+  };
+  const backend = (name: string, route: string): RepoEvidence => {
+    const b = emptyEvidence(name);
+    b.endpointNodes.push({ id: `endpoint:r:${route}`, type: 'endpoint', name: route, summary: '' });
+    return b;
+  };
+  const web = (path: string, method?: string): RepoEvidence => {
+    const w = emptyEvidence('web');
+    w.urlLiterals.push({ relPath: 'src/api.ts', line: 23, path, method, template: false });
+    return w;
+  };
+
+  it('a bare collection call lands on the gateway that mounts it, not the backend behind it', () => {
+    // "/api/books" is the gateway's own `/api/books/*` mount; the coarser
+    // gateway-suffix guess ("/books" on the catalog service) must not also fire.
+    const { connections } = endpointPass(
+      input([web('/api/books', 'GET'), gateway(), backend('catalog-service', 'GET /books')])
+    );
+    expect(connections.map((c) => c.targetRepo)).toEqual(['api-gateway']);
+  });
+
+  it('a method-less bare call also lands on the gateway', () => {
+    const { connections } = endpointPass(
+      input([web('/api/orders'), gateway(), backend('order-service', 'POST /orders')])
+    );
+    expect(connections.map((c) => c.targetRepo)).toEqual(['api-gateway']);
+  });
+
+  it('a call several segments under the mount still lands on the gateway', () => {
+    const { connections } = endpointPass(
+      input([web('/api/books/42/reviews'), gateway(), backend('catalog-service', 'GET /books')])
+    );
+    expect(connections.map((c) => c.targetRepo)).toEqual(['api-gateway']);
+  });
+
+  it('a {param} route is not a mount: its bare collection path is not served by it', () => {
+    const items = backend('catalog-service', 'GET /api/books/{isbn}');
+    const { connections } = endpointPass(input([web('/api/books', 'GET'), items]));
+    expect(connections).toHaveLength(0);
+  });
+
+  it('too generic a mount (/api/*) does not absorb calls deeper than one segment', () => {
+    const gw = emptyEvidence('api-gateway');
+    gw.endpointNodes.push({
+      id: 'endpoint:m:/api/*',
+      type: 'endpoint',
+      name: '/api/*',
+      summary: '',
+    });
+    const { connections } = endpointPass(input([web('/api/books/42/reviews', 'GET'), gw]));
+    expect(connections).toHaveLength(0);
+  });
+});
+
 describe('schemaPass', () => {
   it('links identical schema copies at high weight', () => {
     const a = emptyEvidence('producer');
