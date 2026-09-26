@@ -51,9 +51,10 @@ repo → gather-context (bounded, deterministic, secret-paths excluded)  → {re
        → assemble-review      → architecture.review.yaml
 ```
 
-`archatlas` has two subcommands: `gather-context <config>` (write the bundles) and
-`import <config>` (correlate `{repo}.analysis.json` artifacts into `architecture.review.yaml`).
-Neither contacts a model or the network. `import` writes only the review artifact — every
+`archatlas` has three subcommands: `gather-context <config>` (write the bundles),
+`import <config>` (correlate `{repo}.analysis.json` artifacts into `architecture.review.yaml`) and
+`init --agent <names>` (install the analysis-producer procedure for your coding agent — see below).
+None contacts a model or the network. `import` writes only the review artifact — every
 candidate `pending` — for a human to review in Studio's import wizard; it does **not** also write
 a `.arch.json`. A diagram built straight from unreviewed candidates would have no relationships
 (nothing here is ever auto-accepted), so Studio builds the real `.arch.json`, with relationships,
@@ -85,6 +86,19 @@ and, being model-derived, surface no higher than `medium`.
 
 Pairs no pass resolves can optionally be linked by a producer's model-assisted fallback, written to
 `architecture.extra-connections.json` and merged by `import`.
+
+## Set up your coding agent
+
+`init` copies the producer procedure (bundled in this package) into a workspace, in the shape each
+agent reads — no checkout of this repo needed:
+
+```bash
+npx --yes @archatlas/llm-importer@latest init --agent claude,cursor,copilot   # or codex, generic, all
+```
+
+`claude`, `cursor` and `copilot` get a skill (`/arch-atlas-import`; Copilot also a prompt file);
+`codex` and `generic` get a marked block in `AGENTS.md`. Idempotent, `--dry-run` supported; see
+[`plugins/repo-analysis/README.md`](../../plugins/repo-analysis/README.md#install-for-your-agent).
 
 ## Development
 

@@ -16,10 +16,9 @@ steps for you to run by hand. (It'll follow the same analysis
 steps for a single repo path or a `{repo}.context.json` bundle too, if that's all you hand it —
 `import` needs the whole workspace, so that step only runs when you point it at `import.yaml`.)
 
-Claude Code users additionally get a packaged skill (`skills/import/SKILL.md`) that wraps the
-same procedure so it's discoverable and auto-invocable inside a Claude Code session — see
-[Install](#install) below. Every other agent just reads `AGENTS.md` directly; nothing to
-install.
+The procedure is also packaged as a skill (`skills/import/SKILL.md`, the canonical copy —
+`AGENTS.md` is generated from it), and `archatlas init` installs it into your workspace in
+whatever shape your agent reads. See [Install for your agent](#install-for-your-agent).
 
 **Local model or hosted model — your choice.** The arch-atlas importer core
 (`@archatlas/llm-importer`) is deterministic and makes no model call itself; it only ever
@@ -41,9 +40,30 @@ No arch-atlas checkout, no build step. `npx` downloads and caches
 [`@archatlas/llm-importer`](https://www.npmjs.com/package/@archatlas/llm-importer) on first
 use. Run it against any collection of repositories, anywhere on disk.
 
-## Install (Claude Code)
+## Install for your agent
 
-From the marketplace (persistent; `/plugin marketplace update` pulls new versions):
+From your workspace (the folder that holds `import.yaml`), no checkout needed:
+
+```bash
+npx --yes @archatlas/llm-importer@latest init --agent cursor      # or claude, copilot, codex, generic
+npx --yes @archatlas/llm-importer@latest init --agent claude,cursor   # several at once
+npx --yes @archatlas/llm-importer@latest init                     # asks, at a terminal
+```
+
+| Agent                                                        | `--agent`           | What it writes                                                                                                                          | Run it                                             |
+| ------------------------------------------------------------ | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Claude Code                                                  | `claude`            | `.claude/skills/arch-atlas-import/`                                                                                                     | `/arch-atlas-import import.yaml`                   |
+| Cursor                                                       | `cursor`            | `.cursor/skills/arch-atlas-import/`                                                                                                     | `/arch-atlas-import` in Agent chat                 |
+| GitHub Copilot                                               | `copilot`           | `.github/skills/arch-atlas-import/` and `.github/prompts/arch-atlas-import.prompt.md`                                                   | `/arch-atlas-import` (asks for the config path)    |
+| Codex, Windsurf, Gemini CLI, anything that reads `AGENTS.md` | `codex` / `generic` | a marked block in `AGENTS.md` (created if missing, the rest of the file untouched) plus `.archatlas/repo-analysis/sample-analysis.json` | ask it to import this workspace from `import.yaml` |
+
+`init` is idempotent — run it again after upgrading to refresh the files it owns; `--dry-run`
+shows what would be written and `--dir <path>` targets another workspace. In Claude Code and
+Cursor a skill is also its own slash command, which is why no separate command file is written.
+
+## Install from the Claude Code marketplace
+
+Claude Code users can instead install the plugin from this repo's marketplace (it also gives you the `/repo-analysis:import` command):
 
 ```
 /plugin marketplace add pavanandhukuri/arch-atlas
@@ -94,3 +114,15 @@ The contract is just two files and two schemas — see
 in the arch-atlas repo. Anything that emits a schema-valid `{repo}.analysis.json` (a script, a
 CI job, a different agent, a person filling in the template above) works with the importer
 unchanged.
+
+## Maintaining this plugin
+
+- `skills/import/SKILL.md` is the single source of truth. After editing it, run
+  `pnpm --filter @archatlas/llm-importer sync:agent-kit` to regenerate `AGENTS.md` (a test fails
+  if they drift). The npm build copies the skill folder into the published package, which is
+  what `archatlas init` installs from.
+- Bump `version` in **both** `.claude-plugin/plugin.json` and `.cursor-plugin/plugin.json`
+  whenever the procedure changes (a test keeps them equal). Claude Code caches an installed
+  plugin by that version, so without a bump existing users never receive the change.
+- Cursor: submit this folder at [cursor.com/marketplace/publish](https://cursor.com/marketplace/publish)
+  (manually reviewed). Claude Code: the repo-root `.claude-plugin/marketplace.json` is the listing.
