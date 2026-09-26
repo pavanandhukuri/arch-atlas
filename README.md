@@ -123,14 +123,9 @@ connections. The system grouping is
 pre-filled from `import.yaml`, high-confidence connections are pre-accepted, and each proposal
 shows the evidence behind it.
 
-<!--
-  TODO(recording): drop the screen recording at docs/media/bookshop-demo.gif, then replace this
-  comment with:
+![Importing the Bookshop workspace with a coding agent, then reviewing it in Studio](docs/media/bookshop-demo.gif)
 
-  ![Importing the Bookshop workspace and reviewing it in Studio](docs/media/bookshop-demo.gif)
-
-  A shot-by-shot script is in examples/bookshop/README.md ("Recording script").
--->
+_A coding agent analyzes the five repos and runs the importer; the result is reviewed and finalized in Studio._
 
 See [`examples/bookshop/README.md`](examples/bookshop/README.md) for the architecture it
 implements, a click-by-click Studio walkthrough, and how to regenerate the analyses with your own
