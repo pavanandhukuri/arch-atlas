@@ -11,6 +11,7 @@ import {
 import {
   extractUrlLiterals,
   isGatewayPrefixedVariant,
+  mountBase,
   normalizeRoutePath,
   parseEndpointRoute,
   pathsEqual,
@@ -143,6 +144,27 @@ describe('route normalization and matching', () => {
     expect(pathsEqual('/users/*/orders', '/users/{id}/orders'.replace('{id}', '*'))).toBe(true);
     expect(pathsEqual('/users/42/orders', '/users/*/orders')).toBe(true);
     expect(pathsEqual('/users/42', '/users/42/orders')).toBe(false);
+  });
+
+  it('marks a route written with a literal trailing glob as a mount, but not a {param} route', () => {
+    const node = (name: string) => ({
+      id: `endpoint:r:${name}`,
+      type: 'endpoint' as const,
+      name,
+      summary: '',
+    });
+    expect(parseEndpointRoute(node('/api/books/*'))).toEqual({ path: '/api/books/*', mount: true });
+    expect(parseEndpointRoute(node('/api/books/**'))).toMatchObject({ mount: true });
+    expect(parseEndpointRoute(node('GET /books/{isbn}'))).toEqual({
+      method: 'GET',
+      path: '/books/*',
+    });
+  });
+
+  it('mountBase: the path a glob mount serves the whole subtree of', () => {
+    expect(mountBase({ path: '/api/books/*', mount: true })).toBe('/api/books');
+    expect(mountBase({ path: '/api/books/*' })).toBeNull(); // a {param} route, not a mount
+    expect(mountBase({ path: '/api/*', mount: true })).toBeNull(); // too generic, like a 1-segment prefix
   });
 
   it('recovers method+path from endpoint node name or id tail', () => {

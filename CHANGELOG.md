@@ -4,6 +4,21 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Fixed — a gateway mounted as `/api/books/*` no longer leaks the storefront's calls to the backends behind it
+
+- The earlier gateway fix only recognised a mount registered as a trailing-slash prefix
+  (`/api/books/`). A model-written analysis (or any OpenAPI-ish route list) usually spells the same
+  mount with a literal glob — `/api/books/*` — which `endpointPass` treated as a one-segment
+  wildcard route: it matched `/api/books/42` but not the bare `/api/books` the storefront actually
+  calls, so that call fell through to the coarser gateway-suffix guess and produced a false
+  `bookshop-web → catalog-service` (and `→ order-service`) again. Found recording the Bookshop demo
+  against freshly regenerated analyses: 20 candidates, two of them wrong.
+- A route written with a literal trailing glob (`/*`, `/**`) is now a **mount**: it serves its bare
+  base path and everything under it, exactly like a trailing-slash mount. A `{param}` route
+  (`/books/{isbn}`) is unaffected — it still serves one path level only — and a one-segment base
+  (`/api/*`) is still too generic to count. On those regenerated Bookshop analyses: 20 → 18
+  candidates, no storefront-to-backend edges.
+
 ### Changed — a shared dependency now clusters with its closest caller, not its deepest
 
 - The layered auto-layout (`@archatlas/layout`) used **longest-path** layering: a node with
