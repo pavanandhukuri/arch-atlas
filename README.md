@@ -116,8 +116,10 @@ cd examples/bookshop
 npx --yes @archatlas/llm-importer@latest import import.yaml   # → architecture-output/architecture.review.yaml
 ```
 
-Then open it in Studio (`pnpm --filter @archatlas/studio dev` → `http://localhost:3000/import`),
-upload `architecture.review.yaml`, and confirm the proposed connections. The system grouping is
+Then open the hosted Studio at [arch-atlas-studio.vercel.app/import](https://arch-atlas-studio.vercel.app/import)
+(nothing to install — or run it locally with `pnpm --filter @archatlas/studio dev` →
+`http://localhost:3000/import`), upload `architecture.review.yaml`, and confirm the proposed
+connections. The system grouping is
 pre-filled from `import.yaml`, high-confidence connections are pre-accepted, and each proposal
 shows the evidence behind it.
 
@@ -143,7 +145,7 @@ cd apps/studio
 pnpm dev
 ```
 
-Opens at `http://localhost:3000`. Requires a Google account to save diagrams to Google Drive. Local file save/open is also supported without auth.
+Opens at `http://localhost:3000`. A hosted build is at [arch-atlas-studio.vercel.app](https://arch-atlas-studio.vercel.app). Requires a Google account to save diagrams to Google Drive. Local file save/open is also supported without auth.
 
 ### LLM Importer (multi-repo → diagram)
 
