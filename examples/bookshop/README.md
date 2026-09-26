@@ -85,7 +85,9 @@ It analyses each repo, overwrites `architecture-output/*.analysis.json`, and run
 
 `import` writes only `architecture.review.yaml` — a list of _proposed_ connections with a
 confidence and the evidence behind each. A person confirms them in Studio, which then builds the
-diagram.
+diagram. Open the hosted Studio at
+[arch-atlas-studio.vercel.app/import](https://arch-atlas-studio.vercel.app/import) — nothing to
+install. To run it locally instead:
 
 ```bash
 # from the repository root
@@ -113,17 +115,17 @@ catalog-service's route`). Accept the rest with one click each — there are no 
 
 A ~2 minute recording that shows the whole loop. Use a clean terminal and a browser at 1440×900.
 
-| #   | Where    | Do                                                              | Show                                                                                                          |
-| --- | -------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| 1   | Terminal | `cd examples/bookshop && ls repos architecture-output`          | Five repos, five languages; the committed analyses                                                            |
-| 2   | Terminal | `npx --yes @archatlas/llm-importer@latest import import.yaml`   | The passes finding connections; `18 connection(s) found`; the written file                                    |
-| 3   | Terminal | `pnpm --filter @archatlas/studio dev` (already running is fine) | —                                                                                                             |
-| 4   | Browser  | Open `localhost:3000/import`, upload `architecture.review.yaml` | Load Files                                                                                                    |
-| 5   | Browser  | Next: **Define Systems**                                        | "Bookshop" pre-filled — declared in `import.yaml`                                                             |
-| 6   | Browser  | Next: **Tag & Classify**, click ✏️ on `catalog-service`         | Technology + description pre-filled; mark Keycloak/Stripe/S3… external                                        |
-| 7   | Browser  | Next: **Review Candidates**                                     | 5 of 18 already accepted; open a card to show its evidence, then accept the `medium` ones — no rejects needed |
-| 8   | Browser  | **Finalize**, open the system context                           | Externals above/below, labelled arrows                                                                        |
-| 9   | Browser  | Drag a box, pinch/scroll to zoom, ⌘0 to fit                     | It stays where you put it                                                                                     |
+| #   | Where    | Do                                                                                         | Show                                                                                                          |
+| --- | -------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| 1   | Terminal | `cd examples/bookshop && ls repos architecture-output`                                     | Five repos, five languages; the committed analyses                                                            |
+| 2   | Terminal | `npx --yes @archatlas/llm-importer@latest import import.yaml`                              | The passes finding connections; `18 connection(s) found`; the written file                                    |
+| 3   | Browser  | Open `arch-atlas-studio.vercel.app/import` (or `localhost:3000/import` if running locally) | —                                                                                                             |
+| 4   | Browser  | Upload `architecture.review.yaml`                                                          | Load Files                                                                                                    |
+| 5   | Browser  | Next: **Define Systems**                                                                   | "Bookshop" pre-filled — declared in `import.yaml`                                                             |
+| 6   | Browser  | Next: **Tag & Classify**, click ✏️ on `catalog-service`                                    | Technology + description pre-filled; mark Keycloak/Stripe/S3… external                                        |
+| 7   | Browser  | Next: **Review Candidates**                                                                | 5 of 18 already accepted; open a card to show its evidence, then accept the `medium` ones — no rejects needed |
+| 8   | Browser  | **Finalize**, open the system context                                                      | Externals above/below, labelled arrows                                                                        |
+| 9   | Browser  | Drag a box, pinch/scroll to zoom, ⌘0 to fit                                                | It stays where you put it                                                                                     |
 
 Tips: pause ~1s on steps 2, 7 and 8; keep the cursor still while a page loads. Export as a GIF
 (≤ 10 MB) or MP4 and save it as `docs/media/bookshop-demo.gif`, then enable the image in the
