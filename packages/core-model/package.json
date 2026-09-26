@@ -1,6 +1,6 @@
 {
   "name": "@archatlas/core-model",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Semantic architecture model, validation, and diff/patch APIs",
   "license": "MIT",
   "homepage": "https://github.com/pavanandhukuri/arch-atlas/tree/main/packages/core-model#readme",

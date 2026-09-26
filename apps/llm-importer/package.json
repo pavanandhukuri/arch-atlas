@@ -1,6 +1,6 @@
 {
   "name": "@archatlas/llm-importer",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Deterministic, model-free multi-repository architecture importer for arch-atlas",
   "keywords": [
     "architecture",
@@ -43,7 +43,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-agent-kit.mjs",
     "prepack": "pnpm run clean && pnpm run build",
     "import": "tsx src/cli.ts",
     "eval": "tsx eval/run.ts",
@@ -52,7 +52,8 @@
     "test:watch": "vitest",
     "lint": "eslint src/ test/ eval/",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
-    "clean": "rm -rf dist coverage"
+    "clean": "rm -rf dist coverage",
+    "sync:agent-kit": "tsx scripts/sync-agent-kit.ts"
   },
   "dependencies": {
     "@archatlas/core-model": "workspace:*",
