@@ -127,6 +127,6 @@ A ~2 minute recording that shows the whole loop. Use a clean terminal and a brow
 | 8   | Browser  | **Finalize**, open the system context                                                      | Externals above/below, labelled arrows                                                                        |
 | 9   | Browser  | Drag a box, pinch/scroll to zoom, ⌘0 to fit                                                | It stays where you put it                                                                                     |
 
-Tips: pause ~1s on steps 2, 7 and 8; keep the cursor still while a page loads. Export as a GIF
-(≤ 10 MB) or MP4 and save it as `docs/media/bookshop-demo.gif`, then enable the image in the
-root README (the commented-out block under **Try it: the Bookshop demo**).
+Tips: pause ~1s on steps 2, 7 and 8; keep the cursor still while a page loads. The published
+recording is [`docs/media/bookshop-demo.gif`](../../docs/media/bookshop-demo.gif) (shown in the root
+README); to replace it, export a GIF (≤ 10 MB) and overwrite that file.
