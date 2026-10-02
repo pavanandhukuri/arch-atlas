@@ -18,11 +18,94 @@ Windsurf, and 20+ others. Which model does the actual analysis (a local endpoint
 API) is entirely up to whichever agent you point at it; anyone can also write their own producer
 against the same contract.
 
-## Status
+**Status:** early stage / under active development.
 
-Early stage / under active development.
+## Use Arch Atlas
 
-## Repository structure
+Everything below works without building this repo — Studio is already hosted, and the importer
+runs straight from npm. (Extending or developing Arch Atlas itself is a separate path, covered
+under [Development](#development).)
+
+### Studio — the diagram editor
+
+Open [**arch-atlas-studio.vercel.app**](https://arch-atlas-studio.vercel.app) — nothing to
+install. Create and edit C4 diagrams, saving to Google Drive (sign-in required) or your local
+disk (no auth needed).
+
+### Import a multi-repo workspace into a diagram
+
+1. Write an `import.yaml` listing your repositories (see
+   [`apps/llm-importer/README.md`](apps/llm-importer/README.md) for the format).
+2. Set up your coding agent — from the workspace that holds `import.yaml`:
+
+   ```bash
+   npx --yes @archatlas/llm-importer@latest init --agent cursor   # claude | copilot | cursor | codex | generic
+   ```
+
+   This installs the analysis procedure where your agent looks for it — a skill for Claude Code,
+   Cursor and Copilot (each invoked as `/arch-atlas-import`), or a block in `AGENTS.md` for Codex,
+   Windsurf, Gemini CLI and the rest. Full table:
+   [`plugins/repo-analysis/README.md`](plugins/repo-analysis/README.md#install-for-your-agent).
+
+3. Ask your agent to import the workspace. It analyzes each repository, then runs the importer
+   itself (`npx @archatlas/llm-importer@latest import import.yaml`) — fully deterministic, no
+   model call — producing `architecture.review.yaml`.
+4. Upload that file into [Studio's import wizard](https://arch-atlas-studio.vercel.app/import) to
+   review the proposed connections and build the diagram.
+
+See [`apps/llm-importer/README.md`](apps/llm-importer/README.md) for the full CLI reference and
+the producer contract behind step 2–3.
+
+### Try it: the Bookshop demo
+
+[`examples/bookshop`](examples/bookshop) is a small workspace to try the whole loop on — five
+services in Go, Java, TypeScript and Python that talk over HTTP and Kafka and call out to
+Keycloak, Stripe, Amazon S3 and SendGrid. Its analyses are committed, so the importer runs
+**offline, with no model and no coding agent**:
+
+```bash
+git clone https://github.com/pavanandhukuri/arch-atlas.git && cd arch-atlas/examples/bookshop
+npx --yes @archatlas/llm-importer@latest import import.yaml   # → architecture-output/architecture.review.yaml
+```
+
+Then open the hosted Studio at [arch-atlas-studio.vercel.app/import](https://arch-atlas-studio.vercel.app/import),
+upload `architecture.review.yaml`, and confirm the proposed connections. The system grouping is
+pre-filled from `import.yaml`, high-confidence connections are pre-accepted, and each proposal
+shows the evidence behind it.
+
+![Importing the Bookshop workspace with a coding agent, then reviewing it in Studio](docs/media/bookshop-demo.gif)
+
+_A coding agent analyzes the five repos and runs the importer; the result is reviewed and finalized in Studio._
+
+See [`examples/bookshop/README.md`](examples/bookshop/README.md) for the architecture it
+implements, a click-by-click Studio walkthrough, and how to regenerate the analyses with your own
+coding agent.
+
+### Viewer — sharing a diagram read-only
+
+The Viewer is a static site you deploy yourself (nginx, S3, any static host) to show finished
+`.arch.json` diagrams with no auth and no server. There's no hosted instance to point at, since
+it serves _your_ diagrams — building and deploying one is covered under
+[Development → Viewer](#viewer-standalone-static-viewer).
+
+## Development
+
+Building, extending, or contributing to Arch Atlas itself.
+
+### Prerequisites
+
+- Node.js ≥ 20 (LTS) for `apps/studio` / `apps/viewer`; Node.js ≥ 22 for `apps/llm-importer`
+- pnpm ≥ 8
+
+### Install
+
+```bash
+git clone https://github.com/pavanandhukuri/arch-atlas.git
+cd arch-atlas
+pnpm install
+```
+
+### Repository structure
 
 ```
 apps/
@@ -45,17 +128,17 @@ examples/
 
 plugins/
   repo-analysis/      — The repo-analysis producer: reads one repository (or its context bundle)
-                        and writes {repo}.analysis.json. Canonical procedure is AGENTS.md (works
-                        with any AGENTS.md-aware coding agent); also packaged as a Claude Code
-                        plugin for discoverability. Run it against a local or hosted model — your
-                        choice, the importer has no opinion.
+                        and writes {repo}.analysis.json. Canonical procedure is a skill
+                        (plugins/repo-analysis/skills/import/SKILL.md; AGENTS.md is generated
+                        from it), installed into a workspace via `archatlas init`. Run it against
+                        a local or hosted model — your choice, the importer has no opinion.
 ```
 
-### How a multi-repo workspace becomes a diagram
+#### How a multi-repo workspace becomes a diagram
 
 ```
-point a coding agent at import.yaml, running plugins/repo-analysis — one request runs the
-whole pipeline itself:
+point a coding agent at import.yaml (after `archatlas init`) — one request runs the whole
+pipeline itself:
   gather-context (per repo)     → {repo}.context.json      (bounded, deterministic, secrets excluded)
   analyze each bundle           → {repo}.analysis.json      (the one step touching a model — your
                                                               agent, your model, local or hosted)
@@ -67,14 +150,12 @@ Studio's import wizard reads architecture.review.yaml and lets a human confirm/c
 elements before building the diagram.
 ```
 
-One developer action — point an agent at `import.yaml` — produces a ready
-`architecture.review.yaml`. `gather-context` and `import` are still directly callable on their
-own if a producer wants to invoke them itself instead.
+`gather-context` and `import` are still directly callable on their own if a producer wants to
+invoke them itself instead. See `apps/llm-importer/README.md` for the full pipeline and CLI
+reference, and `specs/010-harness-neutral-importer/` for the producer contract new producers
+implement against.
 
-See `apps/llm-importer/README.md` for the full pipeline and CLI reference, and
-`specs/010-harness-neutral-importer/` for the producer contract new producers implement against.
-
-### Package dependency hierarchy (editor/viewer stack)
+#### Package dependency hierarchy (editor/viewer stack)
 
 ```
 @archatlas/core-model
@@ -89,84 +170,28 @@ See `apps/llm-importer/README.md` for the full pipeline and CLI reference, and
 
 `apps/studio` and `apps/viewer` both import from `@archatlas/viewer-components` — the single source of truth for the rendering stack. Neither app duplicates diagram rendering code.
 
-## Getting started
+### Running the apps locally
 
-### Prerequisites
-
-- Node.js ≥ 20 (LTS) for `apps/studio` / `apps/viewer`; Node.js ≥ 22 for `apps/llm-importer`
-- pnpm ≥ 8
-
-### Install
-
-```bash
-git clone https://github.com/pavanandhukuri/arch-atlas.git
-cd arch-atlas
-pnpm install
-```
-
-## Try it: the Bookshop demo
-
-[`examples/bookshop`](examples/bookshop) is a small workspace to try the whole loop on — five
-services in Go, Java, TypeScript and Python that talk over HTTP and Kafka and call out to
-Keycloak, Stripe, Amazon S3 and SendGrid. Its analyses are committed, so the importer runs
-**offline, with no model and no coding agent**:
-
-```bash
-cd examples/bookshop
-npx --yes @archatlas/llm-importer@latest import import.yaml   # → architecture-output/architecture.review.yaml
-```
-
-Then open the hosted Studio at [arch-atlas-studio.vercel.app/import](https://arch-atlas-studio.vercel.app/import)
-(nothing to install — or run it locally with `pnpm --filter @archatlas/studio dev` →
-`http://localhost:3000/import`), upload `architecture.review.yaml`, and confirm the proposed
-connections. The system grouping is
-pre-filled from `import.yaml`, high-confidence connections are pre-accepted, and each proposal
-shows the evidence behind it.
-
-![Importing the Bookshop workspace with a coding agent, then reviewing it in Studio](docs/media/bookshop-demo.gif)
-
-_A coding agent analyzes the five repos and runs the importer; the result is reviewed and finalized in Studio._
-
-See [`examples/bookshop/README.md`](examples/bookshop/README.md) for the architecture it
-implements, a click-by-click Studio walkthrough, and how to regenerate the analyses with your own
-coding agent.
-
-## Set up your coding agent
-
-The analysis step is run by whichever coding agent you use. From the workspace that holds your
-`import.yaml`:
-
-```bash
-npx --yes @archatlas/llm-importer@latest init --agent cursor   # claude | copilot | cursor | codex | generic
-```
-
-That installs the procedure where your agent looks for it — a skill for Claude Code, Cursor and
-Copilot (each invoked as `/arch-atlas-import`), or a block in `AGENTS.md` for Codex, Windsurf,
-Gemini CLI and the rest. Details and the full table:
-[`plugins/repo-analysis/README.md`](plugins/repo-analysis/README.md#install-for-your-agent).
-
-## Running the apps
-
-### Studio (diagram editor)
+#### Studio (diagram editor)
 
 ```bash
 cd apps/studio
 pnpm dev
 ```
 
-Opens at `http://localhost:3000`. A hosted build is at [arch-atlas-studio.vercel.app](https://arch-atlas-studio.vercel.app). Requires a Google account to save diagrams to Google Drive. Local file save/open is also supported without auth.
+Opens at `http://localhost:3000`.
 
-### LLM Importer (multi-repo → diagram)
+#### LLM Importer (from source)
 
-The importer CLI is published on npm — no checkout needed. Point a coding agent at your
-`import.yaml` running `plugins/repo-analysis` (any agent, any model): it runs
-`npx @archatlas/llm-importer@latest gather-context`, analyzes every listed repository, then
-`npx @archatlas/llm-importer@latest import`, writing `architecture.review.yaml` — the proposed
-connections, for a human to confirm in Studio, which then builds the diagram.
+To try a change to the importer itself without publishing:
 
-See `apps/llm-importer/README.md` for the full CLI reference and the producer contract.
+```bash
+cd apps/llm-importer
+pnpm exec tsx src/cli.ts import <config>          # equivalent to the published `archatlas import <config>`
+pnpm exec tsx src/cli.ts init --agent claude      # equivalent to `archatlas init --agent claude`
+```
 
-### Viewer (standalone static viewer)
+#### Viewer (standalone static viewer)
 
 The viewer loads pre-bundled `.arch.json` files with no auth required.
 
@@ -194,7 +219,7 @@ Deploy `dist/` to any static web server. To add diagrams, place `.arch.json` fil
 
 No rebuild required — adding entries to `manifest.json` is enough.
 
-## Development workflow
+### Development workflow
 
 1. **Make changes** in the appropriate `apps/*` or `packages/*` directory
 2. **Write tests first** — TDD is required; confirm tests fail before implementing
