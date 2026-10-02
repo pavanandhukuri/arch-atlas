@@ -4,6 +4,24 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Added — `archatlas init`: install the analysis skill for Claude Code, Cursor, Copilot and others
+
+- `npx @archatlas/llm-importer init --agent <claude|copilot|cursor|codex|generic|all>` copies the
+  analysis-producer procedure into a workspace in the shape each agent reads: a skill under
+  `.claude/skills/`, `.cursor/skills/` or `.github/skills/` (a skill is also its own
+  `/arch-atlas-import` slash command in Claude Code and Cursor; Copilot additionally gets a
+  `.github/prompts/` prompt file), or a marked block in `AGENTS.md` for Codex, Windsurf, Gemini CLI
+  and anything else that reads it. Idempotent, `--dry-run`, asks which agents when `--agent` is
+  omitted at a terminal. The procedure ships inside the npm package, so it needs no checkout and
+  always matches the CLI version.
+- `plugins/repo-analysis/skills/import/SKILL.md` is now the self-contained canonical skill (it used
+  to be a wrapper pointing at `../../AGENTS.md`, which broke when the folder was copied alone);
+  `AGENTS.md` is generated from it (`pnpm --filter @archatlas/llm-importer sync:agent-kit`) and a
+  test fails on drift. Added a Cursor plugin manifest (`.cursor-plugin/plugin.json`).
+- Plugin version bumped to 1.0.1 in both manifests. Claude Code caches an installed plugin by
+  version, so the earlier `AGENTS.md` fix ("regenerate even if an analysis exists") never reached
+  existing installs without this bump.
+
 ### Fixed — a gateway mounted as `/api/books/*` no longer leaks the storefront's calls to the backends behind it
 
 - The earlier gateway fix only recognised a mount registered as a trailing-slash prefix

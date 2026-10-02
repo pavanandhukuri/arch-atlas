@@ -1,6 +1,6 @@
 {
   "name": "@archatlas/layout",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Deterministic layout engine and serialization",
   "license": "MIT",
   "homepage": "https://github.com/pavanandhukuri/arch-atlas/tree/main/packages/layout#readme",

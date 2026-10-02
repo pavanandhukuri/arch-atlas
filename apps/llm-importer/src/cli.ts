@@ -3,12 +3,22 @@ import { realpathSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createInterface } from 'node:readline/promises';
 import { Command } from 'commander';
 import { loadConfig, ConfigValidationError } from './config/loader.js';
 import { runImport } from './analysis/run-import.js';
 import { ensureOutputDir } from './analysis/analysis-store.js';
 import { gatherContext } from './analysis/gather-context.js';
 import { serializeContextBundle } from './analysis/context-bundle.js';
+import {
+  agentMenu,
+  applyPlan,
+  loadKit,
+  parseAgents,
+  planInit,
+  resolveAnswer,
+  resolveKitDir,
+} from './agents/kit.js';
 
 /**
  * 010-harness-neutral-importer: the importer core is deterministic and
@@ -16,6 +26,7 @@ import { serializeContextBundle } from './analysis/context-bundle.js';
  * request:
  *   import <config>          — review.yaml + arch.json from {repo}.analysis.json artifacts
  *   gather-context <config>  — write {repo}.context.json bundles for an external producer
+ *   init --agent <names>     — install the analysis-producer procedure for a coding agent
  *
  * Exit codes: 0 = success (incl. per-repo skips / nothing to export),
  *             1 = config validation error or unexpected error.
@@ -31,6 +42,14 @@ export interface ImportCommandOptions {
 export interface GatherContextCommandOptions {
   out?: string;
   repos?: string;
+}
+
+export interface InitCommandOptions {
+  agent?: string;
+  dir?: string;
+  dryRun?: boolean;
+  /** Test/dev override for where the kit is read from. */
+  kit?: string;
 }
 
 function reposFilter(csv: string | undefined): string[] | undefined {
@@ -102,6 +121,39 @@ export async function runGatherContextCommand(
   }
 }
 
+/** Ask which agents to set up (only when `--agent` is omitted at a terminal). */
+async function promptForAgents(): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
+  try {
+    const answer = await rl.question(
+      `Set up which coding agents?\n${agentMenu()}\nNumbers or names, comma-separated: `
+    );
+    return resolveAnswer(answer);
+  } finally {
+    rl.close();
+  }
+}
+
+export function runInitCommand(options: InitCommandOptions): number {
+  try {
+    const agents = parseAgents(options.agent);
+    const kit = loadKit(resolveKitDir(options.kit));
+    const dir = resolve(options.dir ?? '.');
+    const dryRun = Boolean(options.dryRun);
+    for (const { path, action } of applyPlan(planInit(kit, agents, dir), { dryRun })) {
+      console.log(`${dryRun ? '[dry-run] ' : ''}${action.padEnd(9)} ${path}`);
+    }
+    console.log(
+      '\nNext: ask your agent to import this workspace with the arch-atlas-import procedure, ' +
+        'pointing it at your import.yaml. It analyzes each repository, then runs `import` itself.'
+    );
+    return 0;
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+}
+
 export function buildProgram(): Command {
   const program = new Command();
   program
@@ -131,6 +183,29 @@ export function buildProgram(): Command {
     .option('--repos <names>', 'Comma-separated repo names to include (subset of config)')
     .action(async (configFile: string, options: GatherContextCommandOptions) => {
       const code = await runGatherContextCommand(configFile, options);
+      if (code !== 0) process.exitCode = code;
+    });
+
+  program
+    .command('init')
+    .description(
+      'Install the analysis-producer procedure for a coding agent (claude, copilot, cursor, codex, generic)'
+    )
+    .option('--agent <names>', 'Comma-separated agents to set up, or "all"')
+    .option('--dir <path>', 'Workspace to install into', '.')
+    .option('--dry-run', 'Show what would be written without writing', false)
+    .action(async (options: InitCommandOptions) => {
+      let resolved = options;
+      if (!options.agent && process.stdin.isTTY) {
+        try {
+          resolved = { ...options, agent: await promptForAgents() };
+        } catch (error) {
+          console.error(error instanceof Error ? error.message : String(error));
+          process.exitCode = 1;
+          return;
+        }
+      }
+      const code = runInitCommand(resolved);
       if (code !== 0) process.exitCode = code;
     });
 

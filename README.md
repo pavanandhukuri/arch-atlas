@@ -131,6 +131,20 @@ See [`examples/bookshop/README.md`](examples/bookshop/README.md) for the archite
 implements, a click-by-click Studio walkthrough, and how to regenerate the analyses with your own
 coding agent.
 
+## Set up your coding agent
+
+The analysis step is run by whichever coding agent you use. From the workspace that holds your
+`import.yaml`:
+
+```bash
+npx --yes @archatlas/llm-importer@latest init --agent cursor   # claude | copilot | cursor | codex | generic
+```
+
+That installs the procedure where your agent looks for it — a skill for Claude Code, Cursor and
+Copilot (each invoked as `/arch-atlas-import`), or a block in `AGENTS.md` for Codex, Windsurf,
+Gemini CLI and the rest. Details and the full table:
+[`plugins/repo-analysis/README.md`](plugins/repo-analysis/README.md#install-for-your-agent).
+
 ## Running the apps
 
 ### Studio (diagram editor)

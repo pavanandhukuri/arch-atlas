@@ -2,10 +2,5 @@
   "name": "repo-analysis",
   "description": "Analysis producer for the arch-atlas repo importer — reads one repository's context bundle and writes the {repo}.analysis.json the importer correlates into a diagram. Multi-agent compatible via AGENTS.md; run it against any model you choose.",
   "version": "1.0.1",
-  "author": {
-    "name": "Arch Atlas contributors"
-  },
-  "homepage": "https://github.com/pavanandhukuri/arch-atlas",
-  "repository": "https://github.com/pavanandhukuri/arch-atlas",
-  "license": "MIT"
+  "author": { "name": "Arch Atlas contributors" }
 }

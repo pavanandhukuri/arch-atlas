@@ -43,10 +43,11 @@ describe('plugins/repo-analysis (skill/plugin)', () => {
     expect(agentsMd.startsWith('---')).toBe(false);
   });
 
-  it('SKILL.md is a thin Claude Code wrapper pointing at AGENTS.md', () => {
+  it('SKILL.md is the self-contained canonical skill (AGENTS.md is generated from it)', () => {
     const skill = readFileSync(join(SKILL_DIR, 'SKILL.md'), 'utf8');
     expect(skill).toContain('name: import');
-    expect(skill).toContain('../../AGENTS.md');
+    expect(skill).toContain('gather-context'); // the full procedure lives here, not behind a link
+    expect(skill).not.toContain('../'); // nothing outside its own folder, so copying the folder works
   });
 
   it('README.md advertises multi-agent compatibility, not a single hosted/local trade-off', () => {
