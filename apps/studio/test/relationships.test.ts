@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import type { ArchitectureModel } from '@archatlas/core-model';
-import { addRelationshipToModel, removeRelationshipFromModel } from '../src/services/relationships';
+import {
+  addRelationshipToModel,
+  removeRelationshipFromModel,
+  saveRelationshipToModel,
+} from '../src/services/relationships';
 
 function createBaseModel(): ArchitectureModel {
   return {
@@ -76,5 +80,78 @@ describe('Relationship helpers', () => {
     const view = updated.views.find((v) => v.id === 'view-1');
     expect(view).toBeDefined();
     expect(view?.layout.edges).toHaveLength(0);
+  });
+});
+
+describe('saveRelationshipToModel', () => {
+  it('upserts a new relationship and adds layout nodes for endpoints missing from the view', () => {
+    const model = createBaseModel();
+    const updated = saveRelationshipToModel(model, {
+      id: 'rel-new',
+      sourceId: 'sys-1',
+      targetId: 'sys-3',
+      type: 'relates_to',
+    });
+
+    expect(updated.relationships).toHaveLength(1);
+    expect(updated.relationships[0]?.id).toBe('rel-new');
+    const nodeIds = updated.views[0]?.layout.nodes.map((n) => n.elementId);
+    expect(nodeIds).toContain('sys-3');
+    // sys-1 already had a node — shouldn't get a duplicate
+    expect(nodeIds?.filter((id) => id === 'sys-1')).toHaveLength(1);
+  });
+
+  it('replaces an existing relationship by id without adding duplicate layout nodes', () => {
+    const model = createBaseModel();
+    const withRel = addRelationshipToModel({
+      model,
+      viewId: 'view-1',
+      sourceId: 'sys-1',
+      targetId: 'sys-2',
+      id: 'rel-1',
+    });
+
+    const updated = saveRelationshipToModel(withRel, {
+      id: 'rel-1',
+      sourceId: 'sys-1',
+      targetId: 'sys-2',
+      type: 'relates_to',
+      action: 'Fetches data',
+    });
+
+    expect(updated.relationships).toHaveLength(1);
+    expect(updated.relationships[0]?.action).toBe('Fetches data');
+    expect(updated.views[0]?.layout.nodes).toHaveLength(2);
+  });
+
+  it('with _originalId, updates the underlying relationship metadata and touches no layout', () => {
+    const model = createBaseModel();
+    const withRel = addRelationshipToModel({
+      model,
+      viewId: 'view-1',
+      sourceId: 'sys-1',
+      targetId: 'sys-2',
+      id: 'rel-1',
+      type: 'relates_to',
+    });
+
+    const updated = saveRelationshipToModel(withRel, {
+      id: 'derived-rel-1',
+      _originalId: 'rel-1',
+      sourceId: 'sys-2',
+      targetId: 'sys-1',
+      type: 'relates_to',
+      action: 'Sends events',
+      description: 'updated description',
+    });
+
+    expect(updated.relationships).toHaveLength(1);
+    const saved = updated.relationships[0];
+    expect(saved?.id).toBe('rel-1');
+    expect(saved?.sourceId).toBe('sys-2');
+    expect(saved?.targetId).toBe('sys-1');
+    expect(saved?.action).toBe('Sends events');
+    expect(saved?.description).toBe('updated description');
+    expect(updated.views).toBe(withRel.views);
   });
 });
