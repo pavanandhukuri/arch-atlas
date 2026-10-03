@@ -32,6 +32,9 @@ jobs:
       - name: Test with coverage
         run: pnpm run test -- --coverage
 
+      - name: Correlation eval (gate vs baseline)
+        run: pnpm --filter @archatlas/llm-importer run eval -- --check
+
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
         if: always()
