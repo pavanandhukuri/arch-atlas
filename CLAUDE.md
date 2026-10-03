@@ -23,9 +23,6 @@ Auto-generated from all feature plans. Last updated: 2026-09-11
 - TypeScript 5.3.0 strict (`noUncheckedIndexedAccess`, ES2022 target) + Next.js 14.1.0 (App Router), React 18.2.0, `@archatlas/renderer` (workspace, PixiJS v7), `@archatlas/core-model` (workspace), `@archatlas/layout` (workspace) (006-diagram-viewer-zoom)
 - Google Drive REST API v3 (existing `GoogleDriveProvider`); local filesystem read-only viewing is out of scope for the shareable URL (006-diagram-viewer-zoom)
 
-- TypeScript 5.3.0 (strict mode, `noUncheckedIndexedAccess`, ES2022 target) + `@archatlas/core-model` (workspace dep, types only — no runtime coupling) (004-architecture-dsl)
-- N/A — pure in-memory transformation library (004-architecture-dsl)
-
 - TypeScript 5.3.0 + Next.js 14.1.0, React 18.2.0, PixiJS v7 (via `@archatlas/renderer`), Vitest 1.0.0, `@testing-library/react` (003-diagram-enhancements)
 - Local file system (File System Access API) + Google Drive REST API v3; persisted as `.arch.json` files via `StorageProvider` interface (003-diagram-enhancements)
 
@@ -47,6 +44,8 @@ npm test && npm run lint
 TypeScript 5.3.0: Follow standard conventions
 
 ## Recent Changes
+
+- chore: dropped the `@archatlas/dsl` package and its 004 spec entirely — the text-DSL round-trip was never wired into Studio and wasn't worth maintaining. Removed `packages/dsl/`, `specs/004-architecture-dsl/`, and all README/CLAUDE.md references.
 
 - 013-eval-harness-rebuild: rebuilt the deterministic correlation eval (deleted with `analysis-runner-local` in #23) under `apps/llm-importer/eval/`; scores connection + external-system P/R/F1 over a committed synthetic golden set, gated in CI by `eval --check` vs `baseline.json`. Extraction eval split out as local-only. No new dep, no published-surface change.
 
