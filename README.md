@@ -119,8 +119,6 @@ packages/
   layout/             — Deterministic layout engine
   renderer/           — PixiJS WebGL rendering engine (no React dependency)
   viewer-components/  — React components shared by Studio and Viewer (MapCanvas, DiagramViewer, ZoomControls, useZoom)
-  dsl/                — Plain-text DSL library for authoring/serializing models (parser + serializer;
-                        not currently wired into a Studio UI — usable standalone or by other tooling)
 
 examples/
   bookshop/           — A five-service polyglot demo workspace (Go, Java, TypeScript, Python) with an
