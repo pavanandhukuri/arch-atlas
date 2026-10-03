@@ -1,101 +1,79 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo, useTransition } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import {
-  MapCanvas,
-  ZoomControls,
   useZoom,
   deriveViewRelationships,
   placeExternalElements,
 } from '@archatlas/viewer-components';
 import type { Renderer } from '@archatlas/renderer';
-import { ElementEditor, RelationshipEditor } from '@/components/model-editor';
+import type { Relationship } from '@archatlas/core-model';
+import { StudioHeader, StudioCanvasPane, StudioSidebarPanel } from '@/components/studio';
 import { ElementPalette } from '@/components/element-palette';
-import { PropertiesPanel } from '@/components/properties-panel/PropertiesPanel';
-import { ModelStore } from '@/state/model-store';
-import { StorageManager } from '@/services/storage/storage-manager';
-import { LocalFileProvider } from '@/services/storage/local-file-provider';
-import { GoogleDriveProvider } from '@/services/storage/google-drive-provider';
-import { useGoogleDriveAuth, type GoogleDriveAuthState } from '@/hooks/useGoogleDriveAuth';
-import { StoragePromptDialog } from '@/components/storage/StoragePromptDialog';
 import { ConnectionStatusBanner } from '@/components/storage/ConnectionStatusBanner';
 import { ConflictResolutionDialog } from '@/components/storage/ConflictResolutionDialog';
-import { useStorageSession } from '@/hooks/useStorageSession';
-import { exportModel } from '@/services/import-export';
-import type { StorageHandle, LoadResult } from '@/services/storage/storage-provider';
-import { addRelationshipToModel, removeRelationshipFromModel } from '@/services/relationships';
-import { applyMarkExternal, collectDescendantIds } from '@/services/mark-external';
+import { StoragePromptDialog } from '@/components/storage/StoragePromptDialog';
+import { useGoogleDriveAuth, type GoogleDriveAuthState } from '@/hooks/useGoogleDriveAuth';
+import { useStudioDocument } from '@/hooks/useStudioDocument';
+import { useDiagramNavigation } from '@/hooks/useDiagramNavigation';
+import { useDiagramEditorState } from '@/hooks/useDiagramEditorState';
+import { useExternalElementPositions } from '@/hooks/useExternalElementPositions';
 import { buildElementOptions } from '@/services/derived-relationships';
-import type {
-  ArchitectureModel,
-  Element,
-  ElementKind,
-  ContainerSubtype,
-  ElementFormatting,
-  Relationship,
-} from '@archatlas/core-model';
-import { computeLayout } from '@archatlas/layout';
-import type { DiagramLevel } from '@/services/diagram-context';
 import {
-  getDiagramTitle,
-  getElementKindForLevel,
-  canDrillDown,
-  getChildLevel,
+  getBoundaryLabel,
+  getVisibleElements,
+  type DiagramLevel,
 } from '@/services/diagram-context';
 
 export default function StudioPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const driveAuth: GoogleDriveAuthState = useGoogleDriveAuth();
 
-  const [modelStore] = useState(() => new ModelStore());
-  const [storageManager] = useState(() => new StorageManager());
-  const [localProvider] = useState(() => new LocalFileProvider());
-
-  const [model, setModel] = useState<ArchitectureModel | null>(null);
-  const [editingElement, setEditingElement] = useState<Element | null>(null);
-  // Existing relationship being edited (by id in model)
-  const [selectedRelationshipId, setSelectedRelationshipId] = useState<string | null>(null);
-  // New relationship being created (not yet persisted to model)
-  const [pendingNewRelationship, setPendingNewRelationship] = useState<Relationship | null>(null);
-  // Remember which element we opened the relationship editor from (so we can go back)
-  const [elementBeforeConnection, setElementBeforeConnection] = useState<Element | null>(null);
-
-  const [connectionStartId, setConnectionStartId] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
-  const [showStoragePrompt, setShowStoragePrompt] = useState<'startup' | 'new' | 'open' | null>(
-    null
+  // navigateToLevel (defined below, after `navigation` exists) needs to be reachable from
+  // useStudioDocument's onFileOpened callback, which is wired up before `navigation` exists —
+  // bridged via this ref rather than reordering the hooks into a dependency cycle.
+  const navigateToLevelRef = useRef<(level: DiagramLevel, focusId?: string | null) => void>(
+    () => {}
   );
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [saveStatusMessage, setSaveStatusMessage] = useState<string>('');
-  const [conflictInfo, setConflictInfo] = useState<{
-    remoteModified: string;
-    clientLastKnown: string | number | null;
-  } | null>(null);
-  const { handle, setHandle, clearHandle } = useStorageSession();
+  const studioDocument = useStudioDocument({
+    driveAuth,
+    onFileOpened: () => navigateToLevelRef.current('landscape', null),
+  });
+  const { model, modelStore } = studioDocument;
+
+  const navigation = useDiagramNavigation(model);
+  const { currentLevel, focusedElementId, focusedElement, breadcrumbs, diagramTitle } = navigation;
+
+  // Same bridging problem as above, the other direction: navigating must close whichever
+  // editor panel is open, but the editor-state hook (created below) is also the thing that
+  // calls navigateToLevel (double-click drill-down) — so the "close panels" step is applied
+  // here, wrapping navigation's own navigateToLevel, rather than inside either hook.
+  const closeEditorsRef = useRef<() => void>(() => {});
+  const navigateToLevel = useCallback(
+    (level: DiagramLevel, focusId: string | null = null) => {
+      closeEditorsRef.current();
+      navigation.navigateToLevel(level, focusId);
+    },
+    [navigation]
+  );
+  navigateToLevelRef.current = navigateToLevel;
+
+  const editorState = useDiagramEditorState({
+    model,
+    modelStore,
+    focusedElementId,
+    currentLevel,
+    navigateToLevel,
+  });
+  closeEditorsRef.current = editorState.closeEditors;
+
   const { zoomLevel, zoomIn, zoomOut, fitToView, syncZoomLevel, attachToRenderer } = useZoom();
   const studioCanvasRef = useRef<HTMLElement>(null);
   const studioRendererRef = useRef<Renderer | null>(null);
-  // Guards the pending-import / startup-prompt decision against Strict Mode's dev double-invoke.
-  const hasHandledMountRef = useRef(false);
   const onStudioRendererMount = useCallback((r: Renderer) => {
     studioRendererRef.current = r;
   }, []);
-  // Separate positions for external (system-level) elements so they don't share
-  // coordinates with the element's position in the landscape/main view.
-  // Keyed by elementId. Cleared whenever the user navigates to a new view.
-  // Keyed by view (level + focused element) so drilling in and out keeps them;
-  // reset only when a different diagram is loaded.
-  const [externalPositionsByView, setExternalPositionsByView] = useState<
-    Record<string, Record<string, { x: number; y: number }>>
-  >({});
-
-  const levelParam = searchParams.get('level') as DiagramLevel | null;
-  const focusParam = searchParams.get('focus');
-  const [currentLevel, setCurrentLevel] = useState<DiagramLevel>(levelParam || 'landscape');
-  const [focusedElementId, setFocusedElementId] = useState<string | null>(focusParam || null);
-  const [, startTransition] = useTransition();
 
   // Frame the diagram (externals included) when a different diagram loads or the
   // view drills in/out — but NOT on ordinary edits/drags, which would make the
@@ -103,595 +81,9 @@ export default function StudioPage() {
   // stamp, which edits never change.
   const diagramIdentity = model ? `${model.metadata.title}|${model.metadata.createdAt ?? ''}` : '';
   const fitKey = useMemo(() => ({}), [diagramIdentity, focusedElementId]);
-
   const externalViewKey = `${currentLevel}|${focusedElementId ?? ''}`;
-  const externalPositions = externalPositionsByView[externalViewKey] ?? {};
-  // A different diagram (new import / opened file) must not inherit the old one's drags.
-  useEffect(() => {
-    setExternalPositionsByView({});
-  }, [diagramIdentity]);
 
-  const updateURL = useCallback(
-    (level: DiagramLevel, focusId: string | null) => {
-      const params = new URLSearchParams();
-      params.set('level', level);
-      if (focusId) params.set('focus', focusId);
-      startTransition(() => {
-        router.push(`?${params.toString()}`, { scroll: false });
-      });
-    },
-    [router]
-  );
-
-  const navigateToLevel = useCallback(
-    (level: DiagramLevel, focusId: string | null = null) => {
-      setCurrentLevel(level);
-      setFocusedElementId(focusId);
-      setEditingElement(null);
-      setSelectedRelationshipId(null);
-      setPendingNewRelationship(null);
-      updateURL(level, focusId);
-    },
-    [updateURL]
-  );
-
-  useEffect(() => {
-    const unsubscribe = modelStore.subscribe((state) => {
-      setModel(state.model);
-    });
-
-    // Guard against React 18 Strict Mode's dev-only double-invoke of mount
-    // effects: sessionStorage.removeItem below is destructive, so a second
-    // invocation would find it already cleared and fall through to the
-    // 'startup' branch, silently overwriting the correct 'new' decision.
-    if (!hasHandledMountRef.current) {
-      hasHandledMountRef.current = true;
-
-      // Pick up a model handed off from the Import Wizard ("Open in Studio"), if any.
-      // Consume it once so a page refresh doesn't keep re-importing the same model.
-      const pendingImport = sessionStorage.getItem('import_model');
-      if (pendingImport) {
-        sessionStorage.removeItem('import_model');
-        try {
-          modelStore.loadModel(JSON.parse(pendingImport) as ArchitectureModel);
-        } catch {
-          // Malformed payload — ignore and fall through to the normal startup flow.
-        }
-      }
-
-      // Hydrate immediately from current store state (subscribe() doesn't fire retroactively).
-      setModel(modelStore.getState().model);
-
-      if (pendingImport) {
-        // A model was just handed off from the Import Wizard — skip the "New or
-        // Open" question (it's obviously a new, unsaved diagram) and go straight
-        // to picking where to save it.
-        setShowStoragePrompt('new');
-      } else if (!handle) {
-        // Only prompt on fresh load — if a handle is already in session storage (e.g. after HMR),
-        // skip the dialog so the user isn't interrupted mid-session.
-        setShowStoragePrompt('startup');
-      }
-    }
-
-    // Subscribe to StorageManager events for save status
-    const offSuccess = storageManager.on('save-success', () => {
-      modelStore.clearDirty();
-      setSaveStatus('saved');
-      setSaveStatusMessage(`Saved at ${new Date().toLocaleTimeString()}`);
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    });
-    const offError = storageManager.on('save-error', (e) => {
-      setSaveStatus('error');
-      setSaveStatusMessage(e.error?.message ?? 'Save failed');
-    });
-    const offConflict = storageManager.on('conflict', (e) => {
-      if (e.error?.conflict) {
-        setConflictInfo({
-          remoteModified: String(e.error.conflict.remoteModified),
-          clientLastKnown: e.error.conflict.clientLastKnown,
-        });
-      }
-    });
-
-    return () => {
-      unsubscribe();
-      offSuccess();
-      offError();
-      offConflict();
-      storageManager.stopAutosave();
-    };
-  }, []); // mount-only: modelStore/storageManager are stable useState refs
-
-  useEffect(() => {
-    if (!handle) {
-      storageManager.stopAutosave();
-      return;
-    }
-    const provider =
-      handle.type === 'local'
-        ? localProvider
-        : new GoogleDriveProvider(driveAuth.accessToken ?? '');
-    storageManager.startAutosave(
-      handle,
-      provider,
-      () => modelStore.getState().model,
-      () => modelStore.getState().isDirty
-    );
-    return () => storageManager.stopAutosave();
-  }, [handle, driveAuth.accessToken]); // localProvider/modelStore/storageManager are stable useState refs
-
-  const handleAddContainerSubtype = (subtype: ContainerSubtype) => {
-    if (!model) return;
-    const labels: Record<ContainerSubtype, string> = {
-      default: 'Container',
-      database: 'Database',
-      'storage-bucket': 'Storage Bucket',
-      'static-content': 'Static Content',
-      'user-interface': 'User Interface',
-      'backend-service': 'Backend Service',
-    };
-    const newElement: Element = {
-      id: `elem-${Date.now()}`,
-      name: labels[subtype],
-      kind: 'container',
-      description: '',
-      containerSubtype: subtype,
-    };
-    const updatedElements = [...model.elements];
-    if (focusedElementId) {
-      newElement.parentId = focusedElementId;
-    }
-    updatedElements.push(newElement);
-
-    const currentView = model.views[0];
-    const updatedViews = currentView
-      ? [
-          {
-            ...currentView,
-            layout: {
-              ...currentView.layout,
-              nodes: [
-                ...currentView.layout.nodes,
-                {
-                  elementId: newElement.id,
-                  x: 100 + updatedElements.length * 30,
-                  y: 100 + updatedElements.length * 20,
-                  w: 200,
-                  h: 130,
-                },
-              ],
-            },
-          },
-          ...model.views.slice(1),
-        ]
-      : model.views;
-
-    modelStore.updateModel({ ...model, elements: updatedElements, views: updatedViews });
-    setEditingElement(newElement);
-  };
-
-  const handleAddElement = (kind: ElementKind) => {
-    if (!model) return;
-    const newElement: Element = {
-      id: `elem-${Date.now()}`,
-      name: `New ${kind}`,
-      kind,
-      description: '',
-    };
-    const updatedElements = [...model.elements];
-
-    if (focusedElementId) {
-      newElement.parentId = focusedElementId;
-      updatedElements.push(newElement);
-    } else if (kind === 'system' || kind === 'person') {
-      let landscape = model.elements.find((e) => e.kind === 'landscape' && !e.parentId);
-      if (!landscape) {
-        landscape = {
-          id: `landscape-${Date.now()}`,
-          name: 'Architecture Landscape',
-          kind: 'landscape' as ElementKind,
-          description: 'Top-level architecture landscape',
-        };
-        updatedElements.push(landscape);
-      }
-      newElement.parentId = landscape.id;
-      updatedElements.push(newElement);
-    } else {
-      updatedElements.push(newElement);
-    }
-
-    const currentView = model.views[0];
-    const updatedViews = currentView
-      ? [
-          {
-            ...currentView,
-            layout: {
-              ...currentView.layout,
-              nodes: [
-                ...currentView.layout.nodes,
-                {
-                  elementId: newElement.id,
-                  x: 100 + updatedElements.length * 30,
-                  y: 100 + updatedElements.length * 20,
-                  w: 200,
-                  h: 130,
-                },
-              ],
-            },
-          },
-          ...model.views.slice(1),
-        ]
-      : model.views;
-
-    modelStore.updateModel({ ...model, elements: updatedElements, views: updatedViews });
-    setEditingElement(newElement);
-  };
-
-  const handleSaveElement = (element: Element) => {
-    if (!model) return;
-    const isExisting = model.elements.some((e) => e.id === element.id);
-    const updatedElements = isExisting
-      ? model.elements.map((e) => (e.id === element.id ? element : e))
-      : [...model.elements, { ...element, id: `elem-${Date.now()}` }];
-
-    const currentView = model.views[0];
-    const updatedViews =
-      currentView && !isExisting
-        ? [
-            {
-              ...currentView,
-              layout: computeLayout({ ...model, elements: updatedElements }, currentView, {
-                algorithm: 'deterministic-v1',
-              }),
-            },
-            ...model.views.slice(1),
-          ]
-        : model.views;
-
-    modelStore.updateModel({ ...model, elements: updatedElements, views: updatedViews });
-    setEditingElement(null);
-  };
-
-  const handleElementClick = useCallback(
-    (elementId: string) => {
-      const currentModel = modelStore.getState().model;
-      if (!currentModel) return;
-      const element = currentModel.elements.find((e) => e.id === elementId);
-      if (!element) return;
-
-      if (connectionStartId) {
-        if (connectionStartId !== elementId) {
-          const currentView = currentModel.views[0];
-          if (currentView) {
-            modelStore.updateModel(
-              addRelationshipToModel({
-                model: currentModel,
-                viewId: currentView.id,
-                sourceId: connectionStartId,
-                targetId: elementId,
-                type: 'relates_to',
-              })
-            );
-          }
-        }
-        setConnectionStartId(null);
-        setSelectedRelationshipId(null);
-        setPendingNewRelationship(null);
-        setEditingElement(element);
-        return;
-      }
-
-      setSelectedRelationshipId(null);
-      setPendingNewRelationship(null);
-      setElementBeforeConnection(null);
-      setEditingElement(element);
-    },
-    [connectionStartId]
-  );
-
-  const handleElementDoubleClick = useCallback(
-    (elementId: string) => {
-      if (connectionStartId) return;
-      setEditingElement(null);
-      const currentModel = modelStore.getState().model;
-      if (!currentModel) return;
-      const element = currentModel.elements.find((e) => e.id === elementId);
-      if (!element) return;
-
-      // Org-external systems cannot be drilled into
-      if (element.isExternal) return;
-
-      // Scope-external elements (neighboring systems shown for context): navigate to their system diagram.
-      const isScopeExternal =
-        (element.kind === 'system' || element.kind === 'person') &&
-        focusedElementId !== null &&
-        element.parentId !== focusedElementId;
-      if (isScopeExternal) {
-        navigateToLevel('system', elementId);
-        return;
-      }
-
-      if (canDrillDown(currentLevel)) {
-        const childLevel = getChildLevel(currentLevel);
-        if (childLevel) navigateToLevel(childLevel, elementId);
-      }
-    },
-    [currentLevel, navigateToLevel, connectionStartId, focusedElementId]
-  );
-
-  const handleMarkExternal = useCallback((elementId: string, isExternal: boolean) => {
-    const currentModel = modelStore.getState().model;
-    if (!currentModel) return;
-
-    // Marking external deletes the element's entire descendant subtree (spec 003 FR-004/005) —
-    // warn and require explicit confirmation whenever there's anything to lose. No warning when
-    // there's nothing underneath (FR-007), and none when reverting to internal (FR-006).
-    if (isExternal) {
-      const descendantCount = collectDescendantIds(currentModel, elementId).length;
-      if (descendantCount > 0) {
-        const confirmed = confirm(
-          `Marking this system as external will permanently delete ${descendantCount} ` +
-            `contained element${descendantCount === 1 ? '' : 's'} (containers, components, ` +
-            `or code) underneath it. This cannot be undone.\n\nContinue?`
-        );
-        if (!confirmed) return;
-      }
-    }
-
-    const { model: updatedModel } = applyMarkExternal(currentModel, elementId, isExternal);
-    modelStore.updateModel(updatedModel);
-
-    // Auto-save: close the editor — change is already persisted in model
-    setEditingElement(null);
-  }, []);
-
-  const handleConnectionStart = useCallback((elementId: string) => {
-    setConnectionStartId(elementId);
-    setSelectedRelationshipId(null);
-    setPendingNewRelationship(null);
-    setEditingElement(null);
-  }, []);
-
-  const handleRelationshipClick = useCallback((relationshipId: string) => {
-    setSelectedRelationshipId(relationshipId);
-    setPendingNewRelationship(null);
-    setElementBeforeConnection(null);
-    setConnectionStartId(null);
-    setEditingElement(null);
-  }, []);
-
-  const handleDeleteElement = useCallback((elementId: string) => {
-    const currentModel = modelStore.getState().model;
-    if (!currentModel) return;
-    const toDelete = new Set<string>();
-    const queue = [elementId];
-    while (queue.length > 0) {
-      const id = queue.pop()!;
-      toDelete.add(id);
-      currentModel.elements
-        .filter((e) => e.parentId === id)
-        .forEach((child) => queue.push(child.id));
-    }
-    const updatedElements = currentModel.elements.filter((e) => !toDelete.has(e.id));
-    const updatedRelationships = currentModel.relationships.filter(
-      (r) => !toDelete.has(r.sourceId) && !toDelete.has(r.targetId)
-    );
-    const updatedViews = currentModel.views.map((v) => ({
-      ...v,
-      layout: {
-        ...v.layout,
-        nodes: v.layout.nodes.filter((n) => !toDelete.has(n.elementId)),
-        edges: v.layout.edges.filter((edge) =>
-          updatedRelationships.some((r) => r.id === edge.relationshipId)
-        ),
-      },
-    }));
-    modelStore.updateModel({
-      ...currentModel,
-      elements: updatedElements,
-      relationships: updatedRelationships,
-      views: updatedViews,
-    });
-    setEditingElement(null);
-  }, []);
-
-  const handleSaveRelationship = useCallback(
-    (relationship: Relationship) => {
-      const currentModel = modelStore.getState().model;
-      if (!currentModel) return;
-
-      // Derived relationships are UI-only — update the original underlying relationship's metadata
-      const originalId = (relationship as Relationship & { _originalId?: string })._originalId;
-      if (originalId) {
-        const updatedRelationships = currentModel.relationships.map((rel) =>
-          rel.id === originalId
-            ? {
-                ...rel,
-                sourceId: relationship.sourceId,
-                targetId: relationship.targetId,
-                action: relationship.action,
-                integrationMode: relationship.integrationMode,
-                description: relationship.description,
-              }
-            : rel
-        );
-        modelStore.updateModel({ ...currentModel, relationships: updatedRelationships });
-        setSelectedRelationshipId(null);
-        setPendingNewRelationship(null);
-        if (elementBeforeConnection) {
-          const refreshed =
-            modelStore
-              .getState()
-              .model?.elements.find((e) => e.id === elementBeforeConnection.id) ??
-            elementBeforeConnection;
-          setEditingElement(refreshed);
-          setElementBeforeConnection(null);
-        }
-        return;
-      }
-
-      const relToSave = relationship;
-      const exists = currentModel.relationships.some((r) => r.id === relToSave.id);
-      const updatedRelationships = exists
-        ? currentModel.relationships.map((rel) => (rel.id === relToSave.id ? relToSave : rel))
-        : [...currentModel.relationships, relToSave];
-
-      // Ensure layout nodes exist for cross-layer endpoints
-      const currentView = currentModel.views[0];
-      let updatedViews = currentModel.views;
-      if (currentView) {
-        const existingNodeIds = new Set(currentView.layout.nodes.map((n) => n.elementId));
-        const newNodes = [...currentView.layout.nodes];
-        [relToSave.sourceId, relToSave.targetId].forEach((eid, i) => {
-          if (eid && !existingNodeIds.has(eid)) {
-            newNodes.push({ elementId: eid, x: 600 + i * 250, y: 80, w: 200, h: 130 });
-          }
-        });
-        updatedViews = [
-          { ...currentView, layout: { ...currentView.layout, nodes: newNodes } },
-          ...currentModel.views.slice(1),
-        ];
-      }
-
-      modelStore.updateModel({
-        ...currentModel,
-        relationships: updatedRelationships,
-        views: updatedViews,
-      });
-      setSelectedRelationshipId(null);
-      setPendingNewRelationship(null);
-
-      // Return to element editor if we came from one
-      if (elementBeforeConnection) {
-        const refreshed =
-          modelStore.getState().model?.elements.find((e) => e.id === elementBeforeConnection.id) ??
-          elementBeforeConnection;
-        setEditingElement(refreshed);
-        setElementBeforeConnection(null);
-      }
-    },
-    [elementBeforeConnection]
-  );
-
-  const handleDeleteRelationship = useCallback(() => {
-    if (!selectedRelationshipId) return;
-    // Derived relationships have no model entry — just close the editor
-    if (selectedRelationshipId.startsWith('derived-')) {
-      setSelectedRelationshipId(null);
-      return;
-    }
-    const currentModel = modelStore.getState().model;
-    if (!currentModel) return;
-    modelStore.updateModel(removeRelationshipFromModel(currentModel, selectedRelationshipId));
-    setSelectedRelationshipId(null);
-    if (elementBeforeConnection) {
-      setEditingElement(elementBeforeConnection);
-      setElementBeforeConnection(null);
-    }
-  }, [selectedRelationshipId, elementBeforeConnection]);
-
-  const handleCancelRelationshipEdit = useCallback(() => {
-    setSelectedRelationshipId(null);
-    setPendingNewRelationship(null);
-    if (elementBeforeConnection) {
-      setEditingElement(elementBeforeConnection);
-      setElementBeforeConnection(null);
-    }
-  }, [elementBeforeConnection]);
-
-  // From ElementEditor connections table: click a row to edit that relationship
-  const handleEditRelationshipFromElement = useCallback(
-    (relationship: Relationship) => {
-      setElementBeforeConnection(editingElement);
-      setEditingElement(null);
-      setSelectedRelationshipId(relationship.id);
-      setPendingNewRelationship(null);
-    },
-    [editingElement]
-  );
-
-  // From ElementEditor connections table: click "+ Add Connection"
-  const handleAddRelationshipFromElement = useCallback(
-    (sourceElementId: string) => {
-      const stub: Relationship = {
-        id: `rel-${Date.now()}`,
-        sourceId: sourceElementId,
-        targetId: '',
-        type: 'relates_to',
-      };
-      setElementBeforeConnection(editingElement);
-      setEditingElement(null);
-      setSelectedRelationshipId(null);
-      setPendingNewRelationship(stub);
-    },
-    [editingElement]
-  );
-
-  const getVisibleElements = (): Element[] => {
-    if (!model) return [];
-    if (focusedElementId) return model.elements.filter((e) => e.parentId === focusedElementId);
-    if (currentLevel === 'landscape')
-      return model.elements.filter((e) => e.kind === 'system' || e.kind === 'person');
-    const targetKind = getElementKindForLevel(currentLevel);
-    return model.elements.filter((e) => e.kind === targetKind && !e.parentId);
-  };
-
-  const visibleElements = getVisibleElements();
-  const focusedElement = focusedElementId
-    ? model?.elements.find((e) => e.id === focusedElementId)
-    : null;
-  const _diagramTitle = getDiagramTitle(currentLevel, focusedElement?.name);
-
-  const breadcrumbs = useMemo(() => {
-    type Crumb = { label: string; level: DiagramLevel; focusId: string | null };
-    const crumbs: Crumb[] = [{ label: 'System Landscape', level: 'landscape', focusId: null }];
-    if (currentLevel === 'landscape' || !focusedElementId || !model) return crumbs;
-
-    // Walk up the parent chain from the focused element to build the full path
-    const chain: { label: string; level: DiagramLevel; focusId: string }[] = [];
-    let el = model.elements.find((e) => e.id === focusedElementId);
-    while (el && el.kind !== 'landscape') {
-      const levelForKind: Partial<Record<string, DiagramLevel>> = {
-        system: 'system',
-        container: 'container',
-        component: 'component',
-        code: 'code',
-      };
-      const lvl = levelForKind[el.kind];
-      if (lvl) chain.unshift({ label: el.name, level: lvl, focusId: el.id });
-      el = el.parentId ? model.elements.find((e) => e.id === el!.parentId) : undefined;
-    }
-
-    return [...crumbs, ...chain];
-  }, [currentLevel, focusedElementId, model]);
-
-  const diagramTitle = (() => {
-    const name = focusedElement?.name;
-    switch (currentLevel) {
-      case 'landscape':
-        return 'Architecture Landscape';
-      case 'system':
-        return name ? `System Context — ${name}` : 'System Context';
-      case 'container':
-        return name ? `Container Diagram — ${name}` : 'Container Diagram';
-      case 'component':
-        return name ? `Component Diagram — ${name}` : 'Component Diagram';
-      case 'code':
-        return name ? `Code Diagram — ${name}` : 'Code Diagram';
-      default:
-        return 'Diagram';
-    }
-  })();
-
-  // Run after every navigation (searchParams dep) so we override Next.js's
-  // static-metadata title reset that happens during soft navigation.
-  useEffect(() => {
-    if (!model) return;
-    document.title = model.metadata.title
-      ? `${diagramTitle} · ${model.metadata.title}`
-      : `${diagramTitle} · Arch Atlas`;
-  }, [diagramTitle, model, searchParams]);
+  const visibleElements = getVisibleElements(model, currentLevel, focusedElementId);
 
   // Derive cross-layer relationships for the current view
   const visibleElementIds = new Set(visibleElements.map((e) => e.id));
@@ -707,44 +99,31 @@ export default function StudioPage() {
     ),
   ];
 
-  // The relationship shown in the sidebar editor (pending new creation takes priority)
-  // Derived relationships (id: "derived-*") aren't in model.relationships, so fall back to viewRelationships
+  const boundaryElementIds = visibleElements.map((e) => e.id);
+  const externalElementIds = externalElements.map((e) => e.id);
+
+  const { externalPositions, handleElementDrag } = useExternalElementPositions(
+    modelStore,
+    diagramIdentity,
+    externalViewKey,
+    externalElementIds
+  );
+
+  // The relationship shown in the sidebar editor (pending new creation takes priority).
+  // Derived relationships (id: "derived-*") aren't in model.relationships, so fall back to viewRelationships.
   const editorRelationship: Relationship | null =
-    pendingNewRelationship ??
-    (selectedRelationshipId
-      ? (model?.relationships.find((r) => r.id === selectedRelationshipId) ??
-        viewRelationships.find((r) => r.id === selectedRelationshipId) ??
+    editorState.pendingNewRelationship ??
+    (editorState.selectedRelationshipId
+      ? (model?.relationships.find((r) => r.id === editorState.selectedRelationshipId) ??
+        viewRelationships.find((r) => r.id === editorState.selectedRelationshipId) ??
         null)
       : null);
 
   const currentView = model?.views[0];
-  const isDirty = modelStore.getState().isDirty;
   const elementOptions = model ? buildElementOptions(model) : [];
 
   const allViewElements = [...visibleElements, ...externalElements];
-  const boundaryElementIds = visibleElements.map((e) => e.id);
-  const externalElementIds = externalElements.map((e) => e.id);
-
-  // Compute label for the boundary box (e.g. "System Boundary: My System")
-  const boundaryLabel = focusedElement
-    ? (() => {
-        const kindLabel =
-          focusedElement.kind === 'system'
-            ? 'System'
-            : focusedElement.kind === 'container'
-              ? 'Container'
-              : focusedElement.kind === 'landscape'
-                ? 'Landscape'
-                : focusedElement.kind.charAt(0).toUpperCase() + focusedElement.kind.slice(1);
-        return `${kindLabel} Boundary: ${focusedElement.name}`;
-      })()
-    : undefined;
-
-  // Keep a stable ref so handleElementDrag can check without a stale closure
-  const externalElementIdsRef = useRef<string[]>(externalElementIds);
-  externalElementIdsRef.current = externalElementIds;
-  const externalViewKeyRef = useRef(externalViewKey);
-  externalViewKeyRef.current = externalViewKey;
+  const boundaryLabel = getBoundaryLabel(focusedElement);
 
   // Default positions for external elements the user hasn't dragged yet: callers
   // on the left of the boundary, things it calls on the right, level with what
@@ -779,176 +158,6 @@ export default function StudioPage() {
       }
     : undefined;
 
-  const handleElementDrag = useCallback((elementId: string, x: number, y: number) => {
-    if (externalElementIdsRef.current.includes(elementId)) {
-      // Store in separate externalPositions — does NOT touch the main layout
-      setExternalPositionsByView((prev) => ({
-        ...prev,
-        [externalViewKeyRef.current]: {
-          ...prev[externalViewKeyRef.current],
-          [elementId]: { x, y },
-        },
-      }));
-      return;
-    }
-    // Regular element — update the main layout
-    const currentModel = modelStore.getState().model;
-    if (!currentModel) return;
-    const currentView = currentModel.views[0];
-    if (!currentView) return;
-    const updatedNodes = currentView.layout.nodes.map((n) =>
-      n.elementId === elementId ? { ...n, x, y } : n
-    );
-    modelStore.updateModel({
-      ...currentModel,
-      views: [
-        { ...currentView, layout: { ...currentView.layout, nodes: updatedNodes } },
-        ...currentModel.views.slice(1),
-      ],
-    });
-  }, []);
-
-  const handleFormatChange = useCallback(
-    (elementId: string, formatting: ElementFormatting | undefined) => {
-      const currentModel = modelStore.getState().model;
-      if (!currentModel) return;
-      const updatedElements = currentModel.elements.map((e) =>
-        e.id === elementId ? { ...e, formatting } : e
-      );
-      modelStore.updateModel({ ...currentModel, elements: updatedElements });
-      // Keep the editing element in sync
-      const refreshed = updatedElements.find((e) => e.id === elementId);
-      if (refreshed) setEditingElement(refreshed);
-    },
-    []
-  );
-
-  const handleExport = () => {
-    if (model) {
-      exportModel(model);
-      modelStore.clearDirty();
-    }
-  };
-
-  /** Open button — show StoragePromptDialog in open mode */
-  const handleImportClick = () => {
-    storageManager.stopAutosave();
-    clearHandle();
-    setShowStoragePrompt('open');
-  };
-
-  /** New button — stop current session and show StoragePromptDialog */
-  const handleNewFile = () => {
-    if (handle && modelStore.getState().isDirty) {
-      if (!confirm('Create a new file? Unsaved changes will be lost.')) return;
-    }
-    storageManager.stopAutosave();
-    clearHandle();
-
-    const newModel: ArchitectureModel = {
-      schemaVersion: '0.1.0',
-      metadata: {
-        title: 'New Architecture',
-        description: 'Created with Arch Atlas Studio',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      elements: [],
-      relationships: [],
-      constraints: [],
-      views: [
-        {
-          id: 'view-1',
-          title: 'System Context',
-          level: 'system',
-          layout: { algorithm: 'deterministic-v1', nodes: [], edges: [] },
-        },
-      ],
-    };
-    modelStore.loadModel(newModel);
-    setModel(newModel);
-    navigateToLevel('landscape', null);
-    setShowStoragePrompt('new');
-  };
-
-  /** Manual Save */
-  const handleManualSave = async () => {
-    if (!handle || !model) return;
-    setSaveStatus('saving');
-    const provider =
-      handle.type === 'local' ? localProvider : new GoogleDriveProvider(driveAuth.accessToken!);
-    try {
-      const result = await storageManager.manualSave(handle, provider, model);
-      if (!result.success) {
-        setSaveStatus('error');
-        setSaveStatusMessage(result.message);
-      }
-    } catch (err) {
-      setSaveStatus('error');
-      setSaveStatusMessage(err instanceof Error ? err.message : 'Unexpected error during save');
-    }
-  };
-
-  /** Keep My Version — force-overwrite remote with local state */
-  const handleKeepMine = async () => {
-    if (!handle || !model) return;
-    const provider =
-      handle.type === 'local' ? localProvider : new GoogleDriveProvider(driveAuth.accessToken!);
-    setConflictInfo(null);
-    await storageManager.manualSave(handle, provider, model, { force: true });
-  };
-
-  /** Load Remote Version — discard local changes and reload from storage */
-  const handleLoadRemote = async () => {
-    if (!handle) return;
-    const provider =
-      handle.type === 'local' ? localProvider : new GoogleDriveProvider(driveAuth.accessToken!);
-    setConflictInfo(null);
-    const result = await provider.load(handle);
-    if (result.success) {
-      modelStore.loadModel(result.model);
-      setModel(result.model);
-      handle.lastKnownModified = result.modified;
-    }
-  };
-
-  /** Called when user selects a storage location from the dialog */
-  const handleStorageSelected = (selectedHandle: StorageHandle, loadResult?: LoadResult) => {
-    if (loadResult) {
-      // Opening an existing file — load its model
-      modelStore.loadModel(loadResult.model);
-      setModel(loadResult.model);
-      navigateToLevel('landscape', null);
-    } else if (!modelStore.getState().model) {
-      // New file from startup flow — no model has been created yet, initialize empty one
-      const newModel: ArchitectureModel = {
-        schemaVersion: '0.1.0',
-        metadata: {
-          title: 'New Architecture',
-          description: 'Created with Arch Atlas Studio',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        elements: [],
-        relationships: [],
-        constraints: [],
-        views: [
-          {
-            id: 'view-1',
-            title: 'System Context',
-            level: 'system',
-            layout: { algorithm: 'deterministic-v1', nodes: [], edges: [] },
-          },
-        ],
-      };
-      modelStore.loadModel(newModel);
-      setModel(newModel);
-    }
-
-    setHandle(selectedHandle);
-    setShowStoragePrompt(null);
-  };
-
   const canvasModel = model
     ? { ...model, elements: allViewElements, relationships: viewRelationships }
     : null;
@@ -964,170 +173,104 @@ export default function StudioPage() {
   return (
     <div className="studio-layout">
       {/* Connection status banner — shown when Google Drive is offline */}
-      <ConnectionStatusBanner storageManager={storageManager} />
+      <ConnectionStatusBanner storageManager={studioDocument.storageManager} />
 
       {/* Conflict resolution dialog — shown when a save conflict is detected */}
-      {conflictInfo && handle && (
+      {studioDocument.conflictInfo && studioDocument.handle && (
         <ConflictResolutionDialog
-          fileName={handle.fileName}
+          fileName={studioDocument.handle.fileName}
           localTimestamp={new Date().toISOString()}
-          remoteTimestamp={conflictInfo.remoteModified}
-          onKeepMine={handleKeepMine}
-          onLoadRemote={handleLoadRemote}
+          remoteTimestamp={studioDocument.conflictInfo.remoteModified}
+          onKeepMine={studioDocument.handleKeepMine}
+          onLoadRemote={studioDocument.handleLoadRemote}
         />
       )}
 
       {/* Storage location prompt — modal, shown on app init, New, and Open */}
-      {showStoragePrompt && (
+      {studioDocument.showStoragePrompt && (
         <StoragePromptDialog
-          mode={showStoragePrompt}
-          onLocalSelected={handleStorageSelected}
-          onDriveSelected={handleStorageSelected}
+          mode={studioDocument.showStoragePrompt}
+          onLocalSelected={studioDocument.handleStorageSelected}
+          onDriveSelected={studioDocument.handleStorageSelected}
           driveAuth={driveAuth}
-          onImportRepos={showStoragePrompt === 'startup' ? () => router.push('/import') : undefined}
+          onImportRepos={
+            studioDocument.showStoragePrompt === 'startup'
+              ? () => router.push('/import')
+              : undefined
+          }
         />
       )}
 
-      <header className="studio-header">
-        <div className="header-left">
-          <h1>Arch Atlas Studio</h1>
-          <nav className="breadcrumb" aria-label="Diagram navigation">
-            {breadcrumbs.map((crumb, i) => {
-              const isCurrent = i === breadcrumbs.length - 1;
-              return (
-                <span key={`${crumb.level}-${crumb.focusId}`} className="breadcrumb-item">
-                  {i > 0 && <span className="breadcrumb-sep">›</span>}
-                  {isCurrent ? (
-                    <span className="breadcrumb-current">{crumb.label}</span>
-                  ) : (
-                    <button
-                      className="breadcrumb-link"
-                      onClick={() => navigateToLevel(crumb.level, crumb.focusId)}
-                    >
-                      {crumb.label}
-                    </button>
-                  )}
-                </span>
-              );
-            })}
-          </nav>
-        </div>
-        <div className="header-actions">
-          {saveStatus !== 'idle' && (
-            <span
-              style={{
-                fontSize: '0.8rem',
-                color: saveStatus === 'error' ? '#dc2626' : '#16a34a',
-                marginRight: 8,
-              }}
-              aria-live="polite"
-            >
-              {saveStatus === 'saving' ? 'Saving…' : saveStatusMessage}
-            </span>
-          )}
-          <button onClick={() => router.push('/import')}>Import Repos</button>
-          <button onClick={handleNewFile}>New</button>
-          <button onClick={handleImportClick}>Open</button>
-          <button onClick={handleManualSave} disabled={!handle || !model}>
-            Save {isDirty && handle ? '*' : ''}
-          </button>
-          <button onClick={handleExport} disabled={!model}>
-            Export
-          </button>
-        </div>
-      </header>
-      {importError && (
-        <div className="error-banner">
-          Import Error: {importError}
-          <button onClick={() => setImportError(null)}>×</button>
-        </div>
-      )}
+      <StudioHeader
+        breadcrumbs={breadcrumbs}
+        onNavigate={navigateToLevel}
+        saveStatus={studioDocument.saveStatus}
+        saveStatusMessage={studioDocument.saveStatusMessage}
+        hasModel={model !== null}
+        hasHandle={studioDocument.handle !== null}
+        isDirty={studioDocument.isDirty}
+        onImportRepos={() => router.push('/import')}
+        onNewFile={studioDocument.handleNewFile}
+        onOpenFile={studioDocument.handleImportClick}
+        onManualSave={() => void studioDocument.handleManualSave()}
+        onExport={studioDocument.handleExport}
+      />
       <div className="studio-content">
         <ElementPalette
           currentLevel={currentLevel}
-          onAddElement={handleAddElement}
-          onAddContainerSubtype={handleAddContainerSubtype}
+          onAddElement={editorState.handleAddElement}
+          onAddContainerSubtype={editorState.handleAddContainerSubtype}
         />
-        <main className="studio-canvas" ref={studioCanvasRef}>
-          {model && <div className="canvas-title">{diagramTitle}</div>}
-          {canvasModel && filteredView && (
-            <MapCanvas
-              model={canvasModel}
-              view={filteredView}
-              onElementClick={handleElementClick}
-              onElementDoubleClick={handleElementDoubleClick}
-              onElementDrag={handleElementDrag}
-              onConnectionStart={handleConnectionStart}
-              onRelationshipClick={handleRelationshipClick}
-              onBackgroundClick={() => {
-                setEditingElement(null);
-                setSelectedRelationshipId(null);
-                setPendingNewRelationship(null);
-              }}
-              connectionStartId={connectionStartId}
-              boundaryElementIds={boundaryElementIds}
-              externalElementIds={externalElementIds}
-              boundaryLabel={boundaryLabel}
-              onRendererMount={onStudioRendererMount}
-              fitKey={fitKey}
-              onViewportFit={syncZoomLevel}
-            />
-          )}
-          {canvasModel && (
-            <ZoomControls
-              zoomLevel={zoomLevel}
-              onZoomIn={zoomIn}
-              onZoomOut={zoomOut}
-              onFitToView={fitToView}
-            />
-          )}
-        </main>
-        {(editingElement ?? editorRelationship) && (
-          <aside className="studio-sidebar">
-            <button
-              className="sidebar-close-btn"
-              onClick={() => {
-                setEditingElement(null);
-                setSelectedRelationshipId(null);
-                setPendingNewRelationship(null);
-              }}
-              title="Close panel"
-            >
-              ✕
-            </button>
-            {editingElement && (
-              <>
-                <ElementEditor
-                  element={editingElement}
-                  allElements={model?.elements ?? []}
-                  relationships={model?.relationships ?? []}
-                  onSave={handleSaveElement}
-                  onDelete={handleDeleteElement}
-                  onCancel={() => setEditingElement(null)}
-                  onEditRelationship={handleEditRelationshipFromElement}
-                  onAddRelationship={handleAddRelationshipFromElement}
-                  onMarkExternal={handleMarkExternal}
-                />
-                <PropertiesPanel element={editingElement} onFormatChange={handleFormatChange} />
-              </>
-            )}
-            {!editingElement && editorRelationship && (
-              <RelationshipEditor
-                relationship={editorRelationship}
-                sourceElementName={
-                  model?.elements.find((e) => e.id === editorRelationship.sourceId)?.name
-                }
-                targetElementName={
-                  model?.elements.find((e) => e.id === editorRelationship.targetId)?.name
-                }
-                elementOptions={elementOptions}
-                onSave={handleSaveRelationship}
-                onDelete={handleDeleteRelationship}
-                onCancel={handleCancelRelationshipEdit}
-              />
-            )}
-          </aside>
-        )}
+        <StudioCanvasPane
+          canvasRef={studioCanvasRef}
+          diagramTitle={model ? diagramTitle : null}
+          canvasModel={canvasModel}
+          filteredView={filteredView}
+          connectionStartId={editorState.connectionStartId}
+          boundaryElementIds={boundaryElementIds}
+          externalElementIds={externalElementIds}
+          boundaryLabel={boundaryLabel}
+          fitKey={fitKey}
+          zoomLevel={zoomLevel}
+          onElementClick={editorState.handleElementClick}
+          onElementDoubleClick={editorState.handleElementDoubleClick}
+          onElementDrag={handleElementDrag}
+          onConnectionStart={editorState.handleConnectionStart}
+          onRelationshipClick={editorState.handleRelationshipClick}
+          onBackgroundClick={editorState.closeEditors}
+          onRendererMount={onStudioRendererMount}
+          onViewportFit={syncZoomLevel}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onFitToView={fitToView}
+        />
+        <StudioSidebarPanel
+          editingElement={editorState.editingElement}
+          editorRelationship={editorRelationship}
+          allElements={model?.elements ?? []}
+          allRelationships={model?.relationships ?? []}
+          elementOptions={elementOptions}
+          sourceElementName={
+            editorRelationship
+              ? model?.elements.find((e) => e.id === editorRelationship.sourceId)?.name
+              : undefined
+          }
+          targetElementName={
+            editorRelationship
+              ? model?.elements.find((e) => e.id === editorRelationship.targetId)?.name
+              : undefined
+          }
+          onClose={editorState.closeEditors}
+          onSaveElement={editorState.handleSaveElement}
+          onDeleteElement={editorState.handleDeleteElement}
+          onEditRelationship={editorState.handleEditRelationshipFromElement}
+          onAddRelationship={editorState.handleAddRelationshipFromElement}
+          onMarkExternal={editorState.handleMarkExternal}
+          onFormatChange={editorState.handleFormatChange}
+          onSaveRelationship={editorState.handleSaveRelationship}
+          onDeleteRelationship={editorState.handleDeleteRelationship}
+          onCancelRelationshipEdit={editorState.handleCancelRelationshipEdit}
+        />
       </div>
     </div>
   );

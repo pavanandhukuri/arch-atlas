@@ -127,16 +127,3 @@ export interface ArchitectureModel {
   constraints: Constraint[];
   views: View[];
 }
-
-export interface Change {
-  op: 'add' | 'update' | 'delete';
-  targetType: 'element' | 'relationship' | 'constraint' | 'view';
-  targetId: string;
-  value?: unknown;
-}
-
-export interface ChangeProposal {
-  id: string;
-  summary: string;
-  changes: Change[];
-}

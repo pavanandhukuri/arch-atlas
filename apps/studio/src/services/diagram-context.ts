@@ -1,6 +1,6 @@
 // Diagram level management for semantic zoom
 
-import type { ElementKind } from '@archatlas/core-model';
+import type { ArchitectureModel, Element, ElementKind } from '@archatlas/core-model';
 
 export type DiagramLevel = 'landscape' | 'system' | 'container' | 'component' | 'code';
 
@@ -70,4 +70,66 @@ export function getLevelIcon(level: DiagramLevel): string {
     code: '📄',
   };
   return icons[level];
+}
+
+/** Elements that should render on the current diagram: a focused element's direct children,
+ *  or — with nothing focused — the top-level elements for the current level. */
+export function getVisibleElements(
+  model: ArchitectureModel | null,
+  level: DiagramLevel,
+  focusedElementId: string | null
+): Element[] {
+  if (!model) return [];
+  if (focusedElementId) return model.elements.filter((e) => e.parentId === focusedElementId);
+  if (level === 'landscape') {
+    return model.elements.filter((e) => e.kind === 'system' || e.kind === 'person');
+  }
+  const targetKind = getElementKindForLevel(level);
+  return model.elements.filter((e) => e.kind === targetKind && !e.parentId);
+}
+
+export interface Breadcrumb {
+  label: string;
+  level: DiagramLevel;
+  focusId: string | null;
+}
+
+/** Builds the breadcrumb trail from the landscape root down to the focused element. */
+export function buildBreadcrumbs(
+  model: ArchitectureModel | null,
+  level: DiagramLevel,
+  focusedElementId: string | null
+): Breadcrumb[] {
+  const crumbs: Breadcrumb[] = [{ label: 'System Landscape', level: 'landscape', focusId: null }];
+  if (level === 'landscape' || !focusedElementId || !model) return crumbs;
+
+  const chain: { label: string; level: DiagramLevel; focusId: string }[] = [];
+  let el = model.elements.find((e) => e.id === focusedElementId);
+  while (el && el.kind !== 'landscape') {
+    const levelForKind: Partial<Record<string, DiagramLevel>> = {
+      system: 'system',
+      container: 'container',
+      component: 'component',
+      code: 'code',
+    };
+    const lvl = levelForKind[el.kind];
+    if (lvl) chain.unshift({ label: el.name, level: lvl, focusId: el.id });
+    el = el.parentId ? model.elements.find((e) => e.id === el!.parentId) : undefined;
+  }
+
+  return [...crumbs, ...chain];
+}
+
+/** Label for the boundary box drawn around the focused element's children, e.g. "System Boundary: Checkout". */
+export function getBoundaryLabel(focusedElement: Element | null | undefined): string | undefined {
+  if (!focusedElement) return undefined;
+  const kindLabel =
+    focusedElement.kind === 'system'
+      ? 'System'
+      : focusedElement.kind === 'container'
+        ? 'Container'
+        : focusedElement.kind === 'landscape'
+          ? 'Landscape'
+          : focusedElement.kind.charAt(0).toUpperCase() + focusedElement.kind.slice(1);
+  return `${kindLabel} Boundary: ${focusedElement.name}`;
 }
