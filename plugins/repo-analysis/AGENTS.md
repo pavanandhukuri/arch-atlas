@@ -173,7 +173,7 @@ components to fill the list.
 5. Self-check before touching the human's diagram: run
    `npx --yes @archatlas/llm-importer@latest validate-components {outDir}/{repoName}.components.json`.
    A non-zero exit names the schema problem; fix it and re-run. Match the shape above and follow
-   `sample-components.json` (a worked example beside this file) and it will pass.
+   `skills/import/sample-components.json` (a worked example beside this file) and it will pass.
 6. Merge it directly into the human's `.arch.json`, in place, **yourself** — don't ask them to
    upload or attach anything:
 
