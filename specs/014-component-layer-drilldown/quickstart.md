@@ -44,10 +44,12 @@ npx --yes @archatlas/llm-importer@latest attach-components \
   --container catalog-service
 ```
 
-That's it — no Studio action at all. Reopen `my-diagram.arch.json` in Studio: the `catalog-service`
-container now shows its internal components nested inside it; zoom in to see them, zoom out to
-return to the ordinary container view. The components are already part of that one file, so there's
-nothing further to save or attach.
+That's it — no Studio action at all. Reopen `my-diagram.arch.json` in the hosted Studio at
+[arch-atlas-studio.vercel.app](https://arch-atlas-studio.vercel.app) (or your own local
+`pnpm dev` instance, if you're developing against this repo — either way, just opens the file from
+disk): the `catalog-service` container now shows its internal components nested inside it; zoom in
+to see them, zoom out to return to the ordinary container view. The components are already part of
+that one file, so there's nothing further to save or attach.
 
 No other container, and nothing about `import`'s own output, changes. If `--container` doesn't
 match an existing container's name exactly (case/whitespace aside), or more than one container

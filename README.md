@@ -56,6 +56,25 @@ disk (no auth needed).
 See [`apps/llm-importer/README.md`](apps/llm-importer/README.md) for the full CLI reference and
 the producer contract behind step 2–3.
 
+### Drill into one container's internals
+
+Once a diagram exists, you can go one level deeper on a single container — its internal
+controllers/services/repositories — without re-running the bulk import above or touching any
+other container:
+
+```bash
+npx --yes @archatlas/llm-importer@latest gather-context import.yaml --repos catalog-service
+# ask your agent to analyze that bundle and run validate-components, then:
+npx --yes @archatlas/llm-importer@latest attach-components my-diagram.arch.json catalog-service.components.json --container catalog-service
+```
+
+This merges straight into `my-diagram.arch.json` — no second file, no upload step. Reopen that
+diagram at [arch-atlas-studio.vercel.app](https://arch-atlas-studio.vercel.app) (or
+`localhost:3000` if you're running Studio locally — see [Development](#development)) and open the
+file from disk; the container now shows its internal components nested inside it. See
+[`apps/llm-importer/README.md`](apps/llm-importer/README.md#set-up-your-coding-agent) for the
+full command reference.
+
 ### Try it: the Bookshop demo
 
 [`examples/bookshop`](examples/bookshop) is a small workspace to try the whole loop on — five
