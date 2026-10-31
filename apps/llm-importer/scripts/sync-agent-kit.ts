@@ -7,7 +7,7 @@ const plugin = join(import.meta.dirname, '..', '..', '..', 'plugins', 'repo-anal
 const kit = loadKit(join(plugin, 'skills', 'import'));
 writeFileSync(
   join(plugin, 'AGENTS.md'),
-  renderAgentsMd(kit, 'skills/import/sample-analysis.json'),
+  renderAgentsMd(kit, 'skills/import/sample-analysis.json', 'skills/import/sample-components.json'),
   'utf8'
 );
 console.log('wrote plugins/repo-analysis/AGENTS.md');
