@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-10-03T12:00:00.000Z",
+  "repository": {
+    "name": "order-service",
+    "path": "repos/order-service",
+    "description": "Express order-placement service"
+  },
+  "components": [
+    {
+      "name": "OrderHandler",
+      "kind": "controller",
+      "description": "Handles POST /orders and GET /orders/{id}"
+    },
+    {
+      "name": "CatalogClient",
+      "kind": "module",
+      "description": "Looks up a book's price from catalog-service"
+    },
+    {
+      "name": "PaymentProcessor",
+      "kind": "module",
+      "description": "Charges the customer's card via Stripe"
+    },
+    {
+      "name": "OrderDatabase",
+      "kind": "module",
+      "description": "PostgreSQL connection pool backing order storage"
+    }
+  ],
+  "relationships": [
+    { "source": "OrderHandler", "target": "CatalogClient", "description": "prices the order" },
+    {
+      "source": "PaymentProcessor",
+      "target": "OrderHandler",
+      "description": "confirms the charge"
+    },
+    { "source": "OrderHandler", "target": "OrderDatabase", "description": "stores the order" }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

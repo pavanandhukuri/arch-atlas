@@ -100,6 +100,14 @@ npx --yes @archatlas/llm-importer@latest init --agent claude,cursor,copilot   # 
 `codex` and `generic` get a marked block in `AGENTS.md`. Idempotent, `--dry-run` supported; see
 [`plugins/repo-analysis/README.md`](../../plugins/repo-analysis/README.md#install-for-your-agent).
 
+That same skill has an optional "Component drill-down" mode: ask your agent to analyze one
+repository's _internal_ structure (its major controllers/services/repositories) instead of the
+usual cross-repo external-interface summary. It writes a bounded `{repo}.components.json`,
+self-checks it with `archatlas validate-components <file>`, then merges it straight into your
+existing `.arch.json` with `archatlas attach-components <arch-file> <components-file> --container
+<name>` — no second persisted file, no upload step in Studio, just reopen the same diagram.
+Opt-in, one repository at a time; never changes `import` or `gather-context`'s output.
+
 ## Development
 
 ```bash
@@ -112,11 +120,11 @@ See `specs/010-harness-neutral-importer/quickstart.md` for end-to-end usage.
 
 ## Eval
 
-`eval/` holds a deterministic, offline correlation eval — a local benchmark against a committed
-`baseline.json`, run against the [`examples/bookshop`](../../examples/bookshop) demo workspace —
-and an opt-in extraction eval. Dev-only — never in the published tarball. Its numbers are also
-pinned as regular tests (`eval/run.integration.test.ts`), which IS part of `pnpm test` / CI. See
-[`eval/README.md`](./eval/README.md).
+`eval/` holds two CI-gating, deterministic, offline evals — correlation (against the
+[`examples/bookshop`](../../examples/bookshop) demo workspace) and components (against two
+golden-components sets reused from that same workspace) — plus an opt-in, local-only extraction
+eval. Dev-only — never in the published tarball. `.github/workflows/ci.yml` runs both
+`eval -- --check` and `eval:components -- --check` on every PR. See [`eval/README.md`](./eval/README.md).
 
 ```bash
 pnpm --filter @archatlas/llm-importer eval            # report

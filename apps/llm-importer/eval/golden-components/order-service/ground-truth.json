@@ -1,0 +1,36 @@
+{
+  "_source": "examples/bookshop/repos/order-service/src/*.ts, read directly",
+  "components": [
+    {
+      "name": "OrderHandler",
+      "kind": "controller",
+      "description": "Handles POST /orders and GET /orders/{id}, orchestrating pricing, payment, storage and the order.placed event"
+    },
+    {
+      "name": "CatalogClient",
+      "kind": "module",
+      "description": "Looks up a book's price from catalog-service over HTTP"
+    },
+    {
+      "name": "PaymentProcessor",
+      "kind": "module",
+      "description": "Charges the customer's card via Stripe"
+    },
+    {
+      "name": "EventPublisher",
+      "kind": "module",
+      "description": "Publishes domain events (order.placed) to Kafka"
+    },
+    {
+      "name": "OrderDatabase",
+      "kind": "module",
+      "description": "PostgreSQL connection pool backing order storage"
+    }
+  ],
+  "relationships": [
+    { "from": "OrderHandler", "to": "CatalogClient" },
+    { "from": "OrderHandler", "to": "PaymentProcessor" },
+    { "from": "OrderHandler", "to": "EventPublisher" },
+    { "from": "OrderHandler", "to": "OrderDatabase" }
+  ]
+}

@@ -1,0 +1,9 @@
+# The public Bookshop demo's order-service (TypeScript/Express). Real repo tree
+# and committed artifact are the demo's own — nothing is copied here.
+name: order-service
+workspace:
+  local: ../../../../../examples/bookshop/repos/order-service
+artifact: order-service.components.json
+repo:
+  name: order-service
+  path: order-service

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-10-03T12:00:00.000Z",
+  "repository": {
+    "name": "catalog-service",
+    "path": "repos/catalog-service",
+    "description": "Spring Boot book catalogue"
+  },
+  "components": [
+    {
+      "name": "BookController",
+      "kind": "controller",
+      "description": "Serves GET /books and GET /books/{isbn}"
+    },
+    {
+      "name": "BookRepository",
+      "kind": "repository",
+      "description": "Spring Data JPA repository over the Book entity"
+    }
+  ],
+  "relationships": [
+    { "source": "BookRepository", "target": "BookController", "description": "returns book rows" }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

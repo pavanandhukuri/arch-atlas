@@ -121,3 +121,73 @@ names-and-skips any that doesn't match the schema, so a malformed file shows up 
 output. Match the shape in the JSON block above, and follow
 `skills/import/sample-analysis.json` (a worked example beside this file), and it will
 pass.
+
+## Component drill-down (optional)
+
+This is a separate, opt-in mode you only follow when a human explicitly asks you to analyze one
+repository's _internal_ structure — not part of the whole-workspace procedure above, and it never
+runs automatically. Unlike `{repoName}.analysis.json`, nothing this mode writes is ever read by
+`import`, so it has no effect on `architecture.review.yaml` or on any other repository. There is no
+second permanent artifact either: the one file this mode changes is the human's own `.arch.json`
+diagram, edited in place — ask them for its path before you start (it's whatever file they already
+have open in Studio, or wherever they saved it).
+
+**Input**: the same `{outDir}/{repoName}.context.json` bundle the normal procedure already uses —
+run `gather-context <import.yaml> --repos <name>` (or point directly at an existing bundle) if you
+don't already have one for the repository the human asked about.
+
+**Procedure**:
+
+1. Read the bundle exactly as in step 1 above.
+2. Determine, using only that material, the repository's major internal components — its
+   controllers, services, repositories/data-access layers, and other significant internal
+   modules. Not every class or file: only the pieces that matter at an architectural glance. For
+   each, give it a short `name`, a `kind` (free text — "controller", "service", "repository",
+   "module", whatever fits), and a one-sentence `description`.
+3. Determine the relationships between those components: which one calls, delegates to, or
+   depends on which other one. Every `source`/`target` in a relationship must be the exact `name`
+   of a component from step 2 — no dangling references.
+4. Write `{outDir}/{repoName}.components.json` with this exact shape:
+
+```json
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "<ISO timestamp>",
+  "repository": {
+    "name": "<repoName from the bundle/config>",
+    "path": "<repoPath>",
+    "description": "<optional>"
+  },
+  "components": [{ "name": "…", "kind": "…", "description": "…" }],
+  "relationships": [{ "source": "…", "target": "…", "description": "…" }],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}
+```
+
+Use `"analysisStatus": "partial"` if the bundle was empty or you could not characterize the
+repository's internals with confidence. `components: []` and `relationships: []` are both valid
+for a repository too small or uniform to have meaningful internal structure — don't invent
+components to fill the list.
+
+5. Self-check before touching the human's diagram: run
+   `npx --yes @archatlas/llm-importer@latest validate-components {outDir}/{repoName}.components.json`.
+   A non-zero exit names the schema problem; fix it and re-run. Match the shape above and follow
+   `sample-components.json` (a worked example beside this file) and it will pass.
+6. Merge it directly into the human's `.arch.json`, in place, **yourself** — don't ask them to
+   upload or attach anything:
+
+   ```bash
+   npx --yes @archatlas/llm-importer@latest attach-components \
+     <path-to-their-diagram.arch.json> {outDir}/{repoName}.components.json \
+     --container <repoName>
+   ```
+
+   `--container` must match the exact name of that repository's container element in the diagram
+   (the same name the whole-workspace procedure gave it when the diagram was first built). This
+   command does the risky part itself — generating ids, computing a sensible on-canvas position for
+   each new component, and splicing everything into the file — rather than you hand-editing the
+   JSON, because a component added without a correct layout position would sit in the file but
+   never actually render, with nothing telling anyone why. A non-zero exit means nothing was
+   written; the original `.arch.json` is untouched. On success, report that the diagram file was
+   updated and how many components/relationships were added — the human only needs to reopen it.

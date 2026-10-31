@@ -1,13 +1,13 @@
 # Importer eval harness
 
 Dev-only. Nothing here ships — `files: ["dist"]` keeps every byte of `eval/` out of the npm
-tarball. Two evals, **neither runs in CI** — both are local benchmarks you run when you touch a
-correlation pass or the extraction procedure:
+tarball. Three evals:
 
-| eval            | command                                              | model? | CI? |
-| --------------- | ---------------------------------------------------- | ------ | --- |
-| **correlation** | `pnpm --filter @archatlas/llm-importer eval`         | no     | no  |
-| **extraction**  | `pnpm --filter @archatlas/llm-importer eval:extract` | yes    | no  |
+| eval            | command                                                 | model? | CI?                                |
+| --------------- | ------------------------------------------------------- | ------ | ---------------------------------- |
+| **correlation** | `pnpm --filter @archatlas/llm-importer eval`            | no     | yes — `eval -- --check`            |
+| **components**  | `pnpm --filter @archatlas/llm-importer eval:components` | no     | yes — `eval:components -- --check` |
+| **extraction**  | `pnpm --filter @archatlas/llm-importer eval:extract`    | yes    | no                                 |
 
 ## Correlation eval
 
@@ -33,10 +33,10 @@ pnpm --filter @archatlas/llm-importer eval -- --update-baseline
 
 `--check` exit codes: `0` every metric within `0.02` of (or above) baseline · `1` a metric
 regressed (the offending `set.group.metric` is printed) · `2` `baseline.json` missing/invalid or
-a `ground-truth.json` is internally inconsistent. Nothing calls `--check` in CI — run it yourself
-before and after a correlation-pass change, the way you'd re-run a benchmark.
-`eval/run.integration.test.ts` pins the same numbers as regular `pnpm test` assertions instead;
-that suite is what CI actually gates on (see below).
+a `ground-truth.json` is internally inconsistent. `.github/workflows/ci.yml` runs
+`eval -- --check` on every PR and blocks merge on regression.
+`eval/run.integration.test.ts` additionally pins the same numbers as regular `pnpm test`
+assertions, so a regression shows up twice — once in the eval step, once as a failing test.
 
 ### Moving the baseline
 
@@ -57,7 +57,64 @@ pnpm --filter @archatlas/llm-importer eval -- --check   # → exit 1, externalSy
 ```
 
 `eval/run.integration.test.ts` pins this automatically (dropping `foundBy: 'external-outbound'`
-connections collapses external recall to 0) — that test IS what runs in CI.
+connections collapses external recall to 0) — both that test and the `eval -- --check` CI step
+catch it.
+
+## Component eval
+
+Deterministic and offline, same shape as the correlation eval but one repository at a time: loads
+a golden-components set's committed `{repo}.components.json` artifact and scores it against
+`ground-truth.json`.
+
+- **components** — precision / recall / F1 over the artifact's named internal components, matched
+  by normalized name alone (independent of `kind` — see `contracts/components-artifact-schema.md`
+  in spec 014).
+- **relationships** — precision / recall / F1 over directed `source -> target` pairs between those
+  components. Direction-sensitive, same as the correlation eval's connection scoring.
+
+```bash
+pnpm --filter @archatlas/llm-importer eval:components                          # every set
+pnpm --filter @archatlas/llm-importer eval:components -- --set catalog-service # just one
+pnpm --filter @archatlas/llm-importer eval:components -- --check               # against component-baseline.json
+pnpm --filter @archatlas/llm-importer eval:components -- --update-baseline
+```
+
+Same exit-code contract as `eval`: `0` / `1` (regression) / `2` (setup error). `ci.yml` runs
+`eval:components -- --check` on every PR, independent of the correlation eval — a regression in
+either blocks merge with its own named step.
+
+### The golden-components sets
+
+Two, both reused from the already-committed [`examples/bookshop`](../../../examples/bookshop)
+repos — no new source vendored:
+
+- **`catalog-service`** (Java/Spring Boot) — `golden-components/catalog-service/`
+- **`order-service`** (TypeScript/Express) — `golden-components/order-service/`
+
+Each directory holds:
+
+```
+golden-components/<name>/
+├── eval.config.yaml          # name; workspace.local (reference only); artifact path; repo{name,path}
+├── ground-truth.json         # components[] ({name,kind,description}) + relationships[] ({from,to})
+└── <name>.components.json    # the artifact actually scored — see below
+```
+
+Both committed `<name>.components.json` artifacts are **deliberately imperfect** hand-authored
+stand-ins, not copies of their ground truth: `catalog-service` omits a real component entirely
+(`CoverStorage`) and has one relationship's direction reversed; `order-service` does the same with
+`EventPublisher`. This is why neither golden set starts at a trivial 1.0/1.0 — the harness is
+proven to discriminate from the moment it's merged (FR-005, SC-003), before any real
+component-extraction procedure exists. Once that procedure (the "Component drill-down" mode in
+`plugins/repo-analysis/skills/import/SKILL.md`) produces a real artifact for one of these repos,
+replace the hand-authored stand-in with that real output and re-run
+`eval:components -- --update-baseline` — the resulting `component-baseline.json` diff is reviewed
+like any other.
+
+Adding a third set follows the same shape as "Adding another golden set" above, substituting
+`components[]`/`relationships[]` ground truth for `repos{}`/`connections[]`, and committing
+`eval -- --update-baseline` → `eval:components -- --update-baseline` on `component-baseline.json`
+instead of `baseline.json`.
 
 ## Extraction eval (local only)
 
@@ -122,5 +179,5 @@ A public source workspace committed as its own repo tree (rather than referenced
 source never vendored or cloned in CI. Private code (uds-sdk) is never committed in any form.
 
 After adding a set: `eval -- --update-baseline --set <name>` and commit the new `baseline.json`
-block — and add a describe block to `eval/run.integration.test.ts` pinning its scores, since that
-test (not this harness on its own) is what CI gates on.
+block — and add a describe block to `eval/run.integration.test.ts` pinning its scores, so both the
+CI `eval -- --check` step and the test suite catch a future regression.

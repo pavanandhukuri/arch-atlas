@@ -9,6 +9,8 @@ import {
   scoreRepoRun,
   scoreConnections,
   scoreExternalSystems,
+  scoreComponents,
+  scoreRelationships,
   averagePrf,
   stddev,
 } from './score.js';
@@ -220,6 +222,73 @@ describe('scoreExternalSystems', () => {
   it('no externals expected and none produced → 1.0', () => {
     const r = scoreExternalSystems([conn('sdk-go', 'notification-service')], [], repos);
     expect(r).toMatchObject({ precision: 1, recall: 1, f1: 1 });
+  });
+});
+
+describe('scoreComponents', () => {
+  it('exact match → all 1.0', () => {
+    const r = scoreComponents(
+      [{ name: 'BookController' }, { name: 'BookRepository' }],
+      [{ name: 'BookController' }, { name: 'BookRepository' }]
+    );
+    expect(r).toMatchObject({ precision: 1, recall: 1, f1: 1 });
+  });
+
+  it('1 TP / 1 FP / 1 FN → precision, recall and f1 all 0.5', () => {
+    const r = scoreComponents(
+      [{ name: 'BookController' }, { name: 'Bogus' }],
+      [{ name: 'BookController' }, { name: 'BookRepository' }]
+    );
+    expect(r).toMatchObject({ tp: 1, fp: 1, fn: 1, precision: 0.5, recall: 0.5, f1: 0.5 });
+  });
+
+  it('matches by name only, independent of kind', () => {
+    // scoreComponents is handed bare {name} shapes — a predicted component with a
+    // different `kind` than the ground truth still has the same name, so callers
+    // mapping InternalComponent -> {name} never see a kind mismatch at all.
+    const r = scoreComponents([{ name: 'bookcontroller' }], [{ name: 'BookController' }]);
+    expect(r).toMatchObject({ precision: 1, recall: 1, f1: 1 });
+  });
+
+  it('both empty → 1.0 (no divide-by-zero)', () => {
+    expect(scoreComponents([], [])).toMatchObject({ precision: 1, recall: 1, f1: 1 });
+  });
+});
+
+describe('scoreRelationships', () => {
+  it('exact match → all 1.0', () => {
+    const r = scoreRelationships(
+      [{ source: 'BookController', target: 'BookService' }],
+      [{ from: 'BookController', to: 'BookService' }]
+    );
+    expect(r).toMatchObject({ precision: 1, recall: 1, f1: 1 });
+  });
+
+  it('reversed direction does NOT match', () => {
+    const r = scoreRelationships(
+      [{ source: 'BookService', target: 'BookController' }],
+      [{ from: 'BookController', to: 'BookService' }]
+    );
+    expect(r.tp).toBe(0);
+    expect(r.recall).toBe(0);
+  });
+
+  it('1 TP / 1 FP / 1 FN → precision, recall and f1 all 0.5', () => {
+    const r = scoreRelationships(
+      [
+        { source: 'BookController', target: 'BookService' },
+        { source: 'BookService', target: 'Bogus' },
+      ],
+      [
+        { from: 'BookController', to: 'BookService' },
+        { from: 'BookService', to: 'BookRepository' },
+      ]
+    );
+    expect(r).toMatchObject({ tp: 1, fp: 1, fn: 1, precision: 0.5, recall: 0.5, f1: 0.5 });
+  });
+
+  it('both empty → 1.0 (no divide-by-zero)', () => {
+    expect(scoreRelationships([], [])).toMatchObject({ precision: 1, recall: 1, f1: 1 });
   });
 });
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { RepoAnalysisSchema } from '../../src/analysis/repo-analysis.schema.js';
+import { ComponentAnalysisSchema } from '../../src/analysis/component-analysis.schema.js';
 import { toCorrelationGraph } from '../../src/analysis/to-correlation-graph.js';
 import { RepositoryKnowledgeGraphSchema } from '../../src/graph/schema.js';
 
@@ -48,6 +49,21 @@ describe('plugins/repo-analysis (skill/plugin)', () => {
     expect(skill).toContain('name: import');
     expect(skill).toContain('gather-context'); // the full procedure lives here, not behind a link
     expect(skill).not.toContain('../'); // nothing outside its own folder, so copying the folder works
+  });
+
+  it('sample-components.json satisfies ComponentAnalysisSchema (014-component-layer-drilldown)', () => {
+    const raw = JSON.parse(
+      readFileSync(join(SKILL_DIR, 'sample-components.json'), 'utf8')
+    ) as unknown;
+    expect(ComponentAnalysisSchema.safeParse(raw).success).toBe(true);
+  });
+
+  it('SKILL.md documents the optional component drill-down mode and its validation step', () => {
+    const skill = readFileSync(join(SKILL_DIR, 'SKILL.md'), 'utf8');
+    expect(skill).toContain('Component drill-down');
+    expect(skill).toContain('components.json');
+    expect(skill).toContain('validate-components');
+    expect(skill).toContain('sample-components.json');
   });
 
   it('README.md advertises multi-agent compatibility, not a single hosted/local trade-off', () => {

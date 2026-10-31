@@ -1,0 +1,24 @@
+{
+  "_source": "examples/bookshop/repos/catalog-service/src/main/java/demo/catalog/*.java, read directly",
+  "components": [
+    {
+      "name": "BookController",
+      "kind": "controller",
+      "description": "Serves GET /books and GET /books/{isbn}, delegating to BookRepository and CoverStorage"
+    },
+    {
+      "name": "BookRepository",
+      "kind": "repository",
+      "description": "Spring Data JPA repository over the Book entity"
+    },
+    {
+      "name": "CoverStorage",
+      "kind": "module",
+      "description": "Generates presigned S3 GET URLs for book cover images"
+    }
+  ],
+  "relationships": [
+    { "from": "BookController", "to": "BookRepository" },
+    { "from": "BookController", "to": "CoverStorage" }
+  ]
+}
