@@ -1,15 +1,18 @@
 #!/usr/bin/env node
-import { realpathSync } from 'node:fs';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
 import { Command } from 'commander';
+import type { ArchitectureModel } from '@archatlas/core-model';
 import { loadConfig, ConfigValidationError } from './config/loader.js';
 import { runImport } from './analysis/run-import.js';
 import { ensureOutputDir } from './analysis/analysis-store.js';
 import { gatherContext } from './analysis/gather-context.js';
 import { serializeContextBundle } from './analysis/context-bundle.js';
+import { ComponentAnalysisSchema } from './analysis/component-analysis.schema.js';
+import { attachComponentsToModel } from './arch/attach-components.js';
 import {
   agentMenu,
   applyPlan,
@@ -121,6 +124,120 @@ export async function runGatherContextCommand(
   }
 }
 
+/**
+ * 014-component-layer-drilldown: `{repo}.components.json` is never read by
+ * `import` (FR-010/FR-013), so — unlike `{repo}.analysis.json`, validated for
+ * free as a side effect of `import` parsing every artifact — this is its one
+ * explicit validation entrypoint. Synchronous: this command only ever reads
+ * the one file it's given.
+ */
+export function runValidateComponentsCommand(file: string): number {
+  let raw: string;
+  try {
+    raw = readFileSync(file, 'utf8');
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    console.error(
+      `${file}: invalid JSON — ${error instanceof Error ? error.message : String(error)}`
+    );
+    return 1;
+  }
+  const result = ComponentAnalysisSchema.safeParse(parsed);
+  if (!result.success) {
+    console.error(`${file}: schema validation failed\n${result.error.toString()}`);
+    return 1;
+  }
+  console.log(`valid: ${file}`);
+  return 0;
+}
+
+export interface AttachComponentsCommandOptions {
+  container: string;
+  output?: string;
+}
+
+/**
+ * 014-component-layer-drilldown: merges a {repo}.components.json directly into
+ * one named container of an existing .arch.json, in place by default. No
+ * second persisted artifact — `.arch.json` is the one file that holds the
+ * diagram before and after. Deterministic: id generation, layout placement and
+ * JSON splicing are all done here, not left to the calling agent to hand-edit.
+ */
+export function runAttachComponentsCommand(
+  archFile: string,
+  componentsFile: string,
+  options: AttachComponentsCommandOptions
+): number {
+  let archRaw: string;
+  let componentsRaw: string;
+  try {
+    archRaw = readFileSync(archFile, 'utf8');
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+  try {
+    componentsRaw = readFileSync(componentsFile, 'utf8');
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+
+  let model: ArchitectureModel;
+  try {
+    const parsedArch = JSON.parse(archRaw) as Partial<ArchitectureModel>;
+    if (!Array.isArray(parsedArch.elements) || !Array.isArray(parsedArch.views)) {
+      console.error(`${archFile}: does not look like an .arch.json (missing elements/views)`);
+      return 1;
+    }
+    model = parsedArch as ArchitectureModel;
+  } catch (error) {
+    console.error(
+      `${archFile}: invalid JSON — ${error instanceof Error ? error.message : String(error)}`
+    );
+    return 1;
+  }
+
+  let componentsJson: unknown;
+  try {
+    componentsJson = JSON.parse(componentsRaw);
+  } catch (error) {
+    console.error(
+      `${componentsFile}: invalid JSON — ${error instanceof Error ? error.message : String(error)}`
+    );
+    return 1;
+  }
+  const parsedComponents = ComponentAnalysisSchema.safeParse(componentsJson);
+  if (!parsedComponents.success) {
+    console.error(
+      `${componentsFile}: schema validation failed\n${parsedComponents.error.toString()}`
+    );
+    return 1;
+  }
+
+  let updated: ArchitectureModel;
+  try {
+    updated = attachComponentsToModel(model, options.container, parsedComponents.data);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+
+  const outPath = options.output ?? archFile;
+  writeFileSync(outPath, JSON.stringify(updated, null, 2));
+  console.log(
+    `updated: ${outPath} (+${parsedComponents.data.components.length} component(s), ` +
+      `+${parsedComponents.data.relationships.length} relationship(s) in "${options.container}")`
+  );
+  return 0;
+}
+
 /** Ask which agents to set up (only when `--agent` is omitted at a terminal). */
 async function promptForAgents(): Promise<string> {
   const rl = createInterface({ input: process.stdin, output: process.stderr });
@@ -183,6 +300,29 @@ export function buildProgram(): Command {
     .option('--repos <names>', 'Comma-separated repo names to include (subset of config)')
     .action(async (configFile: string, options: GatherContextCommandOptions) => {
       const code = await runGatherContextCommand(configFile, options);
+      if (code !== 0) process.exitCode = code;
+    });
+
+  program
+    .command('validate-components')
+    .description('Validate one {repo}.components.json file against the schema')
+    .argument('<file>', 'Path to a {repo}.components.json file')
+    .action((file: string) => {
+      const code = runValidateComponentsCommand(file);
+      if (code !== 0) process.exitCode = code;
+    });
+
+  program
+    .command('attach-components')
+    .description(
+      'Merge a {repo}.components.json into one named container of an existing .arch.json, in place'
+    )
+    .argument('<arch-file>', 'Path to the .arch.json diagram file (edited in place by default)')
+    .argument('<components-file>', 'Path to a {repo}.components.json file')
+    .requiredOption('--container <name>', 'Name of the target container element')
+    .option('--output <file>', 'Write to a different file instead of overwriting <arch-file>')
+    .action((archFile: string, componentsFile: string, options: AttachComponentsCommandOptions) => {
+      const code = runAttachComponentsCommand(archFile, componentsFile, options);
       if (code !== 0) process.exitCode = code;
     });
 

@@ -195,6 +195,35 @@ export function scoreExternalSystems(
   return prf(predicted, expected, nameMatch);
 }
 
+// --- component scoring (014-component-layer-drilldown) -------------------
+//
+// Both reuse the same generic prf()/nameMatch()/normalize() this file already
+// has for connections — no new matching primitive. Components are matched by
+// normalized name alone, independent of `kind` (Clarification Q3, FR-015).
+// Relationships are matched by a direction-sensitive source->target key,
+// mirroring scoreConnections's own key() helper exactly.
+
+export function scoreComponents(
+  predicted: Array<{ name: string }>,
+  expected: Array<{ name: string }>
+): PRF {
+  return prf(
+    predicted.map((c) => c.name),
+    expected.map((c) => c.name),
+    nameMatch
+  );
+}
+
+export function scoreRelationships(
+  predicted: Array<{ source: string; target: string }>,
+  expected: Array<{ from: string; to: string }>
+): PRF {
+  const key = (a: string, b: string): string => `${normalize(a)}->${normalize(b)}`;
+  const predictedKeys = [...new Set(predicted.map((r) => key(r.source, r.target)))];
+  const expectedKeys = [...new Set(expected.map((r) => key(r.from, r.to)))];
+  return prf(predictedKeys, expectedKeys, (a, b) => a === b);
+}
+
 // --- aggregation -------------------------------------------------------
 
 export function mean(xs: number[]): number {

@@ -1,0 +1,9 @@
+# The public Bookshop demo's catalog-service (Java/Spring Boot). Real repo tree
+# and committed artifact are the demo's own — nothing is copied here.
+name: catalog-service
+workspace:
+  local: ../../../../../examples/bookshop/repos/catalog-service
+artifact: catalog-service.components.json
+repo:
+  name: catalog-service
+  path: catalog-service

@@ -1,0 +1,26 @@
+{
+  "catalog-service": {
+    "components": {
+      "precision": 1,
+      "recall": 0.6667,
+      "f1": 0.8
+    },
+    "relationships": {
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
+    }
+  },
+  "order-service": {
+    "components": {
+      "precision": 1,
+      "recall": 0.8,
+      "f1": 0.8889
+    },
+    "relationships": {
+      "precision": 0.6667,
+      "recall": 0.5,
+      "f1": 0.5714
+    }
+  }
+}

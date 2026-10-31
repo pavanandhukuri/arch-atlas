@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-10-03T12:00:00.000Z",
+  "repository": {
+    "name": "notification-service",
+    "path": "/path/to/repos/notification-service",
+    "description": "Sends user notifications"
+  },
+  "components": [
+    {
+      "name": "NotificationConsumer",
+      "kind": "consumer",
+      "description": "Consumes the user-created Kafka topic and triggers a notification"
+    },
+    {
+      "name": "NotificationController",
+      "kind": "controller",
+      "description": "Serves POST /v1/send for the API gateway to call directly"
+    },
+    {
+      "name": "EmailProviderClient",
+      "kind": "module",
+      "description": "Posts to the transactional email provider's REST API"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "NotificationConsumer",
+      "target": "EmailProviderClient",
+      "description": "dispatches the notification once a user-created event arrives"
+    },
+    {
+      "source": "NotificationController",
+      "target": "EmailProviderClient",
+      "description": "dispatches the notification for a direct API call"
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

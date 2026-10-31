@@ -4,6 +4,28 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Added — opt-in Component-layer drill-down, one level below Container
+
+- A developer can request a bounded summary of one repository's _internal_ structure (major
+  controllers/services/repositories/modules and how they call each other) without analyzing every
+  repository in the workspace. `gather-context --repos <name>` is unchanged; a new "Component
+  drill-down" mode in `plugins/repo-analysis/skills/import/SKILL.md` reuses its existing
+  `{repo}.context.json` bundle and writes `{repo}.components.json`, self-checked by a new
+  `archatlas validate-components <file>` command.
+- A new `archatlas attach-components <arch-file> <components-file> --container <name>` command
+  merges that bounded artifact straight into the human's existing `.arch.json`, in place — no
+  second persisted file and no upload step in Studio, the agent runs this itself and the human just
+  reopens the same diagram. It computes real layout positions for every new component via
+  `@archatlas/layout`'s existing `computeLayout` (already a declared but previously unused
+  dependency of this package), because a component spliced in without one would sit in the file but
+  never render, with nothing flagging it. No `core-model` change was needed — `ElementKind`/
+  `parentId` and Studio's zoom/navigation already treat a nested `component` as a first-class level.
+- `import`/`gather-context`'s own behavior and output are completely unaffected by this feature.
+- New `eval:components` harness (`apps/llm-importer/eval/component-run.ts`), CI-gated like the
+  existing correlation eval, scoring two golden-components datasets reused from the Bookshop demo
+  (`catalog-service`, `order-service`) — built and merged before any extraction procedure existed,
+  per the eval-first sequencing this feature was planned around.
+
 ### Added — `archatlas init`: install the analysis skill for Claude Code, Cursor, Copilot and others
 
 - `npx @archatlas/llm-importer init --agent <claude|copilot|cursor|codex|generic|all>` copies the
