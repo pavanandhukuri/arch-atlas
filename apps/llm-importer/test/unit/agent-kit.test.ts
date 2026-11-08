@@ -51,11 +51,20 @@ describe('the skill folder is the single source of truth', () => {
     // it points at the sample beside it, which must exist in the same folder
     expect(raw).toContain('sample-analysis.json');
     expect(existsSync(join(KIT_DIR, 'sample-analysis.json'))).toBe(true);
+    // ditto for the component drill-down mode's own worked example (014)
+    expect(raw).toContain('sample-components.json');
+    expect(existsSync(join(KIT_DIR, 'sample-components.json'))).toBe(true);
   });
 
   it('the committed plugin AGENTS.md is exactly what the skill renders to (run `pnpm sync:agent-kit` on drift)', () => {
     const committed = readFileSync(join(PLUGIN_DIR, 'AGENTS.md'), 'utf8');
-    expect(committed).toBe(renderAgentsMd(kit, 'skills/import/sample-analysis.json'));
+    expect(committed).toBe(
+      renderAgentsMd(
+        kit,
+        'skills/import/sample-analysis.json',
+        'skills/import/sample-components.json'
+      )
+    );
   });
 
   it('the Claude Code and Cursor plugin manifests agree on name and version', () => {
@@ -122,6 +131,7 @@ describe('planInit', () => {
       [
         join(ws, '.claude/skills/arch-atlas-import/SKILL.md'),
         join(ws, '.claude/skills/arch-atlas-import/sample-analysis.json'),
+        join(ws, '.claude/skills/arch-atlas-import/sample-components.json'),
       ].sort()
     );
     const skill = files.find((f) => f.path.endsWith('SKILL.md'));
@@ -129,6 +139,7 @@ describe('planInit', () => {
     expect(fm.name).toBe('arch-atlas-import'); // the spec requires name == directory
     expect(fm.description).toBe(kit.description);
     expect(skill?.content).toContain('sample-analysis.json');
+    expect(skill?.content).toContain('sample-components.json');
   });
 
   it('cursor → the same skill under .cursor/skills (a skill is also its /slash command)', () => {
@@ -137,6 +148,7 @@ describe('planInit', () => {
       [
         join(ws, '.cursor/skills/arch-atlas-import/SKILL.md'),
         join(ws, '.cursor/skills/arch-atlas-import/sample-analysis.json'),
+        join(ws, '.cursor/skills/arch-atlas-import/sample-components.json'),
       ].sort()
     );
     const fm = frontmatter(files.find((f) => f.path.endsWith('SKILL.md'))?.content ?? '');
@@ -147,6 +159,7 @@ describe('planInit', () => {
     const files = planInit(kit, ['copilot'], ws);
     const paths = files.map((f) => f.path);
     expect(paths).toContain(join(ws, '.github/skills/arch-atlas-import/SKILL.md'));
+    expect(paths).toContain(join(ws, '.github/skills/arch-atlas-import/sample-components.json'));
     const prompt = files.find((f) => f.path.endsWith('.prompt.md'));
     expect(prompt?.path).toBe(join(ws, '.github/prompts/arch-atlas-import.prompt.md'));
     const fm = frontmatter(prompt?.content ?? '');
@@ -164,6 +177,10 @@ describe('planInit', () => {
       const agents = files.find((f) => f.path === join(ws, 'AGENTS.md'));
       expect(agents?.mode).toBe('block');
       expect(agents?.content).toContain('.archatlas/repo-analysis/sample-analysis.json');
+      expect(agents?.content).toContain('.archatlas/repo-analysis/sample-components.json');
+      expect(files.map((f) => f.path)).toContain(
+        join(ws, '.archatlas/repo-analysis/sample-components.json')
+      );
     }
   });
 
@@ -187,6 +204,10 @@ describe('applyPlan', () => {
         }
       ).schemaVersion
     ).toBe('1.0');
+    expect(existsSync(join(ws, '.claude/skills/arch-atlas-import/sample-components.json'))).toBe(
+      true
+    );
+    expect(existsSync(join(ws, '.archatlas/repo-analysis/sample-components.json'))).toBe(true);
   });
 
   it('--dry-run touches nothing', () => {

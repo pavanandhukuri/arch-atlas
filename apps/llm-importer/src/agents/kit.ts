@@ -5,8 +5,9 @@ import { dump, load } from 'js-yaml';
 
 /**
  * The analysis-producer procedure, as an "agent kit": one canonical skill folder
- * (SKILL.md + sample-analysis.json) that `archatlas init` renders into whatever
- * shape each coding agent reads. Nothing here calls a model or the network.
+ * (SKILL.md + sample-analysis.json + sample-components.json) that `archatlas init`
+ * renders into whatever shape each coding agent reads. Nothing here calls a model
+ * or the network.
  */
 
 export const AGENTS = ['claude', 'copilot', 'cursor', 'codex', 'generic'] as const;
@@ -15,6 +16,8 @@ export type Agent = (typeof AGENTS)[number];
 /** Directory name the skill is installed under — the Agent Skills spec requires `name` to match it. */
 const SKILL_NAME = 'arch-atlas-import';
 const SAMPLE_FILE = 'sample-analysis.json';
+/** 014-component-layer-drilldown: the "Component drill-down" mode's own worked example. */
+const COMPONENTS_SAMPLE_FILE = 'sample-components.json';
 /** Where each agent loads project skills from. Codex and generic agents just read AGENTS.md. */
 const SKILL_ROOTS = {
   claude: '.claude/skills',
@@ -27,9 +30,10 @@ const BLOCK_END = '<!-- archatlas:repo-analysis:end -->';
 
 export interface Kit {
   description: string;
-  /** Procedure text, without frontmatter; it refers to the sample as `sample-analysis.json`. */
+  /** Procedure text, without frontmatter; it refers to the samples by their literal file names. */
   body: string;
   sampleJson: string;
+  componentsSampleJson: string;
 }
 
 export interface PlannedFile {
@@ -65,18 +69,19 @@ export function loadKit(dir: string): Kit {
     description: fm.description,
     body: `${raw.slice(match[0].length).trimEnd()}\n`,
     sampleJson: readFileSync(join(dir, SAMPLE_FILE), 'utf8'),
+    componentsSampleJson: readFileSync(join(dir, COMPONENTS_SAMPLE_FILE), 'utf8'),
   };
 }
 
 const frontmatter = (fields: Record<string, unknown>): string =>
   `---\n${dump(fields, { lineWidth: -1 })}---\n\n`;
 
-const withSamplePath = (body: string, samplePath: string): string =>
-  body.replaceAll(SAMPLE_FILE, samplePath);
+const withSamplePath = (body: string, samplePath: string, componentsSamplePath: string): string =>
+  body.replaceAll(SAMPLE_FILE, samplePath).replaceAll(COMPONENTS_SAMPLE_FILE, componentsSamplePath);
 
-/** The plain-markdown AGENTS.md form: the procedure with the sample path pointed where the sample lives. */
-export function renderAgentsMd(kit: Kit, samplePath: string): string {
-  return withSamplePath(kit.body, samplePath);
+/** The plain-markdown AGENTS.md form: the procedure with both sample paths pointed where the samples live. */
+export function renderAgentsMd(kit: Kit, samplePath: string, componentsSamplePath: string): string {
+  return withSamplePath(kit.body, samplePath, componentsSamplePath);
 }
 
 export function parseAgents(csv: string | undefined): Agent[] {
@@ -134,6 +139,8 @@ export function planInit(kit: Kit, agents: Agent[], dir: string): PlannedFile[] 
   const add = (file: PlannedFile): void => void files.set(file.path, file);
   const sharedSample = join(dir, SAMPLE_DIR, SAMPLE_FILE);
   const sharedSampleRef = `${SAMPLE_DIR}/${SAMPLE_FILE}`;
+  const sharedComponentsSample = join(dir, SAMPLE_DIR, COMPONENTS_SAMPLE_FILE);
+  const sharedComponentsSampleRef = `${SAMPLE_DIR}/${COMPONENTS_SAMPLE_FILE}`;
 
   for (const agent of agents) {
     const skillRoot = (SKILL_ROOTS as Partial<Record<Agent, string>>)[agent];
@@ -146,6 +153,11 @@ export function planInit(kit: Kit, agents: Agent[], dir: string): PlannedFile[] 
         mode: 'write',
       });
       add({ path: join(skillDir, SAMPLE_FILE), content: kit.sampleJson, mode: 'write' });
+      add({
+        path: join(skillDir, COMPONENTS_SAMPLE_FILE),
+        content: kit.componentsSampleJson,
+        mode: 'write',
+      });
       if (agent === 'copilot') {
         add({
           path: join(dir, '.github', 'prompts', `${SKILL_NAME}.prompt.md`),
@@ -156,10 +168,15 @@ export function planInit(kit: Kit, agents: Agent[], dir: string): PlannedFile[] 
     } else {
       add({
         path: join(dir, 'AGENTS.md'),
-        content: renderAgentsMd(kit, sharedSampleRef),
+        content: renderAgentsMd(kit, sharedSampleRef, sharedComponentsSampleRef),
         mode: 'block',
       });
       add({ path: sharedSample, content: kit.sampleJson, mode: 'write' });
+      add({
+        path: sharedComponentsSample,
+        content: kit.componentsSampleJson,
+        mode: 'write',
+      });
     }
   }
   return [...files.values()];

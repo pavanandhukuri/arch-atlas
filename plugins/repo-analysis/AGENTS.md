@@ -175,7 +175,7 @@ Each `{repo}.analysis.json` must satisfy the importer's `RepoAnalysisSchema`, an
 validation step for either — the `import` run in Procedure step 6 parses every analysis **and**
 components artifact it finds and names-and-skips (analysis) or simply omits (components) whichever
 one fails its schema, so a malformed file shows up in that output. Match the shapes in the JSON
-blocks above, and follow `skills/import/sample-analysis.json` / `sample-components.json` (worked examples beside
+blocks above, and follow `skills/import/sample-analysis.json` / `skills/import/sample-components.json` (worked examples beside
 this file), and they will pass. If you want to check a components artifact yourself before running
 `import` — e.g. while re-running Pass 2 alone for one repository, below — run
 `npx --yes @archatlas/llm-importer@latest validate-components {outDir}/{repoName}.components.json`;
