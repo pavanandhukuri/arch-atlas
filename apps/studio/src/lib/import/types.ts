@@ -18,12 +18,38 @@ export interface Candidate {
   override_type: string | null;
 }
 
-/** Per-repository metadata (008) the importer emits to pre-fill a container's
- * Technology / Description when Tag & Classify auto-classifies it. */
+/** 015-component-analysis-default: one repository's internal component,
+ * carried on `RepoMeta.components` — field-for-field match of
+ * `apps/llm-importer`'s `RepoComponent` (no cross-package import). */
+export interface RepoComponent {
+  name: string;
+  kind: string;
+  description: string;
+}
+
+/** 015: a relationship between two of that same repository's `components`. */
+export interface RepoComponentRelationship {
+  source: string;
+  target: string;
+  description: string;
+}
+
+/**
+ * Per-repository metadata (008) the importer emits to pre-fill a container's
+ * Technology / Description when Tag & Classify auto-classifies it.
+ *
+ * 015-component-analysis-default: `components`/`componentRelationships` are
+ * that repository's internal-structure analysis, folded in by `import`
+ * itself — `buildModel` turns these into nested `component`-kind Elements
+ * under the matching container, so a developer uploads only this one review
+ * file and already gets full container-and-component detail.
+ */
 export interface RepoMeta {
   name: string;
   description?: string;
   technology?: string;
+  components?: RepoComponent[];
+  componentRelationships?: RepoComponentRelationship[];
 }
 
 export interface ReviewFile {

@@ -7,8 +7,11 @@ import {
   readAnalysis,
   writeAnalysis,
   listAllAnalyses,
+  writeComponents,
+  tryReadComponents,
 } from '../../src/analysis/analysis-store.js';
 import type { RepoAnalysis } from '../../src/analysis/repo-analysis.schema.js';
+import type { ComponentAnalysis } from '../../src/analysis/component-analysis.schema.js';
 
 let outputDir: string;
 
@@ -22,6 +25,18 @@ function makeAnalysis(name: string): RepoAnalysis {
     frameworks: [],
     served: { httpRoutes: [], grpcServices: [], topics: [], datastores: [] },
     outbound: [],
+    analysisStatus: 'complete',
+    retryCount: 0,
+  };
+}
+
+function makeComponents(name: string): ComponentAnalysis {
+  return {
+    schemaVersion: '1.0',
+    analyzedAt: '2026-08-30T00:00:00.000Z',
+    repository: { name, path: `/${name}` },
+    components: [{ name: 'Controller', kind: 'controller', description: 'handles requests' }],
+    relationships: [],
     analysisStatus: 'complete',
     retryCount: 0,
   };
@@ -97,5 +112,38 @@ describe('listAllAnalyses', () => {
     expect(all).toEqual([]);
     expect(warn.mock.calls.flat().join(' ')).toMatch(/knowledge-graph\.json/);
     warn.mockRestore();
+  });
+});
+
+describe('writeComponents / tryReadComponents (015-component-analysis-default)', () => {
+  it('round-trips a valid components artifact under {name}.components.json', async () => {
+    const path = await writeComponents(outputDir, makeComponents('svc-a'));
+    expect(path).toContain('svc-a.components.json');
+    const result = await tryReadComponents(outputDir, 'svc-a');
+    expect(result).toEqual({ ok: true, components: makeComponents('svc-a') });
+  });
+
+  it('reports "missing" when no components artifact exists for the repo', async () => {
+    const result = await tryReadComponents(outputDir, 'nope');
+    expect(result).toEqual({ ok: false, reason: 'missing' });
+  });
+
+  it('reports "invalid" for malformed JSON', async () => {
+    await writeFile(join(outputDir, 'svc-a.components.json'), '{ not json', 'utf8');
+    const result = await tryReadComponents(outputDir, 'svc-a');
+    expect(result.ok).toBe(false);
+    expect(result).toMatchObject({ reason: 'invalid' });
+  });
+
+  it('reports "invalid" for well-formed JSON that fails the schema', async () => {
+    await writeFile(join(outputDir, 'svc-a.components.json'), JSON.stringify({ foo: 1 }), 'utf8');
+    const result = await tryReadComponents(outputDir, 'svc-a');
+    expect(result.ok).toBe(false);
+    expect(result).toMatchObject({ reason: 'invalid' });
+  });
+
+  it('refuses to persist an invalid components artifact', async () => {
+    const bad = { ...makeComponents('bad'), components: 'nope' } as unknown as ComponentAnalysis;
+    await expect(writeComponents(outputDir, bad)).rejects.toThrow();
   });
 });

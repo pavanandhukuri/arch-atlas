@@ -27,7 +27,7 @@ import {
  * 010-harness-neutral-importer: the importer core is deterministic and
  * model-free. Two subcommands, neither of which makes a model call or a network
  * request:
- *   import <config>          — review.yaml + arch.json from {repo}.analysis.json artifacts
+ *   import <config>          — review.yaml from {repo}.analysis.json (+ optional .components.json) artifacts
  *   gather-context <config>  — write {repo}.context.json bundles for an external producer
  *   init --agent <names>     — install the analysis-producer procedure for a coding agent
  *
@@ -125,11 +125,13 @@ export async function runGatherContextCommand(
 }
 
 /**
- * 014-component-layer-drilldown: `{repo}.components.json` is never read by
- * `import` (FR-010/FR-013), so — unlike `{repo}.analysis.json`, validated for
- * free as a side effect of `import` parsing every artifact — this is its one
- * explicit validation entrypoint. Synchronous: this command only ever reads
- * the one file it's given.
+ * 014-component-layer-drilldown: a standalone self-check for one
+ * `{repo}.components.json` before it's relied on elsewhere. Since
+ * 015-component-analysis-default, `import` itself also validates every such
+ * artifact it finds as a side effect of folding it into the review file (same
+ * free validation `{repo}.analysis.json` already got) — this command remains
+ * useful for checking one file on its own, before that point. Synchronous:
+ * this command only ever reads the one file it's given.
  */
 export function runValidateComponentsCommand(file: string): number {
   let raw: string;

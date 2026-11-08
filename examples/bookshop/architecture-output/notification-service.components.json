@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-11-01T09:00:00.000Z",
+  "repository": {
+    "name": "notification-service",
+    "path": "repos/notification-service",
+    "description": "Order confirmation email service"
+  },
+  "components": [
+    {
+      "name": "EventBus",
+      "kind": "consumer",
+      "description": "Subscribes handlers to Kafka topics and dispatches incoming events to them"
+    },
+    {
+      "name": "OrderPlacedHandler",
+      "kind": "handler",
+      "description": "Looks up the book title from catalog-service when an order.placed event arrives"
+    },
+    {
+      "name": "EmailSender",
+      "kind": "module",
+      "description": "Sends the order confirmation email through SendGrid"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "EventBus",
+      "target": "OrderPlacedHandler",
+      "description": "delivers the order.placed event to its handler"
+    },
+    {
+      "source": "OrderPlacedHandler",
+      "target": "EmailSender",
+      "description": "sends the confirmation once the book title is known"
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

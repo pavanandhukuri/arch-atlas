@@ -1,6 +1,7 @@
 import { access, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { RepoAnalysisSchema, type RepoAnalysis } from './repo-analysis.schema.js';
+import { ComponentAnalysisSchema, type ComponentAnalysis } from './component-analysis.schema.js';
 
 /**
  * 008: read/write the per-repository analysis artifact
@@ -11,9 +12,14 @@ import { RepoAnalysisSchema, type RepoAnalysis } from './repo-analysis.schema.js
 
 const SUFFIX = '.analysis.json';
 const LEGACY_SUFFIX = '.knowledge-graph.json';
+const COMPONENTS_SUFFIX = '.components.json';
 
 function artifactPath(outputDir: string, repoName: string): string {
   return join(outputDir, `${repoName}${SUFFIX}`);
+}
+
+function componentsArtifactPath(outputDir: string, repoName: string): string {
+  return join(outputDir, `${repoName}${COMPONENTS_SUFFIX}`);
 }
 
 export async function hasValidCachedAnalysis(
@@ -115,4 +121,56 @@ export async function listAllAnalyses(outputDir: string): Promise<RepoAnalysis[]
 
 export async function ensureOutputDir(outputDir: string): Promise<void> {
   await mkdir(outputDir, { recursive: true });
+}
+
+export type TryReadComponentsResult =
+  | { ok: true; components: ComponentAnalysis }
+  | { ok: false; reason: 'missing' | 'invalid'; detail?: string };
+
+/**
+ * 015-component-analysis-default: per-configured-repo intake of
+ * `{repo}.components.json`, read by `runImport` alongside `tryReadAnalysis` so
+ * every repository's internal structure, when present, is folded straight
+ * into `architecture.review.yaml` — never a separate artifact a human or
+ * Studio has to merge by hand. Never throws — missing is expected for a
+ * repository that doesn't have one yet; malformed is reported and that one
+ * repository's components are skipped, without failing the rest of the import
+ * (same tolerance as `tryReadAnalysis`).
+ */
+export async function tryReadComponents(
+  outputDir: string,
+  repoName: string
+): Promise<TryReadComponentsResult> {
+  let contents: string;
+  try {
+    contents = await readFile(componentsArtifactPath(outputDir, repoName), 'utf8');
+  } catch {
+    return { ok: false, reason: 'missing' };
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(contents);
+  } catch {
+    return { ok: false, reason: 'invalid', detail: 'not valid JSON' };
+  }
+  const parsed = ComponentAnalysisSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      reason: 'invalid',
+      detail: parsed.error.issues[0]?.message ?? 'schema mismatch',
+    };
+  }
+  return { ok: true, components: parsed.data };
+}
+
+export async function writeComponents(
+  outputDir: string,
+  components: ComponentAnalysis
+): Promise<string> {
+  ComponentAnalysisSchema.parse(components); // throws on invalid — never persist bad data
+  await mkdir(outputDir, { recursive: true });
+  const path = componentsArtifactPath(outputDir, components.repository.name);
+  await writeFile(path, JSON.stringify(components, null, 2), 'utf8');
+  return path;
 }

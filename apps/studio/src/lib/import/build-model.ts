@@ -186,6 +186,53 @@ export function buildModel(state: WizardState, title?: string): ArchitectureMode
     }
   }
 
+  // 1e. 015-component-analysis-default: nest each repo's internal components
+  // under its container, when reviewFile.repos[] carries them — folded in by
+  // `import` from {repo}.components.json, so this is the only file a human
+  // ever uploads; no second artifact, no separate merge step after this.
+  // Component ids are prefixed with the container's id so two repos'
+  // same-named components (e.g. two "Controller"s) never collide.
+  const repoMetaByName = new Map((reviewFile?.repos ?? []).map((r) => [r.name, r]));
+  const componentRelationships: Relationship[] = [];
+  for (const config of elementConfigs) {
+    if (config.kind !== 'container') continue;
+    const meta = repoMetaByName.get(config.name);
+    if (!meta?.components || meta.components.length === 0) continue;
+    const containerEl = elementMap.get(config.id);
+    if (!containerEl) continue;
+
+    const componentNameToId = new Map<string, string>();
+    for (const comp of meta.components) {
+      const componentId = slug(`${config.id}-${comp.name}`);
+      componentNameToId.set(comp.name, componentId);
+      elementMap.set(componentId, {
+        id: componentId,
+        kind: 'component',
+        name: comp.name,
+        description: comp.description,
+        parentId: containerEl.id,
+        componentType: comp.kind,
+      });
+    }
+
+    for (const rel of meta.componentRelationships ?? []) {
+      const sourceId = componentNameToId.get(rel.source);
+      const targetId = componentNameToId.get(rel.target);
+      // A dangling reference (a name not in this repo's own components list)
+      // would only happen on a hand-edited review file — parseReviewYaml's
+      // upstream validation doesn't guarantee it, so skip rather than throw;
+      // buildModel's only caller is a render-time useMemo.
+      if (!sourceId || !targetId) continue;
+      componentRelationships.push({
+        id: `rel-component-${sourceId}-${targetId}`,
+        sourceId,
+        targetId,
+        type: 'relates_to',
+        ...(rel.description && { description: rel.description }),
+      });
+    }
+  }
+
   const allElements = Array.from(elementMap.values());
 
   // ---- 2. Build name→id lookup ----
@@ -227,6 +274,8 @@ export function buildModel(state: WizardState, title?: string): ArchitectureMode
     };
     relationships.push(relationship);
   }
+
+  relationships.push(...componentRelationships);
 
   const modelTitle = title ?? 'Imported Architecture';
 

@@ -58,12 +58,27 @@ describe('plugins/repo-analysis (skill/plugin)', () => {
     expect(ComponentAnalysisSchema.safeParse(raw).success).toBe(true);
   });
 
-  it('SKILL.md documents the optional component drill-down mode and its validation step', () => {
+  it("SKILL.md's main Procedure writes components.json for every repository, unconditionally (015-component-analysis-default, US1)", () => {
     const skill = readFileSync(join(SKILL_DIR, 'SKILL.md'), 'utf8');
-    expect(skill).toContain('Component drill-down');
+    // The standalone opt-in mode is retired — its own heading must be gone.
+    expect(skill).not.toContain('Component drill-down (optional)');
+    expect(skill).not.toContain('a separate, opt-in mode');
+    // Its content now lives in the main loop, written for every repository.
     expect(skill).toContain('components.json');
+    expect(skill).toContain('unconditional');
     expect(skill).toContain('validate-components');
     expect(skill).toContain('sample-components.json');
+  });
+
+  it("SKILL.md's Procedure reports the external-interface and internal-structure passes as two distinguishable steps per repository (015-component-analysis-default, US2)", () => {
+    const skill = readFileSync(join(SKILL_DIR, 'SKILL.md'), 'utf8');
+    expect(skill).toContain('two');
+    expect(skill).toContain('Pass 1');
+    expect(skill).toContain('Pass 2');
+    expect(skill).toContain('external interface');
+    expect(skill).toContain('internal structure');
+    // Not just naming both passes — explicitly instructing that they be reported as distinct.
+    expect(skill.toLowerCase()).toContain('distinguishable');
   });
 
   it('README.md advertises multi-agent compatibility, not a single hosted/local trade-off', () => {

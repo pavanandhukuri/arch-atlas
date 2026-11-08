@@ -1,12 +1,17 @@
 import { z } from 'zod';
 
 /**
- * 014-component-layer-drilldown: the opt-in, per-repository "internal
- * structure" artifact, written to `{output.directory}/{repo-name}.components.json`
- * only when explicitly requested for one repository (never by the bulk `import`
- * command, which never reads this file — FR-010/FR-013). Mirrors
- * `RepoAnalysisSchema`'s completeness/status metadata exactly (schemaVersion,
- * analyzedAt, analysisStatus, retryCount) per the feature's Clarification Q2.
+ * 014-component-layer-drilldown: the per-repository "internal structure"
+ * artifact, written to `{output.directory}/{repo-name}.components.json`.
+ * Mirrors `RepoAnalysisSchema`'s completeness/status metadata exactly
+ * (schemaVersion, analyzedAt, analysisStatus, retryCount) per the feature's
+ * Clarification Q2.
+ *
+ * 015-component-analysis-default: this is now written for every repository by
+ * default, and `import` reads and validates it (folding it into
+ * `architecture.review.yaml`) exactly like it already does for
+ * `{repo}.analysis.json` — superseding this comment's original "never read by
+ * the bulk import command" framing.
  *
  * `components[].kind` is intentionally free text, not a closed enum — scoring
  * (FR-015) matches components by normalized `name` alone and ignores `kind`.

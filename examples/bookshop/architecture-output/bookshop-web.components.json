@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-11-01T09:00:00.000Z",
+  "repository": {
+    "name": "bookshop-web",
+    "path": "repos/bookshop-web",
+    "description": "Customer-facing web frontend"
+  },
+  "components": [
+    {
+      "name": "AuthClient",
+      "kind": "module",
+      "description": "Holds the Keycloak session and its access token"
+    },
+    {
+      "name": "ApiClient",
+      "kind": "module",
+      "description": "Wraps fetch with the bearer token and calls the api-gateway's REST endpoints"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "ApiClient",
+      "target": "AuthClient",
+      "description": "reads the current access token to attach to every request"
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

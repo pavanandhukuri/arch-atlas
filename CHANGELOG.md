@@ -4,6 +4,29 @@ All notable user-facing changes SHOULD be documented in this file.
 
 ## Unreleased
 
+### Changed — component-layer analysis is now default, folded into the one review file
+
+- Every repository in a workspace now gets the internal-structure analysis below automatically,
+  as part of the same single import request a developer already makes — no separate "drill into
+  this container" ask, no opt-out. `plugins/repo-analysis/skills/import/SKILL.md`'s main
+  per-repository loop writes `{repoName}.components.json` for every repository unconditionally,
+  right alongside `{repoName}.analysis.json`; the agent's reported progress names both passes per
+  repository so the added cost is visible as it happens.
+- `import` itself now reads every `{repoName}.components.json` it finds and folds it directly onto
+  that repository's entry in `architecture.review.yaml` (new optional `repos[].components` /
+  `repos[].componentRelationships` fields; `apps/llm-importer/src/analysis/analysis-store.ts` gained
+  `tryReadComponents`/`writeComponents`, mirroring the existing `.analysis.json` pair). A developer
+  still ever uploads exactly one file into Studio — there is no second upload, no new wizard slot,
+  and no CLI command for anyone to remember. Studio's `buildModel` creates the nested `component`
+  elements directly from that one file, in the same single layout pass it already computes for
+  every container — no separate merge step, no separate artifact to go missing.
+- The `archatlas attach-components`/`validate-components` CLI commands and the
+  `ComponentAnalysisSchema` they validate against are unchanged — they now serve the edge case of
+  re-running this pass for one repository after a diagram has already been finalized outside
+  `import` (where there's no more `import` run to fold a refresh into).
+- The Bookshop demo workspace gained five committed `{repo}.components.json` fixtures so cloning
+  and running it demonstrates the real default behavior.
+
 ### Added — opt-in Component-layer drill-down, one level below Container
 
 - A developer can request a bounded summary of one repository's _internal_ structure (major
