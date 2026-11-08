@@ -6,6 +6,8 @@ import type {
   CandidateConfidence,
   CandidateStatus,
   RepoMeta,
+  RepoComponent,
+  RepoComponentRelationship,
 } from './types';
 
 const VALID_TYPES: CandidateType[] = ['database', 'http', 'kafka', 'queue', 'grpc'];
@@ -62,16 +64,54 @@ export function parseReviewYaml(text: string): { file: ReviewFile; candidates: C
   // 008: optional per-repo metadata (description/technology) the importer emits
   // to pre-fill Tag & Classify. Best-effort like `systems` above — a malformed
   // entry is skipped, not a reason to fail the whole import.
+  //
+  // 015-component-analysis-default: `components`/`componentRelationships` are
+  // that repository's internal-structure analysis, folded in by `import`
+  // itself — same best-effort tolerance, a malformed component/relationship
+  // entry is dropped rather than failing the whole parse.
   const parsedRepos: RepoMeta[] = [];
   if (isArray(obj['repos'])) {
     for (const r of obj['repos']) {
       if (!r || typeof r !== 'object') continue;
       const meta = r as Record<string, unknown>;
       if (!isString(meta['name'])) continue;
+
+      const components: RepoComponent[] = [];
+      if (isArray(meta['components'])) {
+        for (const c of meta['components']) {
+          if (!c || typeof c !== 'object') continue;
+          const comp = c as Record<string, unknown>;
+          if (!isString(comp['name']) || !isString(comp['kind']) || !isString(comp['description']))
+            continue;
+          components.push({
+            name: comp['name'],
+            kind: comp['kind'],
+            description: comp['description'],
+          });
+        }
+      }
+
+      const componentRelationships: RepoComponentRelationship[] = [];
+      if (isArray(meta['componentRelationships'])) {
+        for (const rel of meta['componentRelationships']) {
+          if (!rel || typeof rel !== 'object') continue;
+          const r2 = rel as Record<string, unknown>;
+          if (!isString(r2['source']) || !isString(r2['target']) || !isString(r2['description']))
+            continue;
+          componentRelationships.push({
+            source: r2['source'],
+            target: r2['target'],
+            description: r2['description'],
+          });
+        }
+      }
+
       parsedRepos.push({
         name: meta['name'],
         ...(isString(meta['description']) && { description: meta['description'] }),
         ...(isString(meta['technology']) && { technology: meta['technology'] }),
+        ...(components.length > 0 && { components }),
+        ...(componentRelationships.length > 0 && { componentRelationships }),
       });
     }
   }

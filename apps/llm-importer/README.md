@@ -100,13 +100,18 @@ npx --yes @archatlas/llm-importer@latest init --agent claude,cursor,copilot   # 
 `codex` and `generic` get a marked block in `AGENTS.md`. Idempotent, `--dry-run` supported; see
 [`plugins/repo-analysis/README.md`](../../plugins/repo-analysis/README.md#install-for-your-agent).
 
-That same skill has an optional "Component drill-down" mode: ask your agent to analyze one
-repository's _internal_ structure (its major controllers/services/repositories) instead of the
-usual cross-repo external-interface summary. It writes a bounded `{repo}.components.json`,
-self-checks it with `archatlas validate-components <file>`, then merges it straight into your
-existing `.arch.json` with `archatlas attach-components <arch-file> <components-file> --container
-<name>` — no second persisted file, no upload step in Studio, just reopen the same diagram.
-Opt-in, one repository at a time; never changes `import` or `gather-context`'s output.
+That same skill now determines each repository's _internal_ structure (its major
+controllers/services/repositories) by default, unconditionally, as a second pass alongside the
+usual external-interface summary — not a separate ask. It writes a bounded
+`{repoName}.components.json` for every repository, same as `{repoName}.analysis.json`, and `import`
+folds each one it finds straight into that repository's entry in `architecture.review.yaml`
+(`repos[].components`/`repos[].componentRelationships`). There is still only ever one file to
+upload into Studio — the review artifact already carries full container-and-component detail, no
+second upload, no CLI step for anyone to remember. `archatlas validate-components <file>` and
+`archatlas attach-components <arch-file> <components-file> --container <name>` still exist for
+re-running this pass for a single repository on its own (e.g. after finalizing a diagram outside
+Studio, where there's no `import` run left to re-fold it in) — see
+[`plugins/repo-analysis/skills/import/SKILL.md`](../../plugins/repo-analysis/skills/import/SKILL.md#re-running-internal-structure-for-one-repository).
 
 ## Development
 
