@@ -4,8 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ImportConfig } from '../../src/config/config.schema.js';
 import type { RepoAnalysis } from '../../src/analysis/repo-analysis.schema.js';
+import type { ComponentAnalysis } from '../../src/analysis/component-analysis.schema.js';
 import { runImport, type RunImportOptions } from '../../src/analysis/run-import.js';
-import { writeAnalysis } from '../../src/analysis/analysis-store.js';
+import { writeAnalysis, writeComponents } from '../../src/analysis/analysis-store.js';
 import {
   EXTRA_CONNECTIONS_FILE,
   EXTRA_CONNECTIONS_VERSION,
@@ -23,6 +24,19 @@ function makeAnalysis(name: string, over: Partial<RepoAnalysis> = {}): RepoAnaly
     frameworks: ['Express'],
     served: { httpRoutes: [], grpcServices: [], topics: [], datastores: [] },
     outbound: [],
+    analysisStatus: 'complete',
+    retryCount: 0,
+    ...over,
+  };
+}
+
+function makeComponents(name: string, over: Partial<ComponentAnalysis> = {}): ComponentAnalysis {
+  return {
+    schemaVersion: '1.0',
+    analyzedAt: '2026-08-31T00:00:00.000Z',
+    repository: { name, path: `/${name}` },
+    components: [{ name: 'Controller', kind: 'controller', description: 'handles requests' }],
+    relationships: [],
     analysisStatus: 'complete',
     retryCount: 0,
     ...over,
@@ -323,5 +337,118 @@ describe('runImport — model-free core (010)', () => {
     const second = await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8');
     const strip = (s: string): string => s.replace(/"generated_at":\s*"[^"]+"/, '');
     expect(strip(first)).toBe(strip(second));
+  });
+
+  describe('015-component-analysis-default: folding {repo}.components.json into repos[]', () => {
+    it("carries a repository's components + componentRelationships onto its repos[] entry", async () => {
+      await writeAnalysis(outputDir, makeAnalysis('service-a'));
+      await writeComponents(
+        outputDir,
+        makeComponents('service-a', {
+          components: [
+            { name: 'Controller', kind: 'controller', description: 'handles requests' },
+            { name: 'Repository', kind: 'repository', description: 'reads the db' },
+          ],
+          relationships: [{ source: 'Controller', target: 'Repository', description: 'queries' }],
+        })
+      );
+
+      await runImport(makeConfig(), OPTS);
+
+      const review = JSON.parse(
+        await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+      ) as {
+        repos: Array<{
+          name: string;
+          components?: Array<{ name: string }>;
+          componentRelationships?: Array<{ source: string; target: string }>;
+        }>;
+      };
+      const meta = review.repos.find((r) => r.name === 'service-a');
+      expect(meta?.components).toEqual([
+        { name: 'Controller', kind: 'controller', description: 'handles requests' },
+        { name: 'Repository', kind: 'repository', description: 'reads the db' },
+      ]);
+      expect(meta?.componentRelationships).toEqual([
+        { source: 'Controller', target: 'Repository', description: 'queries' },
+      ]);
+    });
+
+    it('a repository with no components.json has no components field and is not skipped (FR-008 near-empty is still valid elsewhere, missing is fine here)', async () => {
+      await writeAnalysis(outputDir, makeAnalysis('service-a'));
+
+      await runImport(makeConfig(), OPTS);
+
+      const review = JSON.parse(
+        await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+      ) as { repos: Array<{ name: string; components?: unknown }> };
+      const meta = review.repos.find((r) => r.name === 'service-a');
+      expect(meta?.components).toBeUndefined();
+      expect(review.repos).toHaveLength(1);
+    });
+
+    it('warns and omits components for a malformed {repo}.components.json, without failing the import', async () => {
+      await writeAnalysis(outputDir, makeAnalysis('service-a'));
+      await writeFile(
+        join(outputDir, 'service-a.components.json'),
+        '{ "schemaVersion": "1.0" }',
+        'utf8'
+      );
+
+      await runImport(makeConfig(), OPTS);
+
+      expect(errs.join('\n')).toMatch(/\[warn\] service-a: invalid components artifact/);
+      const review = JSON.parse(
+        await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+      ) as { repos: Array<{ name: string; components?: unknown }>; source_repos: string[] };
+      expect(review.source_repos).toEqual(['service-a']);
+      expect(review.repos.find((r) => r.name === 'service-a')?.components).toBeUndefined();
+    });
+
+    it("re-running import refreshes a repository's components rather than duplicating them (FR-009)", async () => {
+      await writeAnalysis(outputDir, makeAnalysis('service-a'));
+      await writeComponents(
+        outputDir,
+        makeComponents('service-a', {
+          components: [{ name: 'Old', kind: 'module', description: 'stale' }],
+        })
+      );
+      await runImport(makeConfig(), OPTS);
+
+      await writeComponents(
+        outputDir,
+        makeComponents('service-a', {
+          components: [{ name: 'New', kind: 'module', description: 'fresh' }],
+        })
+      );
+      await runImport(makeConfig(), OPTS);
+
+      const review = JSON.parse(
+        await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+      ) as { repos: Array<{ name: string; components?: Array<{ name: string }> }> };
+      expect(review.repos.find((r) => r.name === 'service-a')?.components).toEqual([
+        { name: 'New', kind: 'module', description: 'fresh' },
+      ]);
+    });
+
+    it('each repository only gets its own components.json — no cross-repo leakage', async () => {
+      await writeAnalysis(outputDir, makeAnalysis('service-a'));
+      await writeAnalysis(outputDir, makeAnalysis('service-b'));
+      await writeComponents(outputDir, makeComponents('service-a'));
+      const config = makeConfig({
+        repositories: [
+          { path: '/service-a', name: 'service-a' },
+          { path: '/service-b', name: 'service-b' },
+        ],
+      });
+
+      await runImport(config, OPTS);
+
+      const review = JSON.parse(
+        await readFile(join(outputDir, 'architecture.review.yaml'), 'utf8')
+      ) as { repos: Array<{ name: string; components?: unknown }> };
+      expect(review.repos.find((r) => r.name === 'service-a')?.components).toBeDefined();
+      expect(review.repos.find((r) => r.name === 'service-b')?.components).toBeUndefined();
+    });
   });
 });

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-11-01T09:00:00.000Z",
+  "repository": {
+    "name": "catalog-service",
+    "path": "repos/catalog-service",
+    "description": "Book catalogue service"
+  },
+  "components": [
+    {
+      "name": "BookController",
+      "kind": "controller",
+      "description": "Serves GET /books and GET /books/{isbn}, attaching a presigned cover URL to each book"
+    },
+    {
+      "name": "BookRepository",
+      "kind": "repository",
+      "description": "Spring Data JPA repository for the books table in PostgreSQL"
+    },
+    {
+      "name": "CoverStorage",
+      "kind": "module",
+      "description": "Generates presigned S3 URLs for a book's cover image"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "BookController",
+      "target": "BookRepository",
+      "description": "fetches the requested book or book list"
+    },
+    {
+      "source": "BookController",
+      "target": "CoverStorage",
+      "description": "presigns the cover URL before returning the book"
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

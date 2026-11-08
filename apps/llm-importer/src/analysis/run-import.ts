@@ -2,9 +2,10 @@ import { statSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { ImportConfig } from '../config/config.schema.js';
-import { ensureOutputDir, tryReadAnalysis } from './analysis-store.js';
+import { ensureOutputDir, tryReadAnalysis, tryReadComponents } from './analysis-store.js';
 import { toCorrelationGraph } from './to-correlation-graph.js';
 import type { RepoAnalysis } from './repo-analysis.schema.js';
+import type { ComponentAnalysis } from './component-analysis.schema.js';
 import type { RepoMeta, ReviewFile } from '../review/review-file.js';
 import type { RepositoryKnowledgeGraph } from '../graph/schema.js';
 import { correlateDeterministically } from '../correlate/deterministic-correlator.js';
@@ -17,6 +18,12 @@ import { assembleReviewFile } from '../review/assemble-review.js';
  * (produced by an external analysis producer), runs the unchanged cross-repo
  * correlation, merges the optional `architecture.extra-connections.json`, and
  * writes the review artifact. No model call, no network request.
+ *
+ * 015-component-analysis-default: it also reads each repository's optional
+ * `{repo}.components.json` (its internal-structure analysis) and folds it
+ * directly onto that repo's `repos[]` entry in the review artifact — so the
+ * one file this command writes is still the only file a human ever needs to
+ * upload into Studio, container-and-component detail included.
  *
  * `import` writes ONLY `architecture.review.yaml` — every candidate `pending`,
  * for a human to review in Studio's import wizard. It does not also write a
@@ -54,13 +61,24 @@ function techLabel(analysis: RepoAnalysis): string {
   return lang ?? framework ?? analysis.frameworks[0] ?? 'unknown';
 }
 
-/** 008 US3: per-repo metadata carried onto the review artifact's `repos[]`. */
-function toRepoMeta(analysis: RepoAnalysis): RepoMeta {
+/**
+ * 008 US3 + 015-component-analysis-default: per-repo metadata carried onto
+ * the review artifact's `repos[]` — description/technology (008), and now
+ * also that repository's internal components/relationships, when a
+ * `{repo}.components.json` was found alongside its `.analysis.json`. Folding
+ * it in here (rather than a second artifact Studio has to separately ingest)
+ * is what keeps `architecture.review.yaml` the one file a human ever uploads.
+ */
+function toRepoMeta(analysis: RepoAnalysis, components: ComponentAnalysis | undefined): RepoMeta {
   const tech = techLabel(analysis);
   return {
     name: analysis.repository.name,
     ...(analysis.description ? { description: analysis.description } : {}),
     ...(tech !== 'unknown' ? { technology: tech } : {}),
+    ...(components && {
+      components: components.components,
+      componentRelationships: components.relationships,
+    }),
   };
 }
 
@@ -133,6 +151,7 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
 
   const graphs: RepositoryKnowledgeGraph[] = [];
   const analysesByName = new Map<string, RepoAnalysis>();
+  const componentsByName = new Map<string, ComponentAnalysis>();
 
   for (const entry of selected) {
     const name = repoName(entry);
@@ -156,6 +175,20 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
     analysesByName.set(result.analysis.repository.name, result.analysis);
     graphs.push(toCorrelationGraph(result.analysis));
     log(`[load] ${name}: ${techLabel(result.analysis)}`);
+
+    // 015-component-analysis-default: a {repo}.components.json is optional —
+    // missing is the normal case for a repo analyzed before this feature, or
+    // mid-import, and is not reported. Malformed is reported but never fails
+    // the import; this repository's external-interface analysis above still
+    // makes it into the review either way.
+    const componentsResult = await tryReadComponents(outputDir, name);
+    if (componentsResult.ok) {
+      componentsByName.set(result.analysis.repository.name, componentsResult.components);
+    } else if (componentsResult.reason === 'invalid') {
+      log(
+        `[warn] ${name}: invalid components artifact — ${componentsResult.detail ?? 'schema mismatch'}`
+      );
+    }
   }
 
   if (graphs.length === 0) {
@@ -178,7 +211,10 @@ export async function runImport(config: ImportConfig, options: RunImportOptions)
   if (extra.length > 0) log(`  extra-connections: ${extra.length} loaded`);
 
   const repoMetaByName = new Map(
-    [...analysesByName.values()].map((a) => [a.repository.name, toRepoMeta(a)])
+    [...analysesByName.values()].map((a) => [
+      a.repository.name,
+      toRepoMeta(a, componentsByName.get(a.repository.name)),
+    ])
   );
 
   const systems = resolveSystems(config, new Set(analysesByName.keys()));

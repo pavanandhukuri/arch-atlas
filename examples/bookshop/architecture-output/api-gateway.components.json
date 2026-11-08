@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-11-01T09:00:00.000Z",
+  "repository": {
+    "name": "api-gateway",
+    "path": "repos/api-gateway",
+    "description": "Public entry point: authentication and reverse proxy"
+  },
+  "components": [
+    {
+      "name": "AuthMiddleware",
+      "kind": "middleware",
+      "description": "Validates the bearer token against Keycloak's JWKS before letting a request through"
+    },
+    {
+      "name": "BookProxyHandler",
+      "kind": "handler",
+      "description": "Reverse-proxies /api/books requests to catalog-service"
+    },
+    {
+      "name": "OrderProxyHandler",
+      "kind": "handler",
+      "description": "Reverse-proxies /api/orders requests to order-service"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "AuthMiddleware",
+      "target": "BookProxyHandler",
+      "description": "lets an authenticated request reach the catalog proxy"
+    },
+    {
+      "source": "AuthMiddleware",
+      "target": "OrderProxyHandler",
+      "description": "lets an authenticated request reach the order proxy"
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

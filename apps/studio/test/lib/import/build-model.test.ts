@@ -408,4 +408,195 @@ describe('buildModel', () => {
     expect(buildModel(emptyState).metadata.title).toBe('Imported Architecture');
     expect(buildModel(emptyState, 'My Import').metadata.title).toBe('My Import');
   });
+
+  // 015-component-analysis-default: a repo's components/componentRelationships,
+  // folded by `import` onto reviewFile.repos[], become nested component
+  // elements under the matching container — no second artifact, no separate
+  // merge step; the one review file already carries full detail.
+  describe('nested components from reviewFile.repos[].components', () => {
+    function containerConfig(name: string): ElementConfig {
+      return {
+        id: name,
+        name,
+        displayName: name,
+        kind: 'container',
+        isExternal: false,
+        tags: [],
+      };
+    }
+
+    it('creates a component element parented to its matching container', () => {
+      const state: WizardState = {
+        ...emptyState,
+        elements: [containerConfig('catalog-service')],
+        reviewFile: {
+          version: '1.0',
+          generated_at: '',
+          source_repos: ['catalog-service'],
+          systems: [],
+          candidates: [],
+          repos: [
+            {
+              name: 'catalog-service',
+              components: [
+                { name: 'BookController', kind: 'controller', description: 'serves /books' },
+              ],
+            },
+          ],
+        },
+      };
+
+      const model = buildModel(state);
+
+      const component = model.elements.find((e) => e.kind === 'component');
+      expect(component).toMatchObject({
+        kind: 'component',
+        name: 'BookController',
+        componentType: 'controller',
+        description: 'serves /books',
+        parentId: 'catalog-service',
+      });
+    });
+
+    it('creates a relationship between two components of the same repo', () => {
+      const state: WizardState = {
+        ...emptyState,
+        elements: [containerConfig('catalog-service')],
+        reviewFile: {
+          version: '1.0',
+          generated_at: '',
+          source_repos: ['catalog-service'],
+          systems: [],
+          candidates: [],
+          repos: [
+            {
+              name: 'catalog-service',
+              components: [
+                { name: 'BookController', kind: 'controller', description: 'x' },
+                { name: 'BookRepository', kind: 'repository', description: 'y' },
+              ],
+              componentRelationships: [
+                { source: 'BookController', target: 'BookRepository', description: 'fetches' },
+              ],
+            },
+          ],
+        },
+      };
+
+      const model = buildModel(state);
+
+      const controller = model.elements.find((e) => e.name === 'BookController');
+      const repository = model.elements.find((e) => e.name === 'BookRepository');
+      expect(
+        model.relationships.some(
+          (r) => r.sourceId === controller?.id && r.targetId === repository?.id
+        )
+      ).toBe(true);
+    });
+
+    it('positions every component element in the single root view', () => {
+      const state: WizardState = {
+        ...emptyState,
+        elements: [containerConfig('catalog-service')],
+        reviewFile: {
+          version: '1.0',
+          generated_at: '',
+          source_repos: ['catalog-service'],
+          systems: [],
+          candidates: [],
+          repos: [
+            {
+              name: 'catalog-service',
+              components: [{ name: 'BookController', kind: 'controller', description: 'x' }],
+            },
+          ],
+        },
+      };
+
+      const model = buildModel(state);
+
+      const component = model.elements.find((e) => e.kind === 'component');
+      const positionedIds = model.views[0]?.layout.nodes.map((n) => n.elementId) ?? [];
+      expect(component).toBeDefined();
+      expect(positionedIds).toContain(component?.id);
+    });
+
+    it('does not collide component ids across two repos that each have a same-named component', () => {
+      const state: WizardState = {
+        ...emptyState,
+        elements: [containerConfig('catalog-service'), containerConfig('order-service')],
+        reviewFile: {
+          version: '1.0',
+          generated_at: '',
+          source_repos: ['catalog-service', 'order-service'],
+          systems: [],
+          candidates: [],
+          repos: [
+            {
+              name: 'catalog-service',
+              components: [{ name: 'Controller', kind: 'controller', description: 'x' }],
+            },
+            {
+              name: 'order-service',
+              components: [{ name: 'Controller', kind: 'controller', description: 'y' }],
+            },
+          ],
+        },
+      };
+
+      const model = buildModel(state);
+
+      const controllers = model.elements.filter((e) => e.name === 'Controller');
+      expect(controllers).toHaveLength(2);
+      expect(new Set(controllers.map((e) => e.id)).size).toBe(2);
+      expect(controllers.find((e) => e.parentId === 'catalog-service')).toBeDefined();
+      expect(controllers.find((e) => e.parentId === 'order-service')).toBeDefined();
+    });
+
+    it('adds nothing extra for a container whose repo has no components (regression: unchanged diagram)', () => {
+      const state: WizardState = {
+        ...emptyState,
+        elements: [containerConfig('catalog-service')],
+        reviewFile: {
+          version: '1.0',
+          generated_at: '',
+          source_repos: ['catalog-service'],
+          systems: [],
+          candidates: [],
+          repos: [{ name: 'catalog-service', technology: 'Java' }],
+        },
+      };
+
+      const model = buildModel(state);
+
+      expect(model.elements.some((e) => e.kind === 'component')).toBe(false);
+    });
+
+    it('skips a relationship referencing a component name not in that repo, without throwing', () => {
+      const state: WizardState = {
+        ...emptyState,
+        elements: [containerConfig('catalog-service')],
+        reviewFile: {
+          version: '1.0',
+          generated_at: '',
+          source_repos: ['catalog-service'],
+          systems: [],
+          candidates: [],
+          repos: [
+            {
+              name: 'catalog-service',
+              components: [{ name: 'BookController', kind: 'controller', description: 'x' }],
+              componentRelationships: [
+                { source: 'BookController', target: 'NoSuchComponent', description: 'bad' },
+              ],
+            },
+          ],
+        },
+      };
+
+      expect(() => buildModel(state)).not.toThrow();
+      const model = buildModel(state);
+      expect(model.relationships).toHaveLength(0);
+    });
+  });
 });

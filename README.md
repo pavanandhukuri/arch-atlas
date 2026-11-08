@@ -47,11 +47,14 @@ disk (no auth needed).
    Windsurf, Gemini CLI and the rest. Full table:
    [`plugins/repo-analysis/README.md`](plugins/repo-analysis/README.md#install-for-your-agent).
 
-3. Ask your agent to import the workspace. It analyzes each repository, then runs the importer
-   itself (`npx @archatlas/llm-importer@latest import import.yaml`) — fully deterministic, no
-   model call — producing `architecture.review.yaml`.
-4. Upload that file into [Studio's import wizard](https://arch-atlas-studio.vercel.app/import) to
-   review the proposed connections and build the diagram.
+3. Ask your agent to import the workspace. For every repository, it determines both the external
+   interface (same as always) and the internal structure — unconditionally, every time, no second
+   ask — then runs the importer itself (`npx @archatlas/llm-importer@latest import import.yaml`,
+   fully deterministic, no model call), which folds every repository's internal structure straight
+   into `architecture.review.yaml` as it writes it.
+4. Upload that one file into [Studio's import wizard](https://arch-atlas-studio.vercel.app/import)
+   to review the proposed connections — every container already shows its internal components,
+   with nothing else to upload and no further request.
 
 See [`apps/llm-importer/README.md`](apps/llm-importer/README.md) for the full CLI reference and
 the producer contract behind step 2–3.
@@ -87,10 +90,12 @@ git clone https://github.com/pavanandhukuri/arch-atlas.git && cd arch-atlas/exam
 npx --yes @archatlas/llm-importer@latest import import.yaml   # → architecture-output/architecture.review.yaml
 ```
 
-Then open the hosted Studio at [arch-atlas-studio.vercel.app/import](https://arch-atlas-studio.vercel.app/import),
-upload `architecture.review.yaml`, and confirm the proposed connections. The system grouping is
-pre-filled from `import.yaml`, high-confidence connections are pre-accepted, and each proposal
-shows the evidence behind it.
+Then open the hosted Studio at [arch-atlas-studio.vercel.app/import](https://arch-atlas-studio.vercel.app/import)
+and upload just that one `architecture.review.yaml` to confirm the proposed connections. The
+system grouping is pre-filled from `import.yaml`, high-confidence connections are pre-accepted,
+each proposal shows the evidence behind it, and every one of the five containers already shows its
+internal components — folded in from the five committed `*.components.json` fixtures in
+`architecture-output/` when you ran `import` above, nothing else to upload.
 
 ![Importing the Bookshop workspace with a coding agent, then reviewing it in Studio](docs/media/bookshop-demo.gif)
 

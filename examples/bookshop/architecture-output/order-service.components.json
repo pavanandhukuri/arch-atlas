@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "1.0",
+  "analyzedAt": "2026-11-01T09:00:00.000Z",
+  "repository": {
+    "name": "order-service",
+    "path": "repos/order-service",
+    "description": "Order placement and lookup service"
+  },
+  "components": [
+    {
+      "name": "OrderController",
+      "kind": "controller",
+      "description": "Express routes for placing an order and looking one up by id"
+    },
+    {
+      "name": "CatalogClient",
+      "kind": "module",
+      "description": "Looks up a book's unit price from catalog-service"
+    },
+    {
+      "name": "PaymentsClient",
+      "kind": "module",
+      "description": "Charges the customer's card for the order total through Stripe"
+    },
+    {
+      "name": "EventPublisher",
+      "kind": "module",
+      "description": "Publishes order domain events to Kafka"
+    },
+    {
+      "name": "OrdersRepository",
+      "kind": "repository",
+      "description": "Reads and writes the orders table in PostgreSQL"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "OrderController",
+      "target": "CatalogClient",
+      "description": "prices the order before charging the customer"
+    },
+    {
+      "source": "OrderController",
+      "target": "PaymentsClient",
+      "description": "charges the card for the priced total"
+    },
+    {
+      "source": "OrderController",
+      "target": "OrdersRepository",
+      "description": "persists the new order once payment succeeds"
+    },
+    {
+      "source": "OrderController",
+      "target": "EventPublisher",
+      "description": "announces that the order was placed"
+    }
+  ],
+  "analysisStatus": "complete",
+  "retryCount": 0
+}

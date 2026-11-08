@@ -296,6 +296,75 @@ repos:
     expect(file.repos).toEqual([{ name: 'a' }]);
   });
 
+  it('parses repos[].components and componentRelationships (015-component-analysis-default)', () => {
+    const yaml = `
+version: '1.0'
+generated_at: '2026-08-01T00:00:00.000Z'
+source_repos: [catalog-service]
+candidates: []
+repos:
+  - name: catalog-service
+    components:
+      - name: BookController
+        kind: controller
+        description: serves /books
+      - name: BookRepository
+        kind: repository
+        description: reads the books table
+    componentRelationships:
+      - source: BookController
+        target: BookRepository
+        description: fetches books
+`;
+    const { file } = parseReviewYaml(yaml);
+    expect(file.repos).toEqual([
+      {
+        name: 'catalog-service',
+        components: [
+          { name: 'BookController', kind: 'controller', description: 'serves /books' },
+          { name: 'BookRepository', kind: 'repository', description: 'reads the books table' },
+        ],
+        componentRelationships: [
+          { source: 'BookController', target: 'BookRepository', description: 'fetches books' },
+        ],
+      },
+    ]);
+  });
+
+  it('omits components/componentRelationships on a repos[] entry that has neither', () => {
+    const yaml = `
+version: '1.0'
+generated_at: '2026-08-01T00:00:00.000Z'
+source_repos: [a]
+candidates: []
+repos:
+  - name: a
+    technology: Go
+`;
+    const { file } = parseReviewYaml(yaml);
+    expect(file.repos).toEqual([{ name: 'a', technology: 'Go' }]);
+  });
+
+  it('skips a malformed component entry rather than failing the whole parse', () => {
+    const yaml = `
+version: '1.0'
+generated_at: '2026-08-01T00:00:00.000Z'
+source_repos: [a]
+candidates: []
+repos:
+  - name: a
+    components:
+      - kind: 'no name, dropped'
+      - name: Valid
+        kind: module
+        description: fine
+`;
+    const { file } = parseReviewYaml(yaml);
+    expect(file.repos?.[0]?.components).toEqual([
+      { name: 'Valid', kind: 'module', description: 'fine' },
+    ]);
+  });
+
   it('normalizes non-string override_name/override_type to null', () => {
     const yaml = `
 version: '1.0'
